@@ -1,0 +1,139 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import Navbar from '@/components/layout/Navbar'
+import Footer from '@/components/layout/Footer'
+
+export const metadata: Metadata = {
+  title: 'Pricing - Recovery Provider Plans',
+  description: 'Join RescueGo as a recovery provider. Choose Starter, Pro, Business, or Pay Per Job plans and start receiving UAE roadside recovery requests.',
+  alternates: { canonical: 'https://rescuego.ae/pricing' },
+  openGraph: {
+    title: 'RescueGo Pricing - Recovery Provider Plans',
+    description: 'Provider subscriptions and pay-per-job access for UAE roadside recovery businesses.',
+    url: 'https://rescuego.ae/pricing',
+  },
+}
+
+const PLANS = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: 249,
+    period: '/month',
+    highlight: false,
+    cta: 'Get Started',
+    features: ['15 job requests per month', '12 AED overage per extra job', '15% commission on premium jobs', 'Normal queue priority', 'Provider dashboard access', 'Customer ratings and reviews'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 449,
+    period: '/month',
+    highlight: true,
+    cta: 'Start Pro',
+    features: ['35 job requests per month', '12 AED overage per extra job', '10% commission on premium jobs', 'High queue priority', 'Provider dashboard access', 'Customer ratings and reviews'],
+  },
+  {
+    id: 'business',
+    name: 'Business',
+    price: 849,
+    period: '/month',
+    highlight: false,
+    cta: 'Go Business',
+    features: ['Unlimited job requests', 'No overage fees', '0% commission on all jobs', 'Always shown first to customers', 'Provider dashboard access', 'Verified badge eligibility'],
+  },
+]
+
+export default function PricingPage() {
+  return (
+    <>
+      <Navbar />
+      <main className="pt-16">
+        <section className="bg-slate-950 text-white px-4 py-16 text-center">
+          <h1 className="text-3xl md:text-5xl font-bold mb-4">Simple, Transparent Pricing</h1>
+          <p className="text-slate-300 text-lg max-w-2xl mx-auto">For recovery providers. Customers always use RescueGo for free.</p>
+        </section>
+
+        <section className="py-16 px-4 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              {PLANS.map((plan) => (
+                <div key={plan.id} className={`rounded-2xl border-2 p-8 relative ${plan.highlight ? 'border-orange-500 shadow-xl shadow-orange-100' : 'border-slate-200'}`}>
+                  {plan.highlight && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-sm font-bold px-4 py-1 rounded-full">Most Popular</div>
+                  )}
+                  <div className="font-bold text-xl text-slate-900 mb-2">{plan.name}</div>
+                  <div className="flex items-end gap-1 mb-6">
+                    <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
+                    <span className="text-slate-500 mb-1">AED{plan.period}</span>
+                  </div>
+                  <ul className="flex flex-col gap-2.5 mb-8">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
+                        <span className="text-green-500 font-bold mt-0.5">✓</span>{feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={`/provider/register?plan=${plan.id}`} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
+                    {plan.cta}
+                  </Link>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Pay Per Job</h2>
+                  <p className="text-slate-600 mt-1">No monthly fee. Pay 28% commission per job you accept.</p>
+                  <ul className="mt-3 flex flex-col gap-1.5">
+                    {['Free to register', '28% commission per accepted job', 'Lowest queue priority', 'No monthly commitment'].map(feature => (
+                      <li key={feature} className="text-sm text-slate-600 flex items-center gap-2"><span className="text-green-500">✓</span>{feature}</li>
+                    ))}
+                  </ul>
+                </div>
+                <Link href="/provider/register?plan=pay_per_job" className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
+                  Start Free
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-12 px-4 bg-slate-50">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Plan Comparison</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden bg-white">
+                <thead className="bg-slate-800 text-white">
+                  <tr>
+                    {['Feature', 'Pay Per Job', 'Starter', 'Pro', 'Business'].map(heading => (
+                      <th key={heading} className="px-4 py-3 text-left font-semibold">{heading}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {[
+                    ['Monthly Fee', 'Free', '249 AED', '449 AED', '849 AED'],
+                    ['Jobs/Month', 'Unlimited', '15', '35', 'Unlimited'],
+                    ['Overage Fee', '-', '12 AED/job', '12 AED/job', 'None'],
+                    ['Commission', '28% all jobs', '15% over 400 AED', '10% over 400 AED', '0%'],
+                    ['Queue Priority', 'Lowest', 'Normal', 'High', 'Always First'],
+                  ].map(([feature, ...values]) => (
+                    <tr key={feature} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-medium text-slate-800">{feature}</td>
+                      {values.map((value) => (
+                        <td key={value} className="px-4 py-3 text-slate-600">{value}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </>
+  )
+}

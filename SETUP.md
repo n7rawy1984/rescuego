@@ -1,0 +1,465 @@
+# RescueGo Setup Guide
+
+This guide explains how to connect RescueGo to Supabase and Stripe so login, registration, provider review, requests, documents, and payments work locally.
+
+## 1. Supabase Project Setup
+
+1. Go to https://supabase.com/dashboard.
+2. Create a new project.
+3. Choose a strong database password and save it securely.
+4. Wait until the project is fully provisioned.
+5. Open `Project Settings > API`.
+6. Copy:
+   - Project URL
+   - anon public key
+   - service_role key
+
+The app uses:
+- Supabase Auth for customers, providers, and admins.
+- Supabase Postgres for users, providers, requests, jobs, ratings, and Stripe logs.
+- Supabase Storage for provider documents.
+- PostGIS for future geospatial matching.
+
+## 2. Required Environment Variables
+
+Create a local `.env.local` file in the project root:
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_...
+NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_...
+NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_...
+
+# Google Maps, optional for MVP manual address flow
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIza...
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+Important:
+- Never expose `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, or `STRIPE_WEBHOOK_SECRET` in client code.
+- For local development, use Stripe test keys.
+- For production, change `NEXT_PUBLIC_APP_URL` to `https://rescuego.ae`.
+
+## 3. Database Tables and Migrations
+
+Run all SQL migrations in order from the `supabase/migrations` folder:
+
+1. `001_initial_schema.sql`
+2. `002_rpc_functions.sql`
+3. `003_harden_provider_rls.sql`
+
+In Supabase:
+
+1. Open `SQL Editor`.
+2. Create a new query.
+3. Paste the contents of `001_initial_schema.sql`.
+4. Run it.
+5. Repeat for `002_rpc_functions.sql`.
+6. Repeat for `003_harden_provider_rls.sql`.
+
+These migrations create:
+- `users`
+- `providers`
+- `provider_locations`
+- `requests`
+- `jobs`
+- `ratings`
+- `request_locks`
+- `stripe_events`
+- `payout_log`
+- `price_estimates`
+- PostGIS indexes
+- RLS policies
+- rating update trigger
+- provider suspension trigger
+- nearby provider RPC
+
+Required extensions:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS postgis;
+```
+
+These are already included in `001_initial_schema.sql`.
+
+## 4. Storage Bucket Setup
+
+Create the provider documents bucket:
+
+1. Go to `Storage`.
+2. Click `New bucket`.
+3. Bucket name: `provider-documents`
+4. Set bucket to `Private`.
+5. Save.
+
+The app uploads:
+- Emirates ID
+- UAE driving license
+- Vehicle photo
+
+Validation rules in the app:
+- Required files: `emirates_id`, `license`, `vehicle`
+- Max size: 5 MB per file
+- Allowed MIME types:
+  - `image/jpeg`
+  - `image/png`
+  - `application/pdf`
+
+Admins view documents through temporary signed URLs.
+
+## 5. Auth Settings
+
+In Supabase, open `Authentication > Providers`:
+
+1. Enable Email provider.
+2. For easiest local MVP testing, disable email confirmation:
+   - `Authentication > Providers > Email`
+   - Turn off `Confirm email`
+3. For production, enable email confirmation.
+
+In `Authentication > URL Configuration`:
+
+Set Site URL for local development:
+
+```txt
+http://localhost:3000
+```
+
+Add redirect URLs:
+
+```txt
+http://localhost:3000/**
+https://rescuego.ae/**
+```
+
+If email confirmation is enabled, new users may need to confirm email before the session is active.
+
+## 6. Create the First Admin User
+
+First, create a normal user through the app:
+
+1. Run the app locally.
+2. Visit `http://localhost:3000/auth/register`.
+3. Register with the email you want as admin.
+
+Then promote that user in Supabase SQL Editor:
+
+```sql
+UPDATE users
+SET role = 'admin'
+WHERE email = 'admin@example.com';
+```
+
+If the user does not exist in the `users` table, find the auth user ID:
+
+```sql
+SELECT id, email
+FROM auth.users
+WHERE email = 'admin@example.com';
+```
+
+Then insert the admin profile manually:
+
+```sql
+INSERT INTO users (id, name, phone, email, role)
+VALUES (
+  'AUTH_USER_UUID_HERE',
+  'Admin',
+  '+971500000000',
+  'admin@example.com',
+  'admin'
+)
+ON CONFLICT (id)
+DO UPDATE SET role = 'admin';
+```
+
+After that, log in at:
+
+```txt
+http://localhost:3000/auth/login
+```
+
+Admin dashboard:
+
+```txt
+http://localhost:3000/admin/dashboard
+```
+
+## 7. Stripe Test Mode Setup
+
+In Stripe Dashboard:
+
+1. Enable test mode.
+2. Go to `Developers > API keys`.
+3. Copy:
+   - Publishable key: `pk_test_...`
+   - Secret key: `sk_test_...`
+
+Create subscription products/prices:
+
+1. Go to `Product catalog`.
+2. Create product: `RescueGo Starter`
+   - Recurring monthly price: `249 AED`
+3. Create product: `RescueGo Pro`
+   - Recurring monthly price: `449 AED`
+4. Create product: `RescueGo Business`
+   - Recurring monthly price: `849 AED`
+5. Copy each Stripe price ID into `.env.local`:
+
+```env
+NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_...
+NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_...
+NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_...
+```
+
+Webhook setup for local development:
+
+1. Install Stripe CLI.
+2. Log in:
+
+```bash
+stripe login
+```
+
+3. Forward webhooks:
+
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+
+4. Copy the webhook secret shown by Stripe CLI:
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+Useful test card:
+
+```txt
+4242 4242 4242 4242
+Any future expiry
+Any 3-digit CVC
+Any postal code
+```
+
+## 8. Local Development Steps
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create `.env.local` using the variables above.
+
+Run the dev server:
+
+```bash
+npm run dev
+```
+
+Open:
+
+```txt
+http://localhost:3000
+```
+
+Recommended MVP test flow:
+
+1. Register a customer at `/auth/register`.
+2. Create a roadside request at `/customer/request`.
+3. Register a provider at `/provider/register`.
+4. Upload provider documents.
+5. Create/promote an admin user.
+6. Admin activates provider at `/admin/providers`.
+7. Provider logs in and accepts request at `/provider/dashboard`.
+8. Provider completes job with final price.
+9. Customer rates job at `/customer/ratings`.
+
+Before deployment or handoff, run:
+
+```bash
+npm run lint
+npm run build
+```
+
+## 9. Common Errors and Fixes
+
+### Login works but redirects to home
+
+Cause:
+- The user exists in Supabase Auth but does not have a matching row in `users`.
+
+Fix:
+- Create the profile row manually or register again after migrations are applied.
+
+Check:
+
+```sql
+SELECT * FROM users WHERE email = 'user@example.com';
+```
+
+### Customer registration succeeds but `/customer/request` redirects away
+
+Cause:
+- Missing `users` row or wrong role.
+
+Fix:
+
+```sql
+UPDATE users
+SET role = 'customer'
+WHERE email = 'customer@example.com';
+```
+
+### Provider cannot access dashboard
+
+Cause:
+- Missing provider profile or user role is not `provider`.
+
+Fix:
+
+```sql
+SELECT * FROM users WHERE email = 'provider@example.com';
+SELECT * FROM providers WHERE id = 'PROVIDER_USER_UUID';
+```
+
+The provider needs:
+
+```txt
+users.role = provider
+providers.id = users.id
+```
+
+### Provider cannot accept requests
+
+Cause:
+- Provider status is not `active`.
+
+Fix:
+- Log in as admin.
+- Go to `/admin/providers`.
+- Click `Activate`.
+
+Or run:
+
+```sql
+UPDATE providers
+SET status = 'active'
+WHERE id = 'PROVIDER_USER_UUID';
+```
+
+### Provider document upload fails
+
+Possible causes:
+- `provider-documents` bucket does not exist.
+- Bucket is not private.
+- File is larger than 5 MB.
+- File type is not JPG, PNG, or PDF.
+- `SUPABASE_SERVICE_ROLE_KEY` is missing.
+
+Fix:
+- Create the bucket exactly as `provider-documents`.
+- Check `.env.local`.
+- Restart the dev server after changing env vars.
+
+### Stripe checkout says price is not configured
+
+Cause:
+- Missing price ID env variable.
+
+Fix:
+- Add all required price IDs:
+
+```env
+NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_...
+NEXT_PUBLIC_STRIPE_PRO_PRICE_ID=price_...
+NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID=price_...
+```
+
+Restart:
+
+```bash
+npm run dev
+```
+
+### Stripe webhook returns invalid signature
+
+Cause:
+- `STRIPE_WEBHOOK_SECRET` does not match the active Stripe CLI/session webhook secret.
+
+Fix:
+- Rerun:
+
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+
+- Copy the new `whsec_...` value into `.env.local`.
+- Restart the dev server.
+
+### Missing environment variable error
+
+Cause:
+- Required env var is missing from `.env.local`.
+
+Fix:
+- Compare `.env.local` with `.env.example`.
+- Restart the dev server.
+
+### Database error: relation does not exist
+
+Cause:
+- Migrations were not run.
+
+Fix:
+- Run all SQL files in `supabase/migrations` in order.
+
+### PostGIS function error
+
+Cause:
+- PostGIS extension was not enabled.
+
+Fix:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS postgis;
+```
+
+### Admin cannot see provider documents
+
+Possible causes:
+- Documents were not uploaded.
+- Storage bucket name is wrong.
+- Service role key is missing.
+
+Fix:
+- Confirm bucket name is exactly `provider-documents`.
+- Confirm `providers.documents` contains paths.
+- Confirm `SUPABASE_SERVICE_ROLE_KEY` is set.
+
+## Notes for Production
+
+- Enable Supabase email confirmation.
+- Use production Stripe keys and live price IDs.
+- Set `NEXT_PUBLIC_APP_URL=https://rescuego.ae`.
+- Configure Stripe production webhook endpoint:
+
+```txt
+https://rescuego.ae/api/stripe/webhook
+```
+
+- Keep `provider-documents` private.
+- Do not expose service role keys in browser code.
+- Apply all migrations before deploying.
