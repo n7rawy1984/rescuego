@@ -292,9 +292,9 @@ export default async function HomePage() {
                     <p className="text-xs font-bold uppercase tracking-wide text-orange-600">
                       Live request
                     </p>
-                    <h2 className="mt-1 text-xl font-bold leading-tight sm:text-2xl">
+                    <p className="mt-1 text-xl font-bold leading-tight sm:text-2xl">
                       Recovery dispatch
-                    </h2>
+                    </p>
                   </div>
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white">
                     <Truck className="h-6 w-6" aria-hidden="true" />
