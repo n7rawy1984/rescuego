@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/layout/Navbar'
 import Badge from '@/components/ui/Badge'
@@ -97,6 +98,7 @@ export default async function ProviderDashboardPage() {
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests) ? openRequests : []
 
   const statusVariant = provider.status === 'active' ? 'success' : provider.status === 'suspended' ? 'danger' : 'warning'
+  const roundedRating = Math.round(provider.rating)
 
   return (
     <>
@@ -113,7 +115,16 @@ export default async function ProviderDashboardPage() {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-slate-900">{'⭐'.repeat(Math.round(provider.rating))} {provider.rating.toFixed(1)}</div>
+              <div className="flex items-center justify-end gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`h-5 w-5 ${star <= roundedRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                    aria-hidden="true"
+                  />
+                ))}
+                <span className="ml-2 text-3xl font-bold text-slate-900">{provider.rating.toFixed(1)}</span>
+              </div>
               <div className="text-sm text-slate-500">Your rating</div>
             </div>
           </div>
