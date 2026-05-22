@@ -107,16 +107,24 @@ export default function Navbar() {
         <button
           className="md:hidden p-2 rounded-lg hover:bg-slate-100"
           onClick={() => setOpen(!open)}
-          aria-label="Toggle menu"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
+          aria-controls="mobile-nav"
         >
-          <div className="w-5 h-0.5 bg-slate-700 mb-1"></div>
-          <div className="w-5 h-0.5 bg-slate-700 mb-1"></div>
-          <div className="w-5 h-0.5 bg-slate-700"></div>
+          {open ? (
+            <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
         </button>
       </div>
 
       {open && (
-        <div className="md:hidden bg-white border-t border-slate-200 px-4 py-4 flex flex-col gap-4">
+        <div id="mobile-nav" className="md:hidden bg-white border-t border-slate-200 px-4 py-4 flex flex-col gap-4">
           <Link href="/pricing" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Pricing</Link>
           <Link href="/about" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>About</Link>
           {loading ? (
