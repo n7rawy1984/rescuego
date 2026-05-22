@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { BatteryCharging, HelpCircle, Truck, Wrench } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import type { ProblemType } from '@/types'
+import type { LucideIcon } from 'lucide-react'
 
 const PRICE_ESTIMATES: Record<ProblemType, { min: number; max: number }> = {
   flat_tire: { min: 80, max: 200 },
@@ -13,11 +15,11 @@ const PRICE_ESTIMATES: Record<ProblemType, { min: number; max: number }> = {
   other: { min: 150, max: 500 },
 }
 
-const PROBLEM_OPTIONS: { type: ProblemType; label: string; icon: string }[] = [
-  { type: 'flat_tire', label: 'Flat Tire', icon: 'Tire' },
-  { type: 'battery', label: 'Battery Issue', icon: 'Battery' },
-  { type: 'tow', label: 'Tow Required', icon: 'Tow' },
-  { type: 'other', label: 'Other Issue', icon: 'Other' },
+const PROBLEM_OPTIONS: { type: ProblemType; label: string; Icon: LucideIcon }[] = [
+  { type: 'flat_tire', label: 'Flat Tire', Icon: Wrench },
+  { type: 'battery', label: 'Battery Issue', Icon: BatteryCharging },
+  { type: 'tow', label: 'Tow Required', Icon: Truck },
+  { type: 'other', label: 'Other Issue', Icon: HelpCircle },
 ]
 
 type SubmitResponse = {
@@ -201,21 +203,26 @@ export default function RequestPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-800 mb-4">What is the problem?</h2>
               <div className="grid grid-cols-2 gap-3">
-                {PROBLEM_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.type}
-                    onClick={() => setProblemType(opt.type)}
-                    className={`p-5 rounded-xl border-2 text-left transition-all ${problemType === opt.type ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
-                  >
-                    <div className="text-xs font-bold uppercase tracking-wide text-orange-600 mb-2">{opt.icon}</div>
-                    <div className="font-semibold text-slate-800">{opt.label}</div>
-                    {problemType === opt.type && (
-                      <div className="text-sm text-orange-600 mt-1">
-                        Est. {PRICE_ESTIMATES[opt.type].min}-{PRICE_ESTIMATES[opt.type].max} AED
+                {PROBLEM_OPTIONS.map((opt) => {
+                  const Icon = opt.Icon
+                  return (
+                    <button
+                      key={opt.type}
+                      onClick={() => setProblemType(opt.type)}
+                      className={`p-5 rounded-xl border-2 text-left transition-all ${problemType === opt.type ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
+                    >
+                      <div className="mb-2 text-orange-600">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
-                    )}
-                  </button>
-                ))}
+                      <div className="font-semibold text-slate-800">{opt.label}</div>
+                      {problemType === opt.type && (
+                        <div className="text-sm text-orange-600 mt-1">
+                          Est. {PRICE_ESTIMATES[opt.type].min}-{PRICE_ESTIMATES[opt.type].max} AED
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
               {problemType && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">

@@ -122,8 +122,8 @@ export default function PricingPage() {
                   ].map(([feature, ...values]) => (
                     <tr key={feature} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{feature}</td>
-                      {values.map((value) => (
-                        <td key={value} className="px-4 py-3 text-slate-600">{value}</td>
+                      {values.map((value, index) => (
+                        <td key={`${feature}-${index}`} className="px-4 py-3 text-slate-600">{value}</td>
                       ))}
                     </tr>
                   ))}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 import type { ProviderPlan, ProviderStatus } from '@/types'
 
 const acceptSchema = z.object({
@@ -13,6 +14,11 @@ type ProviderRow = {
   status: ProviderStatus
   plan: ProviderPlan
   jobs_this_month: number
+}
+
+type RequestLockRow = {
+  provider_id: string | null
+  locked_until: string
 }
 
 export async function POST(req: NextRequest) {
@@ -28,6 +34,11 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const rateLimit = checkRateLimit(`provider-accept:${user.id}`, 60, 60 * 1000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: 'Too many accept attempts. Please try again shortly.' }, { status: 429 })
   }
 
   const { data: profile } = await supabase
@@ -67,6 +78,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
   }
 
+  const { data: activeLock } = await admin
+    .from('request_locks')
+    .select('provider_id, locked_until')
+    .eq('request_id', parsed.data.request_id)
+    .gt('locked_until', new Date().toISOString())
+    .maybeSingle<RequestLockRow>()
+
+  if (activeLock && activeLock.provider_id !== user.id) {
+    return NextResponse.json({ error: 'Request is temporarily locked by another provider' }, { status: 409 })
+  }
+
   const { data: updatedRequest, error: requestError } = await admin
     .from('requests')
     .update({ status: 'accepted', accepted_by: user.id })
@@ -90,6 +112,10 @@ export async function POST(req: NextRequest) {
         request_id: parsed.data.request_id,
         provider_id: user.id,
       }, { onConflict: 'request_id' }),
+    admin
+      .from('request_locks')
+      .delete()
+      .eq('request_id', parsed.data.request_id),
   ])
 
   return NextResponse.json({ success: true, request_id: parsed.data.request_id })

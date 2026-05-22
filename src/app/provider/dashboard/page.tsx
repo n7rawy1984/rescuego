@@ -43,6 +43,10 @@ type DashboardRequestRow = {
   created_at: string
 }
 
+type NearbyOpenRequestRow = Omit<DashboardRequestRow, 'location'> & {
+  distance_meters: number
+}
+
 type RecentJobRow = {
   id: string
   completed_at: string | null
@@ -67,11 +71,11 @@ export default async function ProviderDashboardPage() {
   if (!provider) redirect('/provider/register')
 
   const { data: openRequests } = await supabase
-    .from('requests')
-    .select('*')
-    .eq('status', 'open')
-    .order('created_at', { ascending: false })
-    .limit(20)
+    .rpc('get_nearby_open_requests', {
+      p_radius: 5000,
+      p_limit: 20,
+    })
+    .returns<NearbyOpenRequestRow[]>()
 
   const { data: activeRequest } = await supabase
     .from('requests')
@@ -90,6 +94,7 @@ export default async function ProviderDashboardPage() {
 
   const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
   const remaining = planLimit !== null ? Math.max(0, planLimit - provider.jobs_this_month) : null
+  const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests) ? openRequests : []
 
   const statusVariant = provider.status === 'active' ? 'success' : provider.status === 'suspended' ? 'danger' : 'warning'
 
@@ -168,7 +173,7 @@ export default async function ProviderDashboardPage() {
           )}
 
           <ProviderRequestList
-            requests={openRequests ?? []}
+            requests={nearbyOpenRequests}
             providerStatus={provider.status}
           />
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 import type { ProblemType } from '@/types'
 
 const PRICE_ESTIMATES: Record<ProblemType, { min: number; max: number }> = {
@@ -36,6 +37,17 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const rateLimit = checkRateLimit(`customer-request:${user.id}`, 10, 60 * 60 * 1000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many recovery requests. Please try again later.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfter) },
+      }
+    )
   }
 
   const { data: profile } = await supabase

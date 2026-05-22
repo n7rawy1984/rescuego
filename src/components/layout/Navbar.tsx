@@ -1,9 +1,67 @@
 'use client'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import type { UserRole } from '@/types'
+
+function dashboardHrefForRole(role: UserRole | null): string {
+  if (role === 'admin') return '/admin/dashboard'
+  if (role === 'provider') return '/provider/dashboard'
+  return '/customer/request'
+}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [authenticated, setAuthenticated] = useState(false)
+  const [role, setRole] = useState<UserRole | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadUserRole() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        if (!cancelled) {
+          setAuthenticated(false)
+          setRole(null)
+          setLoading(false)
+        }
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single<{ role: UserRole | null }>()
+
+      if (!cancelled) {
+        setAuthenticated(true)
+        setRole(profile?.role ?? 'customer')
+        setLoading(false)
+      }
+    }
+
+    loadUserRole()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const dashboardHref = dashboardHrefForRole(role)
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setAuthenticated(false)
+    setRole(null)
+    setOpen(false)
+    window.location.href = '/'
+  }
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm">
@@ -18,10 +76,29 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-6">
           <Link href="/pricing" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">Pricing</Link>
           <Link href="/about" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">About</Link>
-          <Link href="/auth/login" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">Sign In</Link>
-          <Link href="/customer/request" className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
-            Get Help Now
-          </Link>
+          {loading ? (
+            <div className="h-10 w-32 rounded-lg bg-slate-100" aria-hidden="true" />
+          ) : authenticated ? (
+            <>
+              <Link href={dashboardHref} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-slate-600 hover:text-orange-500 font-medium transition-colors"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/login" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">Sign In</Link>
+              <Link href="/customer/request" className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                Get Help Now
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -39,10 +116,29 @@ export default function Navbar() {
         <div className="md:hidden bg-white border-t border-slate-200 px-4 py-4 flex flex-col gap-4">
           <Link href="/pricing" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Pricing</Link>
           <Link href="/about" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>About</Link>
-          <Link href="/auth/login" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Sign In</Link>
-          <Link href="/customer/request" className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-center" onClick={() => setOpen(false)}>
-            Get Help Now
-          </Link>
+          {loading ? (
+            <div className="h-10 rounded-lg bg-slate-100" aria-hidden="true" />
+          ) : authenticated ? (
+            <>
+              <Link href={dashboardHref} className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-center" onClick={() => setOpen(false)}>
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-left text-slate-700 font-medium"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/login" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Sign In</Link>
+              <Link href="/customer/request" className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-center" onClick={() => setOpen(false)}>
+                Get Help Now
+              </Link>
+            </>
+          )}
         </div>
       )}
     </nav>

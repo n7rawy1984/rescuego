@@ -49,6 +49,31 @@ const services = [
   { title: 'Urgent support', icon: Clock3, price: '24/7 request flow' },
 ]
 
+const providerPlans = [
+  {
+    name: 'Starter',
+    price: '249 AED/mo',
+    jobs: '15 jobs/month',
+    commission: '15% premium commission',
+    priority: 'Normal priority',
+  },
+  {
+    name: 'Pro',
+    price: '449 AED/mo',
+    jobs: '35 jobs/month',
+    commission: '10% premium commission',
+    priority: 'High priority',
+    badge: 'Most Popular',
+  },
+  {
+    name: 'Business',
+    price: '849 AED/mo',
+    jobs: 'Unlimited jobs',
+    commission: '0% commission',
+    priority: 'Always shown first',
+  },
+]
+
 const trustPoints = [
   'Free for drivers',
   'Vetted providers',
@@ -287,12 +312,22 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="grid gap-5 sm:grid-cols-3">
-              {['Starter', 'Pro', 'Business'].map((plan) => (
-                <article key={plan} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-950">{plan}</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    Subscription access, request visibility, and provider dashboard tools.
-                  </p>
+              {providerPlans.map((plan) => (
+                <article key={plan.name} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-lg font-bold text-slate-950">{plan.name}</h3>
+                    {plan.badge ? (
+                      <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-bold text-orange-700">
+                        {plan.badge}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-3 text-2xl font-bold text-orange-600">{plan.price}</p>
+                  <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+                    <li>{plan.jobs}</li>
+                    <li>{plan.commission}</li>
+                    <li>{plan.priority}</li>
+                  </ul>
                 </article>
               ))}
             </div>
