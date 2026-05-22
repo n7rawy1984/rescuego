@@ -147,13 +147,32 @@ export default function RequestPage() {
         <main className="min-h-screen bg-slate-50 pt-20 flex items-center justify-center px-4">
           <div className="max-w-md w-full text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-2xl font-bold text-green-700">OK</span>
+              <svg
+                className="h-10 w-10 text-green-700"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M5 13l4 4L19 7"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Request Submitted</h1>
-            <p className="text-slate-600 mb-2">Your request has been sent to nearby providers.</p>
-            <p className="text-sm text-slate-500 mb-6">Request ID: <span className="font-mono text-slate-700">{requestId.slice(0, 8)}...</span></p>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">Request Sent</h1>
+            <p className="text-sm text-slate-500 mb-6">
+              Request ID: <span className="font-mono text-slate-700">{requestId}</span>
+            </p>
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6 text-left">
-              <p className="text-sm text-orange-800"><strong>What happens next?</strong> A nearby provider will accept your request shortly. You will see their details once accepted.</p>
+              <p className="text-sm font-semibold text-orange-900">What happens next?</p>
+              <ol className="mt-3 space-y-2 text-sm text-orange-800">
+                <li>1. Nearby provider will accept shortly.</li>
+                <li>2. You will be notified when provider is on the way.</li>
+                <li>3. You pay the provider directly after service.</li>
+              </ol>
             </div>
             <Button onClick={resetForm} variant="outline">
               Submit Another Request
