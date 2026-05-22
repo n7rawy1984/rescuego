@@ -6,12 +6,12 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+            <Link href="/" className="flex items-center gap-2 mb-4" aria-label="RescueGo home">
+              <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center" aria-hidden="true">
                 <span className="text-white font-bold text-sm">R</span>
               </div>
               <span className="font-bold text-xl text-white">RescueGo</span>
-            </div>
+            </Link>
             <p className="text-sm leading-relaxed">UAE&apos;s roadside recovery marketplace. Fast. Trusted. Available 24/7.</p>
           </div>
           <div>

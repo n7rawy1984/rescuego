@@ -34,8 +34,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
+          <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
+            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
             <span className="font-bold text-2xl text-slate-900">RescueGo</span>
