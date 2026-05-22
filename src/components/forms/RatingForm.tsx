@@ -50,16 +50,20 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
 
   if (submitted) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 max-w-md mx-auto">
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Thanks for your rating</h2>
-        <p className="text-slate-500 text-sm">Your feedback helps keep RescueGo providers accountable.</p>
+      <div className="py-4 text-center">
+        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <p className="font-semibold text-slate-900">Rating submitted - thank you!</p>
+        <p className="text-sm text-slate-500 mt-1">Your feedback keeps RescueGo providers accountable.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 max-w-md mx-auto">
-      <h2 className="text-xl font-bold text-slate-900 mb-2">Rate Your Experience</h2>
+    <div>
       <p className="text-slate-500 text-sm mb-6">How was your recovery provider? Your rating helps other drivers.</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div>
