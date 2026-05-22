@@ -253,7 +253,7 @@ export default function ProviderRegisterPage() {
             <h1 className="text-2xl font-bold text-slate-900">Join as Recovery Provider</h1>
             <p className="text-slate-500 mt-1">Start receiving recovery requests in your area</p>
             <div className="flex gap-2 mt-4">
-              {[1, 2, 3, 4].map((s) => (
+              {[1, 2, 3].map((s) => (
                 <div key={s} className={`flex-1 h-1.5 rounded-full ${step >= s ? 'bg-orange-500' : 'bg-slate-200'}`} />
               ))}
             </div>
