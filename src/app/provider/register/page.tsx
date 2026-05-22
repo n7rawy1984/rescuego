@@ -1,11 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Navbar from '@/components/layout/Navbar'
+import type { UserRole } from '@/types'
 
 const PLANS = [
   { id: 'starter', name: 'Starter', price: 249, jobs: '15 jobs/mo', commission: '15% on premium', highlight: false },
@@ -16,6 +17,14 @@ const PLANS = [
 
 type ProviderPlanId = (typeof PLANS)[number]['id']
 
+type ExistingAccountState = {
+  checked: boolean
+  role: UserRole | null
+  actionHref: string | null
+  actionLabel: string | null
+  message: string | null
+}
+
 export default function ProviderRegisterPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -25,6 +34,90 @@ export default function ProviderRegisterPage() {
   const [files, setFiles] = useState<{ emirates_id?: File; license?: File; vehicle?: File }>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [existingAccount, setExistingAccount] = useState<ExistingAccountState>({
+    checked: false,
+    role: null,
+    actionHref: null,
+    actionLabel: null,
+    message: null,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadExistingAccount() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        if (!cancelled) setExistingAccount((current) => ({ ...current, checked: true }))
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle<{ role: UserRole | null }>()
+
+      if (profile?.role === 'admin') {
+        if (!cancelled) {
+          setExistingAccount({
+            checked: true,
+            role: 'admin',
+            actionHref: '/admin/dashboard',
+            actionLabel: 'Go to Admin Dashboard',
+            message: 'You are already signed in as an admin.',
+          })
+        }
+        return
+      }
+
+      if (profile?.role === 'customer') {
+        if (!cancelled) {
+          setExistingAccount({
+            checked: true,
+            role: 'customer',
+            actionHref: '/customer/request',
+            actionLabel: 'Request Help',
+            message: 'You are already signed in as a customer.',
+          })
+        }
+        return
+      }
+
+      if (profile?.role === 'provider') {
+        const { data: provider } = await supabase
+          .from('providers')
+          .select('status, stripe_subscription_id')
+          .eq('id', user.id)
+          .maybeSingle<{ status: string | null; stripe_subscription_id: string | null }>()
+
+        const hasActivePlan = provider?.status === 'active' || Boolean(provider?.stripe_subscription_id)
+
+        if (!cancelled) {
+          setExistingAccount({
+            checked: true,
+            role: 'provider',
+            actionHref: hasActivePlan ? '/provider/dashboard' : '/provider/subscribe',
+            actionLabel: hasActivePlan ? 'Go to Provider Dashboard' : 'Choose Subscription',
+            message: hasActivePlan
+              ? 'You already have a provider account.'
+              : 'You already have a provider account. Choose a plan or check your activation status.',
+          })
+        }
+        return
+      }
+
+      if (!cancelled) setExistingAccount((current) => ({ ...current, checked: true }))
+    }
+
+    loadExistingAccount()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function update(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -134,6 +227,28 @@ export default function ProviderRegisterPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-2xl mx-auto">
+          {existingAccount.checked && existingAccount.actionHref && (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h1 className="text-xl font-bold text-slate-900">Account already signed in</h1>
+              <p className="mt-2 text-sm text-slate-600">{existingAccount.message}</p>
+              <Link
+                href={existingAccount.actionHref}
+                className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+              >
+                {existingAccount.actionLabel}
+              </Link>
+            </div>
+          )}
+
+          {!existingAccount.checked && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="h-6 w-48 rounded bg-slate-100" />
+              <div className="mt-3 h-4 w-64 rounded bg-slate-100" />
+            </div>
+          )}
+
+          {existingAccount.checked && !existingAccount.actionHref && (
+          <>
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-slate-900">Join as Recovery Provider</h1>
             <p className="text-slate-500 mt-1">Start receiving recovery requests in your area</p>
@@ -211,6 +326,8 @@ export default function ProviderRegisterPage() {
                 {selectedPlan === 'pay_per_job' ? 'Start for Free' : 'Proceed to Payment'}
               </Button>
             </div>
+          )}
+          </>
           )}
         </div>
       </main>

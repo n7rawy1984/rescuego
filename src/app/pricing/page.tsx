@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { createClient } from '@/lib/supabase/server'
+import type { UserRole } from '@/types'
 
 export const metadata: Metadata = {
   title: 'Pricing - Recovery Provider Plans',
@@ -44,7 +46,70 @@ const PLANS = [
   },
 ]
 
-export default function PricingPage() {
+type PricingViewer = {
+  role: UserRole | null
+  providerStatus: string | null
+  providerSubscriptionId: string | null
+}
+
+async function getPricingViewer(): Promise<PricingViewer> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { role: null, providerStatus: null, providerSubscriptionId: null }
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle<{ role: UserRole | null }>()
+
+  if (profile?.role !== 'provider') {
+    return {
+      role: profile?.role ?? 'customer',
+      providerStatus: null,
+      providerSubscriptionId: null,
+    }
+  }
+
+  const { data: provider } = await supabase
+    .from('providers')
+    .select('status, stripe_subscription_id')
+    .eq('id', user.id)
+    .maybeSingle<{ status: string | null; stripe_subscription_id: string | null }>()
+
+  return {
+    role: 'provider',
+    providerStatus: provider?.status ?? null,
+    providerSubscriptionId: provider?.stripe_subscription_id ?? null,
+  }
+}
+
+function pricingCtaForViewer(viewer: PricingViewer, planId: string) {
+  if (viewer.role === 'admin') {
+    return { href: '/admin/dashboard', label: 'Admin Dashboard' }
+  }
+
+  if (viewer.role === 'customer') {
+    return { href: '/customer/request', label: 'Request Help' }
+  }
+
+  if (viewer.role === 'provider') {
+    if (viewer.providerStatus === 'active' || viewer.providerSubscriptionId) {
+      return { href: '/provider/dashboard', label: 'Provider Dashboard' }
+    }
+
+    return { href: '/provider/subscribe', label: 'Choose Subscription' }
+  }
+
+  return { href: `/provider/register?plan=${planId}`, label: null }
+}
+
+export default async function PricingPage() {
+  const viewer = await getPricingViewer()
+
   return (
     <>
       <Navbar />
@@ -74,8 +139,8 @@ export default function PricingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href={`/provider/register?plan=${plan.id}`} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
-                    {plan.cta}
+                  <Link href={pricingCtaForViewer(viewer, plan.id).href} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
+                    {pricingCtaForViewer(viewer, plan.id).label ?? plan.cta}
                   </Link>
                 </div>
               ))}
@@ -92,8 +157,8 @@ export default function PricingPage() {
                     ))}
                   </ul>
                 </div>
-                <Link href="/provider/register?plan=pay_per_job" className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
-                  Start Free
+                <Link href={pricingCtaForViewer(viewer, 'pay_per_job').href} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
+                  {pricingCtaForViewer(viewer, 'pay_per_job').label ?? 'Start Free'}
                 </Link>
               </div>
             </div>

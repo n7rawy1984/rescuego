@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import { createClient } from '@/lib/supabase/server'
+import type { UserRole } from '@/types'
 
 export const metadata: Metadata = {
   title: 'RescueGo - Roadside Recovery UAE | Fast & Trusted',
@@ -136,7 +138,99 @@ function SectionTitle({
   )
 }
 
-export default function HomePage() {
+type ViewerState = {
+  role: UserRole | null
+  providerStatus: string | null
+  providerSubscriptionId: string | null
+}
+
+async function getViewerState(): Promise<ViewerState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { role: null, providerStatus: null, providerSubscriptionId: null }
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle<{ role: UserRole | null }>()
+
+  if (profile?.role !== 'provider') {
+    return {
+      role: profile?.role ?? 'customer',
+      providerStatus: null,
+      providerSubscriptionId: null,
+    }
+  }
+
+  const { data: provider } = await supabase
+    .from('providers')
+    .select('status, stripe_subscription_id')
+    .eq('id', user.id)
+    .maybeSingle<{ status: string | null; stripe_subscription_id: string | null }>()
+
+  return {
+    role: 'provider',
+    providerStatus: provider?.status ?? null,
+    providerSubscriptionId: provider?.stripe_subscription_id ?? null,
+  }
+}
+
+function primaryCtasForViewer(viewer: ViewerState) {
+  if (viewer.role === 'admin') {
+    return {
+      primaryHref: '/admin/dashboard',
+      primaryLabel: 'Admin Dashboard',
+      secondaryHref: null,
+      secondaryLabel: null,
+      providerHref: '/admin/dashboard',
+      providerLabel: 'Admin Dashboard',
+    }
+  }
+
+  if (viewer.role === 'provider') {
+    const providerHref = viewer.providerStatus === 'active' || viewer.providerSubscriptionId
+      ? '/provider/dashboard'
+      : '/provider/subscribe'
+
+    return {
+      primaryHref: providerHref,
+      primaryLabel: providerHref === '/provider/dashboard' ? 'Provider Dashboard' : 'Choose Subscription',
+      secondaryHref: null,
+      secondaryLabel: null,
+      providerHref,
+      providerLabel: providerHref === '/provider/dashboard' ? 'Provider Dashboard' : 'Choose Subscription',
+    }
+  }
+
+  if (viewer.role === 'customer') {
+    return {
+      primaryHref: '/customer/request',
+      primaryLabel: 'Request Help',
+      secondaryHref: null,
+      secondaryLabel: null,
+      providerHref: '/customer/request',
+      providerLabel: 'Request Help',
+    }
+  }
+
+  return {
+    primaryHref: '/customer/request',
+    primaryLabel: 'Request Recovery Now',
+    secondaryHref: '/provider/register',
+    secondaryLabel: 'Join as Provider',
+    providerHref: '/provider/register',
+    providerLabel: 'Register Provider Account',
+  }
+}
+
+export default async function HomePage() {
+  const viewer = await getViewerState()
+  const ctas = primaryCtasForViewer(viewer)
+
   return (
     <>
       <Navbar />
@@ -165,18 +259,20 @@ export default function HomePage() {
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
-                  href="/customer/request"
+                  href={ctas.primaryHref}
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
                 >
-                  Request Recovery Now
+                  {ctas.primaryLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
-                <Link
-                  href="/provider/register"
-                  className="inline-flex h-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-6 text-sm font-semibold text-white transition hover:border-orange-300 hover:bg-white/15"
-                >
-                  Join as Provider
-                </Link>
+                {ctas.secondaryHref ? (
+                  <Link
+                    href={ctas.secondaryHref}
+                    className="inline-flex h-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-6 text-sm font-semibold text-white transition hover:border-orange-300 hover:bg-white/15"
+                  >
+                    {ctas.secondaryLabel}
+                  </Link>
+                ) : null}
               </div>
 
               <ul className="mt-9 grid max-w-xl grid-cols-1 gap-3 text-sm text-slate-200 sm:grid-cols-2">
@@ -305,10 +401,10 @@ export default function HomePage() {
                 text="Providers can register, upload documents, subscribe or use pay-per-job access, then manage open requests from the dashboard."
               />
               <Link
-                href="/provider/register"
+                href={ctas.providerHref}
                 className="inline-flex h-12 items-center justify-center rounded-lg bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Register Provider Account
+                {ctas.providerLabel}
               </Link>
             </div>
             <div className="grid gap-5 sm:grid-cols-3">

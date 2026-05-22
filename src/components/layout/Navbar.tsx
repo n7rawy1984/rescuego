@@ -32,14 +32,17 @@ export default function Navbar() {
         return
       }
 
+      if (!cancelled) {
+        setAuthenticated(true)
+      }
+
       const { data: profile } = await supabase
         .from('users')
         .select('role')
         .eq('id', user.id)
-        .single<{ role: UserRole | null }>()
+        .maybeSingle<{ role: UserRole | null }>()
 
       if (!cancelled) {
-        setAuthenticated(true)
         setRole(profile?.role ?? 'customer')
         setLoading(false)
       }
