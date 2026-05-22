@@ -58,7 +58,7 @@ export default async function CustomerRatingsPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
+      <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
         <div className="mx-auto max-w-3xl">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-slate-900">Rate Completed Jobs</h1>

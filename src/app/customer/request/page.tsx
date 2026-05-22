@@ -144,7 +144,7 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-slate-50 pt-20 flex items-center justify-center px-4">
+        <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
           <div className="max-w-md w-full text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <svg
@@ -186,7 +186,7 @@ export default function RequestPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
+      <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
         <div className="max-w-2xl mx-auto">
           {unratedJobsCount > 0 && (
             <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4">
