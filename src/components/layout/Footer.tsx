@@ -18,6 +18,7 @@ export default function Footer() {
             <h3 className="text-white font-semibold mb-3">For Drivers</h3>
             <ul className="space-y-2 text-sm">
               <li><Link href="/customer/request" className="hover:text-orange-400 transition-colors">Request Help</Link></li>
+              <li><Link href="/customer/history" className="hover:text-orange-400 transition-colors">My Requests</Link></li>
               <li><Link href="/about" className="hover:text-orange-400 transition-colors">How It Works</Link></li>
             </ul>
           </div>
