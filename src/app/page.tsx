@@ -402,7 +402,7 @@ export default async function HomePage() {
               />
               <Link
                 href={ctas.providerHref}
-                className="inline-flex h-12 items-center justify-center rounded-lg bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="inline-flex h-12 items-center justify-center rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white transition hover:bg-orange-600"
               >
                 {ctas.providerLabel}
               </Link>

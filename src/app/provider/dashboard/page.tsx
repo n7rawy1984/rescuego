@@ -150,6 +150,27 @@ export default async function ProviderDashboardPage() {
             </Card>
           </div>
 
+          {(provider.plan === 'pay_per_job' || provider.plan === 'starter') && (
+            <div className="mb-6 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-orange-900 text-sm">
+                  {provider.plan === 'pay_per_job'
+                    ? 'You\'re on Pay Per Job - paying 28% commission per job'
+                    : 'You\'re on Starter - 15% commission, normal queue priority'}
+                </p>
+                <p className="text-xs text-orange-700 mt-0.5">
+                  Upgrade to Pro and cut your commission to 10% with high queue priority.
+                </p>
+              </div>
+              <a
+                href="/pricing"
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600"
+              >
+                Upgrade Plan
+              </a>
+            </div>
+          )}
+
           {provider.status === 'pending' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
               <p className="text-yellow-800 font-semibold">Account Under Review</p>
