@@ -2,6 +2,8 @@
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
+import StripeElementsProvider from '@/components/stripe/StripeElementsProvider'
+import PaymentElementForm from '@/components/stripe/PaymentElementForm'
 
 function OveragePayContent() {
   const params = useSearchParams()
@@ -30,12 +32,9 @@ function OveragePayContent() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800 text-left">
           <strong>What happens next:</strong> Once payment is confirmed, the request will be automatically accepted and appear as your active job.
         </div>
-        {/* TODO TASK-STR06: Replace this with Stripe Elements card form */}
-        <p className="text-xs text-slate-400">
-          Stripe payment integration - connect your card to proceed.
-          <br />
-          Client secret: {clientSecret.slice(0, 20)}...
-        </p>
+        <StripeElementsProvider clientSecret={clientSecret}>
+          <PaymentElementForm />
+        </StripeElementsProvider>
         <a
           href="/provider/dashboard"
           className="mt-6 inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
