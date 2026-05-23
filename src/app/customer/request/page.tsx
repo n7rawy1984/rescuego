@@ -145,38 +145,54 @@ export default function RequestPage() {
       <>
         <Navbar />
         <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
-          <div className="max-w-md w-full text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg
-                className="h-10 w-10 text-green-700"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
+          <div className="max-w-md w-full">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900 mb-2">Request Sent!</h1>
+              <p className="text-slate-600 mb-1">Your request is live and visible to nearby providers.</p>
+              <p className="text-xs text-slate-400 mb-6 font-mono">ID: {requestId.slice(0, 8).toUpperCase()}</p>
+
+              <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Provider notified</p>
+                    <p className="text-xs text-slate-500">Nearby providers can see and accept your request now</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Provider accepts</p>
+                    <p className="text-xs text-slate-500">You&apos;ll receive a call from the provider directly</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Pay provider directly</p>
+                    <p className="text-xs text-slate-500">Cash or card - RescueGo never charges drivers</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-left">
+                <p className="text-xs text-amber-800">
+                  <strong>Tip:</strong> Keep your phone nearby. Your provider will call you once they accept.
+                </p>
+              </div>
+
+              <button
+                onClick={resetForm}
+                className="text-sm text-slate-500 hover:text-orange-500 underline underline-offset-2 transition-colors"
               >
-                <path
-                  d="M5 13l4 4L19 7"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+                Submit a new request
+              </button>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Request Sent</h1>
-            <p className="text-sm text-slate-500 mb-6">
-              Request ID: <span className="font-mono text-slate-700">{requestId}</span>
-            </p>
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6 text-left">
-              <p className="text-sm font-semibold text-orange-900">What happens next?</p>
-              <ol className="mt-3 space-y-2 text-sm text-orange-800">
-                <li>1. Nearby provider will accept shortly.</li>
-                <li>2. You will be notified when provider is on the way.</li>
-                <li>3. You pay the provider directly after service.</li>
-              </ol>
-            </div>
-            <Button onClick={resetForm} variant="outline">
-              Submit Another Request
-            </Button>
           </div>
         </main>
       </>
