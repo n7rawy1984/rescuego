@@ -116,7 +116,23 @@ export default async function PricingPage() {
       <main className="pt-16">
         <section className="bg-slate-950 text-white px-4 py-16 text-center">
           <h1 className="text-3xl md:text-5xl font-bold mb-4">Simple, Transparent Pricing</h1>
-          <p className="text-slate-300 text-lg max-w-2xl mx-auto">For recovery providers. Customers always use RescueGo for free.</p>
+          <p className="text-slate-300 text-lg max-w-2xl mx-auto mb-8">
+            For recovery providers. Customers always use RescueGo for free.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="/provider/register"
+              className="inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white transition hover:bg-orange-600"
+            >
+              Join as Provider
+            </a>
+            <a
+              href="/customer/request"
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-6 text-sm font-semibold text-white transition hover:bg-white/15"
+            >
+              Request Recovery (Free)
+            </a>
+          </div>
         </section>
 
         <section className="py-16 px-4 bg-white">
