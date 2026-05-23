@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import Accordion from '@/components/ui/Accordion'
 import { createClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/types'
 
@@ -433,16 +434,7 @@ export default async function HomePage() {
         <section className="bg-slate-50 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-5 sm:px-6 md:px-8">
             <SectionTitle eyebrow="FAQ" title="Common questions" />
-            <div className="space-y-4">
-              {faqs.map((faq) => (
-                <details key={faq.question} className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                  <summary className="cursor-pointer text-base font-semibold text-slate-950">
-                    {faq.question}
-                  </summary>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{faq.answer}</p>
-                </details>
-              ))}
-            </div>
+            <Accordion items={faqs} />
           </div>
         </section>
       </main>
