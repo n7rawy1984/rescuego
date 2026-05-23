@@ -188,12 +188,12 @@ export default async function ProviderDashboardPage() {
             providerStatus={provider.status}
           />
 
-          {recentJobs && recentJobs.length > 0 && (
-            <Card className="mt-6">
-              <CardHeader>
-                <h2 className="font-semibold text-slate-800">Recent Completed Jobs</h2>
-              </CardHeader>
-              <CardBody className="p-0">
+          <Card className="mt-6">
+            <CardHeader>
+              <h2 className="font-semibold text-slate-800">Recent Completed Jobs</h2>
+            </CardHeader>
+            <CardBody className="p-0">
+              {recentJobs && recentJobs.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                   {recentJobs.map((job) => (
                     <div key={job.id} className="px-6 py-4 flex justify-between items-center">
@@ -202,15 +202,21 @@ export default async function ProviderDashboardPage() {
                         <div className="text-sm text-slate-500">{job.requests?.location_address}</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold text-slate-800">{job.requests?.final_price ? `${job.requests.final_price} AED` : '—'}</div>
+                        <div className="font-semibold text-slate-800">{job.requests?.final_price ? `${job.requests.final_price} AED` : '-'}</div>
                         <div className="text-xs text-slate-400">{job.completed_at ? new Date(job.completed_at).toLocaleDateString() : ''}</div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardBody>
-            </Card>
-          )}
+              ) : (
+                <div className="px-6 py-12 text-center">
+                  <div className="text-4xl mb-3">🚗</div>
+                  <p className="font-medium text-slate-700">No completed jobs yet</p>
+                  <p className="text-sm text-slate-500 mt-1">Accept your first request above and it will appear here.</p>
+                </div>
+              )}
+            </CardBody>
+          </Card>
         </div>
       </main>
     </>
