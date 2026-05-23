@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { OVERAGE_FEE_AED } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
 
 const acceptSchema = z.object({
@@ -76,6 +77,30 @@ export async function POST(req: NextRequest) {
 
   if (activeJob) {
     return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
+  }
+
+  // Overage guard - subscribed providers only
+  if (provider.plan !== 'pay_per_job') {
+    const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
+    if (planLimit !== null && provider.jobs_this_month >= planLimit) {
+      const { data: overageCleared } = await admin
+        .from('requests')
+        .select('overage_cleared')
+        .eq('id', parsed.data.request_id)
+        .single()
+
+      if (!overageCleared?.overage_cleared) {
+        return NextResponse.json(
+          {
+            error: `You've used all ${planLimit} jobs this month. Accept this job for ${OVERAGE_FEE_AED} AED?`,
+            code: 'OVERAGE_REQUIRED',
+            overage_fee_aed: OVERAGE_FEE_AED,
+            request_id: parsed.data.request_id,
+          },
+          { status: 402 }
+        )
+      }
+    }
   }
 
   const { data: activeLock } = await admin
