@@ -96,6 +96,9 @@ export default async function ProviderDashboardPage() {
   const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
   const remaining = planLimit !== null ? Math.max(0, planLimit - provider.jobs_this_month) : null
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests) ? openRequests : []
+  const totalEarnings = (recentJobs ?? []).reduce((sum, job) => {
+    return sum + (job.requests?.final_price ?? 0)
+  }, 0)
 
   const statusVariant = provider.status === 'active' ? 'success' : provider.status === 'suspended' ? 'danger' : 'warning'
   const roundedRating = Math.round(provider.rating)
@@ -129,7 +132,7 @@ export default async function ProviderDashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
             <Card>
               <CardBody>
                 <div className="text-2xl font-bold text-slate-900">{provider.jobs_this_month}</div>
@@ -146,6 +149,12 @@ export default async function ProviderDashboardPage() {
               <CardBody>
                 <div className="text-2xl font-bold text-orange-500">{getPlanLabel(provider.plan)}</div>
                 <div className="text-sm text-slate-500">Current Plan</div>
+              </CardBody>
+            </Card>
+            <Card>
+              <CardBody>
+                <div className="text-2xl font-bold text-green-600">{totalEarnings > 0 ? `${totalEarnings} AED` : '-'}</div>
+                <div className="text-sm text-slate-500">Total Earned (last 10)</div>
               </CardBody>
             </Card>
           </div>
