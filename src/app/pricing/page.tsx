@@ -162,6 +162,15 @@ export default async function PricingPage() {
               ))}
             </div>
 
+            <div className="mb-8 rounded-xl bg-slate-50 border border-slate-200 p-5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">Quick math: when does Starter pay off?</p>
+              <p className="text-sm text-slate-600">
+                At an average job value of <strong>250 AED</strong>, Pay Per Job costs you <strong>70 AED/job</strong> in commission.
+                With Starter at 249 AED/month, you break even after just <strong>4 jobs</strong>.
+                Everything beyond that is pure savings - and you get normal queue priority.
+              </p>
+            </div>
+
             <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div>

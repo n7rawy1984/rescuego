@@ -190,7 +190,12 @@ export default async function ProviderDashboardPage() {
           {provider.status === 'suspended' && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
               <p className="text-red-800 font-semibold">Account Suspended</p>
-              <p className="text-red-700 text-sm mt-1">Contact support to resolve your account status.</p>
+              <p className="text-red-700 text-sm mt-1">
+                Contact support to resolve your account status.{' '}
+                <a href="mailto:n7rawy19840@gmail.com" className="underline font-semibold hover:text-red-900">
+                  Email support →
+                </a>
+              </p>
             </div>
           )}
 
