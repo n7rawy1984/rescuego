@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 const requestSchema = z.object({
   problem_type: z.enum(['flat_tire', 'battery', 'tow', 'other']),
@@ -69,8 +70,23 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error || !data) {
+    logger.error({
+      event: 'request_create_failed',
+      customer_id: user.id,
+      problem_type,
+      has_coords: Boolean(coords),
+      error: error?.message ?? 'No request data returned',
+    })
     return NextResponse.json({ error: 'Failed to submit request' }, { status: 500 })
   }
+
+  logger.info({
+    event: 'request_created',
+    request_id: data.id,
+    customer_id: user.id,
+    problem_type,
+    has_coords: Boolean(coords),
+  })
 
   return NextResponse.json({ id: data.id })
 }

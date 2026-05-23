@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 import { OVERAGE_FEE_AED } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
 
@@ -90,6 +91,15 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (!overageCleared?.overage_cleared) {
+        logger.warn({
+          event: 'accept_request_overage_blocked',
+          provider_id: user.id,
+          request_id: parsed.data.request_id,
+          plan: provider.plan,
+          jobs_this_month: provider.jobs_this_month,
+          plan_limit: planLimit,
+          overage_fee_aed: OVERAGE_FEE_AED,
+        })
         return NextResponse.json(
           {
             error: `You've used all ${planLimit} jobs this month. Accept this job for ${OVERAGE_FEE_AED} AED?`,
@@ -123,6 +133,12 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (requestError || !updatedRequest) {
+    logger.warn({
+      event: 'accept_request_failed',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      error: requestError?.message ?? 'Request is no longer available',
+    })
     return NextResponse.json({ error: 'Request is no longer available' }, { status: 409 })
   }
 
@@ -142,6 +158,14 @@ export async function POST(req: NextRequest) {
       .delete()
       .eq('request_id', parsed.data.request_id),
   ])
+
+  logger.info({
+    event: 'accept_request_success',
+    provider_id: user.id,
+    request_id: parsed.data.request_id,
+    plan: provider.plan,
+    jobs_this_month: provider.jobs_this_month + 1,
+  })
 
   return NextResponse.json({ success: true, request_id: parsed.data.request_id })
 }

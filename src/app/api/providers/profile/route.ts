@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const providerProfileSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -15,6 +16,12 @@ export async function POST(req: NextRequest) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid provider profile details' }, { status: 400 })
+  }
+
+  const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown'
+  const rateLimit = checkRateLimit(`provider-register:${ip}`, 5, 60 * 60 * 1000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: 'Too many registration attempts from this address.' }, { status: 429 })
   }
 
   const supabase = await createClient()

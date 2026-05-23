@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { createClient } from '@/lib/supabase/server'
+import { LAUNCH_PROMO, PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
 import type { UserRole } from '@/types'
 
 export const metadata: Metadata = {
@@ -114,6 +115,11 @@ export default async function PricingPage() {
     <>
       <Navbar />
       <main className="pt-16">
+        {LAUNCH_PROMO && (
+          <div className="bg-orange-500 text-white text-center py-3 px-4 text-sm font-semibold">
+            🎉 Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat - Limited time only!
+          </div>
+        )}
         <section className="bg-slate-950 text-white px-4 py-16 text-center">
           <h1 className="text-3xl md:text-5xl font-bold mb-4">Simple, Transparent Pricing</h1>
           <p className="text-slate-300 text-lg max-w-2xl mx-auto mb-8">
@@ -175,7 +181,13 @@ export default async function PricingPage() {
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Pay Per Job</h2>
-                  <p className="text-slate-600 mt-1">No monthly fee. Pay 28% commission per job you accept.</p>
+                  <p className="text-slate-600 mt-1">
+                    No monthly fee.{' '}
+                    {LAUNCH_PROMO
+                      ? <><span className="font-bold text-orange-600">{PAY_PER_JOB_PROMO_FEE_AED} AED flat per job</span> <span className="line-through text-slate-400">30-70 AED</span> - Launch promo</>
+                      : 'Pay 30 AED (near) or 70 AED (far) flat per job you accept.'
+                    }
+                  </p>
                   <ul className="mt-3 flex flex-col gap-1.5">
                     {['Free to register', '28% commission per accepted job', 'Lowest queue priority', 'No monthly commitment'].map(feature => (
                       <li key={feature} className="text-sm text-slate-600 flex items-center gap-2"><span className="text-green-500">✓</span>{feature}</li>

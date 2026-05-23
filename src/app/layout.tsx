@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { validateEnv } from '@/lib/env'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://rescuego.ae'),
@@ -62,6 +63,11 @@ const structuredData = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Run on every server render - Next.js caches this. Will throw at build time if envs are missing.
+  if (process.env.NODE_ENV !== 'test') {
+    validateEnv()
+  }
+
   return (
     <html lang="en">
       <head>

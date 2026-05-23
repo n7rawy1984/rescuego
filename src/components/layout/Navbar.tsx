@@ -80,7 +80,10 @@ export default function Navbar() {
           <Link href="/pricing" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">Pricing</Link>
           <Link href="/about" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">About</Link>
           {loading ? (
-            <div className="h-10 w-32 rounded-lg bg-slate-100" aria-hidden="true" />
+            <div className="flex items-center gap-4" aria-hidden="true">
+              <div className="h-5 w-16 rounded bg-slate-100 animate-pulse" />
+              <div className="h-10 w-28 rounded-lg bg-slate-100 animate-pulse" />
+            </div>
           ) : authenticated ? (
             <>
               <Link href={dashboardHref} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
@@ -128,7 +131,10 @@ export default function Navbar() {
           <Link href="/pricing" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Pricing</Link>
           <Link href="/about" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>About</Link>
           {loading ? (
-            <div className="h-10 rounded-lg bg-slate-100" aria-hidden="true" />
+            <div className="space-y-2" aria-hidden="true">
+              <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
+              <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
+            </div>
           ) : authenticated ? (
             <>
               <Link href={dashboardHref} className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-center" onClick={() => setOpen(false)}>

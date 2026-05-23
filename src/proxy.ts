@@ -2,6 +2,17 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { requireEnv } from '@/lib/env'
 
+const PROTECTED_PREFIXES = [
+  '/provider/dashboard',
+  '/admin/dashboard',
+  '/admin/providers',
+  '/admin/requests',
+  '/admin/revenue',
+  '/customer/history',
+  '/customer/ratings',
+  '/customer/request',
+]
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -27,20 +38,15 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
-  if (pathname.startsWith('/provider/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/auth/login?redirect=/provider/dashboard', request.url))
+  if (isProtected && !user) {
+    const loginUrl = new URL('/auth/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  if (pathname.startsWith('/admin') && !user) {
-    return NextResponse.redirect(new URL('/auth/login?redirect=/admin', request.url))
-  }
-
-  if (pathname.startsWith('/customer') && !user) {
-    return NextResponse.redirect(new URL(`/auth/login?redirect=${pathname}`, request.url))
-  }
-
-  if (user && (pathname.startsWith('/admin') || pathname.startsWith('/provider/dashboard') || pathname.startsWith('/customer'))) {
+  if (user && isProtected) {
     const { data: profile } = await supabase
       .from('users')
       .select('role')

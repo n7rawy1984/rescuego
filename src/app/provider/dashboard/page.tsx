@@ -132,27 +132,27 @@ export default async function ProviderDashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            <Card>
-              <CardBody>
+          <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4 sm:gap-4">
+            <Card className="min-h-[80px]">
+              <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-slate-900">{provider.jobs_this_month}</div>
                 <div className="text-sm text-slate-500">Jobs This Month</div>
               </CardBody>
             </Card>
-            <Card>
-              <CardBody>
+            <Card className="min-h-[80px]">
+              <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-slate-900">{remaining !== null ? remaining : '∞'}</div>
                 <div className="text-sm text-slate-500">Jobs Remaining</div>
               </CardBody>
             </Card>
-            <Card className="col-span-2 sm:col-span-1">
-              <CardBody>
+            <Card className="col-span-2 min-h-[80px] sm:col-span-1">
+              <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-orange-500">{getPlanLabel(provider.plan)}</div>
                 <div className="text-sm text-slate-500">Current Plan</div>
               </CardBody>
             </Card>
-            <Card>
-              <CardBody>
+            <Card className="min-h-[80px]">
+              <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-green-600">{totalEarnings > 0 ? `${totalEarnings} AED` : '-'}</div>
                 <div className="text-sm text-slate-500">Total Earned (last 10)</div>
               </CardBody>

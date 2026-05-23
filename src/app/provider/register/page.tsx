@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Navbar from '@/components/layout/Navbar'
+import { LAUNCH_PROMO, PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
 import type { UserRole } from '@/types'
 
 const PLANS = [
@@ -226,6 +227,11 @@ export default function ProviderRegisterPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
+        {LAUNCH_PROMO && (
+          <div className="-mx-4 -mt-8 mb-8 bg-orange-500 text-white text-center py-3 px-4 text-sm font-semibold">
+            🎉 Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat - Limited time only!
+          </div>
+        )}
         <div className="max-w-2xl mx-auto">
           {existingAccount.checked && existingAccount.actionHref && (
             <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
