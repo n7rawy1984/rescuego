@@ -4,6 +4,7 @@ export interface SubscriptionPlan {
   id: ProviderPlan
   name: string
   price_aed: number
+  promo_price_aed?: number
   monthly_jobs: number | null
   overage_aed: number | null
   premium_commission_pct: number
@@ -16,6 +17,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: 'starter',
     name: 'Starter',
     price_aed: 249,
+    promo_price_aed: 149,
     monthly_jobs: 15,
     overage_aed: 12,
     premium_commission_pct: 15,
@@ -44,7 +46,17 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
 ]
 
-export const PAY_PER_JOB_COMMISSION_PCT = 28
+// Pay Per Job - flat acceptance fee (not percentage)
+export const PAY_PER_JOB_FEE_NEAR_AED = 30
+export const PAY_PER_JOB_FEE_FAR_AED = 70
+export const PAY_PER_JOB_DISTANCE_THRESHOLD_M = 10_000
+
+// Launch promo - set to false manually when promo ends
+export const LAUNCH_PROMO = true
+export const PAY_PER_JOB_PROMO_FEE_AED = 15
+
+// Overage and platform fees
+export const OVERAGE_FEE_AED = 12
 export const PREMIUM_JOB_THRESHOLD_AED = 400
 export const REQUEST_LOCK_SECONDS = 60
 export const PROVIDER_RADIUS_METERS = 5000

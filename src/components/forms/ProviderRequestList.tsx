@@ -15,8 +15,6 @@ type ProviderRequestCard = {
   note: string | null
   status: RequestStatus
   accepted_by: string | null
-  price_estimate_min: number | null
-  price_estimate_max: number | null
   final_price: number | null
   created_at: string
   distance_meters: number
@@ -122,11 +120,8 @@ export default function ProviderRequestList({ requests, providerStatus }: Props)
                     <div className="font-semibold text-slate-800">{getProblemLabel(req.problem_type)}</div>
                     <div className="text-sm text-slate-500 mt-0.5 max-w-[300px] truncate">{req.location_address ?? 'Location not specified'}</div>
                     {req.note && <div className="text-xs text-slate-400 mt-0.5 max-w-[300px] truncate">Note: {req.note}</div>}
-                    <div className="text-sm text-orange-600 font-medium mt-1">
-                      Est. {req.price_estimate_min}–{req.price_estimate_max} AED
-                    </div>
                     <div className="text-xs text-slate-400 mt-0.5">
-                      {formatDistance(req.distance_meters)} - {new Date(req.created_at).toLocaleTimeString()}
+                      {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>

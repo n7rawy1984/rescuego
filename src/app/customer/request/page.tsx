@@ -8,13 +8,6 @@ import Input from '@/components/ui/Input'
 import type { ProblemType } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
-const PRICE_ESTIMATES: Record<ProblemType, { min: number; max: number }> = {
-  flat_tire: { min: 80, max: 200 },
-  battery: { min: 100, max: 250 },
-  tow: { min: 200, max: 800 },
-  other: { min: 150, max: 500 },
-}
-
 const PROBLEM_OPTIONS: { type: ProblemType; label: string; Icon: LucideIcon }[] = [
   { type: 'flat_tire', label: 'Flat Tire', Icon: Wrench },
   { type: 'battery', label: 'Battery Issue', Icon: BatteryCharging },
@@ -250,19 +243,14 @@ export default function RequestPage() {
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
                       <div className="font-semibold text-slate-800">{opt.label}</div>
-                      {problemType === opt.type && (
-                        <div className="text-sm text-orange-600 mt-1">
-                          Est. {PRICE_ESTIMATES[opt.type].min}-{PRICE_ESTIMATES[opt.type].max} AED
-                        </div>
-                      )}
                     </button>
                   )
                 })}
               </div>
               {problemType && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <p className="text-sm text-blue-800">
-                    <strong>Estimated cost:</strong> {PRICE_ESTIMATES[problemType].min}-{PRICE_ESTIMATES[problemType].max} AED (paid directly to provider)
+                <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                  <p>
+                    <strong>How pricing works:</strong> Your recovery provider will agree a price with you directly before starting the job. RescueGo never charges drivers.
                   </p>
                 </div>
               )}
@@ -314,11 +302,9 @@ export default function RequestPage() {
                   <span className="text-slate-500 text-sm">Location</span>
                   <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{address}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 text-sm">Est. Price</span>
-                  <span className="font-semibold text-orange-600">
-                    {problemType ? `${PRICE_ESTIMATES[problemType].min}-${PRICE_ESTIMATES[problemType].max} AED` : '-'}
-                  </span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-500 text-sm">Payment</span>
+                  <span className="text-sm font-medium text-slate-700 text-right">Agreed directly with provider</span>
                 </div>
                 {note && (
                   <div className="flex justify-between items-start gap-2">

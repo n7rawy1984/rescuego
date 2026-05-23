@@ -1,5 +1,13 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import {
+  LAUNCH_PROMO,
+  PAY_PER_JOB_DISTANCE_THRESHOLD_M,
+  PAY_PER_JOB_FEE_FAR_AED,
+  PAY_PER_JOB_FEE_NEAR_AED,
+  PAY_PER_JOB_PROMO_FEE_AED,
+  PREMIUM_JOB_THRESHOLD_AED,
+} from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
@@ -41,17 +49,24 @@ export function getStatusColor(status: RequestStatus | ProviderStatus): string {
 }
 
 export function calculateCommission(jobValueAed: number, plan: ProviderPlan): number {
-  if (jobValueAed <= 400) return 0
-  const rates: Record<ProviderPlan, number> = {
+  if (jobValueAed <= PREMIUM_JOB_THRESHOLD_AED) return 0
+  const rates: Partial<Record<ProviderPlan, number>> = {
     starter: 0.15,
     pro: 0.10,
     business: 0,
-    pay_per_job: 0.28,
   }
-  return Math.round(jobValueAed * (rates[plan] ?? 0))
+  const rate = rates[plan] ?? 0
+  return Math.round(jobValueAed * rate)
 }
 
 export function distanceLabel(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`
   return `${(meters / 1000).toFixed(1)} km`
+}
+
+export function getPayPerJobFee(distanceMeters: number): number {
+  if (LAUNCH_PROMO) return PAY_PER_JOB_PROMO_FEE_AED
+  return distanceMeters >= PAY_PER_JOB_DISTANCE_THRESHOLD_M
+    ? PAY_PER_JOB_FEE_FAR_AED
+    : PAY_PER_JOB_FEE_NEAR_AED
 }

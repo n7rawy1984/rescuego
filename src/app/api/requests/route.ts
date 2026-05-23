@@ -2,14 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
-import type { ProblemType } from '@/types'
-
-const PRICE_ESTIMATES: Record<ProblemType, { min: number; max: number }> = {
-  flat_tire: { min: 80, max: 200 },
-  battery: { min: 100, max: 250 },
-  tow: { min: 200, max: 800 },
-  other: { min: 150, max: 500 },
-}
 
 const requestSchema = z.object({
   problem_type: z.enum(['flat_tire', 'battery', 'tow', 'other']),
@@ -61,7 +53,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { problem_type, location_address, note, coords } = parsed.data
-  const estimates = PRICE_ESTIMATES[problem_type]
   const point = coords ? `POINT(${coords.lng} ${coords.lat})` : 'POINT(55.2708 25.2048)'
 
   const { data, error } = await supabase
@@ -72,8 +63,6 @@ export async function POST(req: NextRequest) {
       location_address,
       problem_type,
       note: note || null,
-      price_estimate_min: estimates.min,
-      price_estimate_max: estimates.max,
       status: 'open',
     })
     .select('id')
