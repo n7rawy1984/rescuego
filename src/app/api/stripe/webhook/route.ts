@@ -93,6 +93,164 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (event.type === 'payment_intent.succeeded') {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent
+    const { fee_type, provider_id, request_id } = paymentIntent.metadata ?? {}
+
+    if (fee_type === 'pay_per_job' && provider_id && request_id) {
+      const { error: paymentError } = await supabase
+        .from('ppj_payments')
+        .update({ status: 'paid' })
+        .eq('stripe_payment_intent_id', paymentIntent.id)
+
+      if (paymentError) {
+        logger.error({
+          event: 'stripe_webhook_failed',
+          stripe_event_id: event.id,
+          event_type: event.type,
+          payment_intent_id: paymentIntent.id,
+          error: paymentError.message,
+        })
+      }
+
+      const { data: updatedRequest } = await supabase
+        .from('requests')
+        .update({ status: 'accepted', accepted_by: provider_id })
+        .eq('id', request_id)
+        .eq('status', 'open')
+        .select('id')
+        .single()
+
+      if (updatedRequest) {
+        const { data: provider } = await supabase
+          .from('providers')
+          .select('jobs_this_month')
+          .eq('id', provider_id)
+          .single<{ jobs_this_month: number | null }>()
+
+        await Promise.all([
+          supabase
+            .from('providers')
+            .update({ jobs_this_month: (provider?.jobs_this_month ?? 0) + 1 })
+            .eq('id', provider_id),
+          supabase
+            .from('jobs')
+            .upsert({ request_id, provider_id }, { onConflict: 'request_id' }),
+          supabase
+            .from('request_locks')
+            .delete()
+            .eq('request_id', request_id),
+        ])
+
+        logger.info({
+          event: 'ppj_payment_accepted_request',
+          provider_id,
+          request_id,
+          payment_intent_id: paymentIntent.id,
+          fee_aed: paymentIntent.amount / 100,
+        })
+      } else {
+        logger.warn({
+          event: 'ppj_payment_request_already_taken',
+          provider_id,
+          request_id,
+          payment_intent_id: paymentIntent.id,
+        })
+      }
+    }
+
+    if (fee_type === 'overage' && provider_id && request_id) {
+      const { error: overageError } = await supabase
+        .from('requests')
+        .update({ overage_cleared: true })
+        .eq('id', request_id)
+
+      if (overageError) {
+        logger.error({
+          event: 'stripe_webhook_failed',
+          stripe_event_id: event.id,
+          event_type: event.type,
+          payment_intent_id: paymentIntent.id,
+          error: overageError.message,
+        })
+      }
+
+      const { data: updatedRequest } = await supabase
+        .from('requests')
+        .update({ status: 'accepted', accepted_by: provider_id })
+        .eq('id', request_id)
+        .eq('status', 'open')
+        .select('id')
+        .single()
+
+      if (updatedRequest) {
+        const { data: provider } = await supabase
+          .from('providers')
+          .select('jobs_this_month')
+          .eq('id', provider_id)
+          .single<{ jobs_this_month: number | null }>()
+
+        await Promise.all([
+          supabase
+            .from('providers')
+            .update({ jobs_this_month: (provider?.jobs_this_month ?? 0) + 1 })
+            .eq('id', provider_id),
+          supabase
+            .from('jobs')
+            .upsert({ request_id, provider_id }, { onConflict: 'request_id' }),
+          supabase
+            .from('request_locks')
+            .delete()
+            .eq('request_id', request_id),
+        ])
+
+        logger.info({
+          event: 'overage_payment_accepted_request',
+          provider_id,
+          request_id,
+          payment_intent_id: paymentIntent.id,
+        })
+      } else {
+        logger.warn({
+          event: 'overage_payment_request_already_taken',
+          provider_id,
+          request_id,
+          payment_intent_id: paymentIntent.id,
+        })
+      }
+    }
+  }
+
+  if (event.type === 'payment_intent.payment_failed') {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent
+    const { fee_type, provider_id, request_id } = paymentIntent.metadata ?? {}
+
+    if ((fee_type === 'pay_per_job' || fee_type === 'overage') && provider_id && request_id) {
+      const { error } = await supabase
+        .from('ppj_payments')
+        .update({ status: 'failed' })
+        .eq('stripe_payment_intent_id', paymentIntent.id)
+
+      if (error) {
+        logger.error({
+          event: 'stripe_webhook_failed',
+          stripe_event_id: event.id,
+          event_type: event.type,
+          payment_intent_id: paymentIntent.id,
+          error: error.message,
+        })
+      }
+
+      logger.warn({
+        event: 'ppj_or_overage_payment_failed',
+        fee_type,
+        provider_id,
+        request_id,
+        payment_intent_id: paymentIntent.id,
+      })
+    }
+  }
+
   if (event.type === 'payout.created' || event.type === 'payout.paid') {
     const payout = event.data.object as Stripe.Payout
     const { error } = await supabase.from('payout_log').upsert({

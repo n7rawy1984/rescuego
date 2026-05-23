@@ -5,7 +5,15 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { getProblemLabel } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import type { ProblemType, ProviderStatus, RequestStatus } from '@/types'
+import {
+  LAUNCH_PROMO,
+  OVERAGE_FEE_AED,
+  PAY_PER_JOB_DISTANCE_THRESHOLD_M,
+  PAY_PER_JOB_FEE_FAR_AED,
+  PAY_PER_JOB_FEE_NEAR_AED,
+  PAY_PER_JOB_PROMO_FEE_AED,
+} from '@/types'
+import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
 type ProviderRequestCard = {
   id: string
@@ -23,6 +31,7 @@ type ProviderRequestCard = {
 interface Props {
   requests: ProviderRequestCard[]
   providerStatus: ProviderStatus
+  providerPlan: ProviderPlan
 }
 
 function formatDistance(meters: number): string {
@@ -30,11 +39,13 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km away`
 }
 
-export default function ProviderRequestList({ requests, providerStatus }: Props) {
+export default function ProviderRequestList({ requests, providerStatus, providerPlan }: Props) {
   const router = useRouter()
   const [requestItems, setRequestItems] = useState<ProviderRequestCard[]>(requests)
   const [accepting, setAccepting] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [showOverageModal, setShowOverageModal] = useState<string | null>(null)
+  const [overageLoading, setOverageLoading] = useState(false)
 
   const refreshRequests = useCallback(async () => {
     const supabase = createClient()
@@ -75,12 +86,38 @@ export default function ProviderRequestList({ requests, providerStatus }: Props)
     }
     setAccepting(requestId)
     setError('')
+
+    if (providerPlan === 'pay_per_job') {
+      const res = await fetch('/api/provider/ppj-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId }),
+      })
+      const result = await res.json()
+
+      if (!res.ok) {
+        setError(result.error ?? 'Pay Per Job payment setup failed')
+        setAccepting(null)
+        return
+      }
+
+      router.push(`/provider/ppj-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
+      return
+    }
+
     const res = await fetch('/api/provider/requests/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ request_id: requestId }),
     })
     const result = await res.json()
+
+    if (res.status === 402 && result.code === 'OVERAGE_REQUIRED') {
+      setAccepting(null)
+      setShowOverageModal(requestId)
+      return
+    }
+
     if (!res.ok) {
       setError(result.error ?? 'Failed to accept request')
       setAccepting(null)
@@ -89,6 +126,27 @@ export default function ProviderRequestList({ requests, providerStatus }: Props)
     setRequestItems((current) => current.filter((request) => request.id !== requestId))
     router.refresh()
     setAccepting(null)
+  }
+
+  async function handleOverageConfirm(requestId: string) {
+    setOverageLoading(true)
+    setError('')
+
+    const res = await fetch('/api/provider/overage-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: requestId }),
+    })
+    const result = await res.json()
+
+    if (!res.ok) {
+      setError(result.error ?? 'Overage payment setup failed')
+      setOverageLoading(false)
+      setShowOverageModal(null)
+      return
+    }
+
+    router.push(`/provider/overage-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
   }
 
   const problemIcons: Record<string, string> = { flat_tire: '🔧', battery: '⚡', tow: '🚛', other: '🔍' }
@@ -123,6 +181,16 @@ export default function ProviderRequestList({ requests, providerStatus }: Props)
                     <div className="text-xs text-slate-400 mt-0.5">
                       {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
                     </div>
+                    {providerPlan === 'pay_per_job' && (
+                      <div className="mt-1 inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
+                        {LAUNCH_PROMO
+                          ? `${PAY_PER_JOB_PROMO_FEE_AED} AED to accept (promo)`
+                          : req.distance_meters >= PAY_PER_JOB_DISTANCE_THRESHOLD_M
+                            ? `${PAY_PER_JOB_FEE_FAR_AED} AED to accept`
+                            : `${PAY_PER_JOB_FEE_NEAR_AED} AED to accept`
+                        }
+                      </div>
+                    )}
                   </div>
                 </div>
                 <Button
@@ -131,7 +199,7 @@ export default function ProviderRequestList({ requests, providerStatus }: Props)
                   onClick={() => handleAccept(req.id)}
                   disabled={providerStatus !== 'active'}
                 >
-                  Accept
+                  {providerPlan === 'pay_per_job' ? 'Pay & Accept' : 'Accept'}
                 </Button>
               </div>
             ))}
@@ -139,6 +207,32 @@ export default function ProviderRequestList({ requests, providerStatus }: Props)
         )}
         {error && <div className="px-6 pb-4 text-sm text-red-500">{error}</div>}
       </CardBody>
+      {showOverageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Monthly Limit Reached</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              You&apos;ve used all your jobs this month. Accept this request for a one-time overage fee of{' '}
+              <strong className="text-orange-600">{OVERAGE_FEE_AED} AED</strong>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowOverageModal(null)}
+                className="flex-1 h-10 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleOverageConfirm(showOverageModal)}
+                disabled={overageLoading}
+                className="flex-1 h-10 rounded-lg bg-orange-500 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60 transition-colors"
+              >
+                {overageLoading ? 'Setting up...' : `Pay ${OVERAGE_FEE_AED} AED`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   )
 }

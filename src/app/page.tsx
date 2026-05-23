@@ -46,10 +46,10 @@ const steps = [
 ]
 
 const services = [
-  { title: 'Flat tire', icon: Wrench, price: '80-200 AED' },
-  { title: 'Battery issue', icon: BatteryCharging, price: '100-250 AED' },
-  { title: 'Tow truck', icon: Truck, price: '200-800 AED' },
-  { title: 'Urgent support', icon: Clock3, price: '24/7 request flow' },
+  { title: 'Flat tire', icon: Wrench },
+  { title: 'Battery issue', icon: BatteryCharging },
+  { title: 'Tow truck', icon: Truck, descriptor: 'Recovery & towing support' },
+  { title: 'Urgent support', icon: Clock3, descriptor: '24/7 request flow' },
 ]
 
 const providerPlans = [
@@ -385,7 +385,9 @@ export default async function HomePage() {
                       <Icon className="h-5 w-5" aria-hidden="true" />
                     </div>
                     <h3 className="mt-5 text-lg font-bold text-slate-950">{service.title}</h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-600">{service.price}</p>
+                    {service.descriptor ? (
+                      <p className="mt-1 text-sm font-semibold text-slate-600">{service.descriptor}</p>
+                    ) : null}
                   </article>
                 )
               })}

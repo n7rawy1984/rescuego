@@ -221,6 +221,7 @@ export default async function ProviderDashboardPage() {
           <ProviderRequestList
             requests={nearbyOpenRequests}
             providerStatus={provider.status}
+            providerPlan={provider.plan}
           />
 
           <Card className="mt-6">

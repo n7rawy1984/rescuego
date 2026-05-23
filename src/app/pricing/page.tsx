@@ -3,7 +3,13 @@ import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { createClient } from '@/lib/supabase/server'
-import { LAUNCH_PROMO, PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
+import {
+  LAUNCH_PROMO,
+  PAY_PER_JOB_DISTANCE_THRESHOLD_M,
+  PAY_PER_JOB_FEE_FAR_AED,
+  PAY_PER_JOB_FEE_NEAR_AED,
+  PAY_PER_JOB_PROMO_FEE_AED,
+} from '@/types'
 import type { UserRole } from '@/types'
 
 export const metadata: Metadata = {
@@ -168,28 +174,20 @@ export default async function PricingPage() {
               ))}
             </div>
 
-            <div className="mb-8 rounded-xl bg-slate-50 border border-slate-200 p-5">
-              <p className="text-sm font-semibold text-slate-800 mb-2">Quick math: when does Starter pay off?</p>
-              <p className="text-sm text-slate-600">
-                At an average job value of <strong>250 AED</strong>, Pay Per Job costs you <strong>70 AED/job</strong> in commission.
-                With Starter at 249 AED/month, you break even after just <strong>4 jobs</strong>.
-                Everything beyond that is pure savings - and you get normal queue priority.
-              </p>
-            </div>
-
             <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Pay Per Job</h2>
-                  <p className="text-slate-600 mt-1">
-                    No monthly fee.{' '}
-                    {LAUNCH_PROMO
-                      ? <><span className="font-bold text-orange-600">{PAY_PER_JOB_PROMO_FEE_AED} AED flat per job</span> <span className="line-through text-slate-400">30-70 AED</span> - Launch promo</>
-                      : 'Pay 30 AED (near) or 70 AED (far) flat per job you accept.'
-                    }
-                  </p>
+                  <h2 className="text-xl font-bold text-slate-900">Pay Per Job - How It Works</h2>
                   <ul className="mt-3 flex flex-col gap-1.5">
-                    {['Free to register', '28% commission per accepted job', 'Lowest queue priority', 'No monthly commitment'].map(feature => (
+                    {[
+                      'No monthly fee',
+                      'Pay a flat acceptance fee per job you choose to accept',
+                      `During launch promo: ${PAY_PER_JOB_PROMO_FEE_AED} AED flat per job`,
+                      `After promo: ${PAY_PER_JOB_FEE_NEAR_AED} AED under ${PAY_PER_JOB_DISTANCE_THRESHOLD_M / 1000} km, or ${PAY_PER_JOB_FEE_FAR_AED} AED over ${PAY_PER_JOB_DISTANCE_THRESHOLD_M / 1000} km`,
+                      'No commission on job value - price agreed directly with customer',
+                      'Lowest queue priority',
+                      'No monthly commitment',
+                    ].map(feature => (
                       <li key={feature} className="text-sm text-slate-600 flex items-center gap-2"><span className="text-green-500">✓</span>{feature}</li>
                     ))}
                   </ul>
@@ -204,23 +202,24 @@ export default async function PricingPage() {
 
         <section className="py-12 px-4 bg-slate-50">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Plan Comparison</h2>
+            <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Subscription Plan Comparison</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden bg-white">
                 <thead className="bg-slate-800 text-white">
                   <tr>
-                    {['Feature', 'Pay Per Job', 'Starter', 'Pro', 'Business'].map(heading => (
+                    {['Feature', 'Starter', 'Pro', 'Business'].map(heading => (
                       <th key={heading} className="px-4 py-3 text-left font-semibold">{heading}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {[
-                    ['Monthly Fee', 'Free', '249 AED', '449 AED', '849 AED'],
-                    ['Jobs/Month', 'Unlimited', '15', '35', 'Unlimited'],
-                    ['Overage Fee', '-', '12 AED/job', '12 AED/job', 'None'],
-                    ['Commission', '28% all jobs', '15% over 400 AED', '10% over 400 AED', '0%'],
-                    ['Queue Priority', 'Lowest', 'Normal', 'High', 'Always First'],
+                    ['Monthly Fee', '249 AED', '449 AED', '849 AED'],
+                    ['Jobs/Month', '15', '35', 'Unlimited'],
+                    ['Overage Fee', '12 AED/job', '12 AED/job', 'None'],
+                    ['Commission', '15% over 400 AED', '10% over 400 AED', '0%'],
+                    ['Queue Priority', 'Normal', 'High', 'Always First'],
+                    ['Verified Badge', 'No', 'No', 'Yes'],
                   ].map(([feature, ...values]) => (
                     <tr key={feature} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{feature}</td>
