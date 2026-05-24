@@ -166,12 +166,12 @@ export default async function ProviderDashboardPage() {
                 <p className="font-semibold text-orange-900 text-sm">
                   {provider.plan === 'pay_per_job'
                     ? `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`
-                    : 'You\'re on Starter - 15% commission, normal queue priority'}
+                    : 'You\'re on Starter — 15 jobs/month, normal queue priority'}
                 </p>
                 <p className="text-xs text-orange-700 mt-0.5">
                   {provider.plan === 'pay_per_job'
                     ? 'Upgrade to Pro for unlimited jobs with high queue priority.'
-                    : 'Upgrade to Pro and cut your commission to 10% with high queue priority.'}
+                    : 'Upgrade to Pro for 35 jobs/month and high queue priority.'}
                 </p>
               </div>
               <a

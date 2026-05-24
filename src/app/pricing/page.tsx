@@ -94,7 +94,7 @@ async function getPricingViewer(): Promise<PricingViewer> {
   }
 }
 
-function pricingCtaForViewer(viewer: PricingViewer, planId: string) {
+function pricingCtaForViewer(viewer: PricingViewer) {
   if (viewer.role === 'admin') {
     return { href: '/admin/dashboard', label: 'Admin Dashboard' }
   }
@@ -104,14 +104,10 @@ function pricingCtaForViewer(viewer: PricingViewer, planId: string) {
   }
 
   if (viewer.role === 'provider') {
-    if (viewer.providerStatus === 'active' || viewer.providerSubscriptionId) {
-      return { href: '/provider/dashboard', label: 'Provider Dashboard' }
-    }
-
-    return { href: '/provider/subscribe', label: 'Choose Subscription' }
+    return { href: '/provider/subscribe', label: null }
   }
 
-  return { href: `/provider/register?plan=${planId}`, label: null }
+  return { href: '/provider/register', label: null }
 }
 
 export default async function PricingPage() {
@@ -167,8 +163,8 @@ export default async function PricingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href={pricingCtaForViewer(viewer, plan.id).href} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
-                    {pricingCtaForViewer(viewer, plan.id).label ?? plan.cta}
+                  <Link href={pricingCtaForViewer(viewer).href} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
+                    {pricingCtaForViewer(viewer).label ?? plan.cta}
                   </Link>
                 </div>
               ))}
@@ -192,8 +188,8 @@ export default async function PricingPage() {
                     ))}
                   </ul>
                 </div>
-                <Link href={pricingCtaForViewer(viewer, 'pay_per_job').href} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
-                  {pricingCtaForViewer(viewer, 'pay_per_job').label ?? 'Start Free'}
+                <Link href={pricingCtaForViewer(viewer).href} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
+                  {pricingCtaForViewer(viewer).label ?? 'Start Free'}
                 </Link>
               </div>
             </div>
