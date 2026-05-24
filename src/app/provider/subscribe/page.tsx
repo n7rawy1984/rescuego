@@ -2,9 +2,23 @@ import { redirect } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import { createClient } from '@/lib/supabase/server'
 import SubscribePlans from './SubscribePlans'
-import type { UserRole } from '@/types'
+import type { ProviderPlan, UserRole } from '@/types'
 
-export default async function SubscribePage() {
+type SubscribePageProps = {
+  searchParams?: Promise<{
+    plan?: string | string[]
+  }>
+}
+
+function parseSelectedPlan(plan: string | string[] | undefined): ProviderPlan | null {
+  const value = Array.isArray(plan) ? plan[0] : plan
+  if (value === 'starter' || value === 'pro' || value === 'business') return value
+  return null
+}
+
+export default async function SubscribePage({ searchParams }: SubscribePageProps) {
+  const params = await searchParams
+  const selectedPlan = parseSelectedPlan(params?.plan)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -51,7 +65,7 @@ export default async function SubscribePage() {
               Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower commissions.
             </p>
           </div>
-          <SubscribePlans providerId={user.id} />
+          <SubscribePlans providerId={user.id} selectedPlan={selectedPlan} />
         </div>
       </main>
     </>

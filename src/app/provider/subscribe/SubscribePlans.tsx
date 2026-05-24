@@ -1,11 +1,11 @@
 'use client'
 import { useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { SUBSCRIPTION_PLANS } from '@/types'
 import type { ProviderPlan } from '@/types'
 
 type SubscribePlansProps = {
   providerId: string
+  selectedPlan: ProviderPlan | null
 }
 
 type CheckoutResponse = {
@@ -27,12 +27,7 @@ function selectedPlanCopy(plan: ProviderPlan): string {
   return 'Best for serious operators who want unlimited jobs and no commission.'
 }
 
-export default function SubscribePlans({ providerId }: SubscribePlansProps) {
-  const searchParams = useSearchParams()
-  const requestedPlan = searchParams.get('plan')
-  const selectedPlan = subscriptionPlans.some((plan) => plan.id === requestedPlan)
-    ? requestedPlan as ProviderPlan
-    : null
+export default function SubscribePlans({ providerId, selectedPlan }: SubscribePlansProps) {
   const [loadingPlan, setLoadingPlan] = useState<ProviderPlan | null>(null)
   const [error, setError] = useState('')
 
