@@ -10,7 +10,7 @@ import {
   PAY_PER_JOB_FEE_NEAR_AED,
   PAY_PER_JOB_PROMO_FEE_AED,
 } from '@/types'
-import type { UserRole } from '@/types'
+import type { ProviderPlan, UserRole } from '@/types'
 
 export const metadata: Metadata = {
   title: 'Pricing - Recovery Provider Plans',
@@ -57,6 +57,7 @@ type PricingViewer = {
   role: UserRole | null
   providerStatus: string | null
   providerSubscriptionId: string | null
+  currentPlan: ProviderPlan | null
 }
 
 async function getPricingViewer(): Promise<PricingViewer> {
@@ -64,7 +65,7 @@ async function getPricingViewer(): Promise<PricingViewer> {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return { role: null, providerStatus: null, providerSubscriptionId: null }
+    return { role: null, providerStatus: null, providerSubscriptionId: null, currentPlan: null }
   }
 
   const { data: profile } = await supabase
@@ -78,36 +79,36 @@ async function getPricingViewer(): Promise<PricingViewer> {
       role: profile?.role ?? 'customer',
       providerStatus: null,
       providerSubscriptionId: null,
+      currentPlan: null,
     }
   }
 
   const { data: provider } = await supabase
     .from('providers')
-    .select('status, stripe_subscription_id')
+    .select('plan, status, stripe_subscription_id')
     .eq('id', user.id)
-    .maybeSingle<{ status: string | null; stripe_subscription_id: string | null }>()
+    .maybeSingle<{ plan: ProviderPlan | null; status: string | null; stripe_subscription_id: string | null }>()
 
   return {
     role: 'provider',
     providerStatus: provider?.status ?? null,
     providerSubscriptionId: provider?.stripe_subscription_id ?? null,
+    currentPlan: provider?.stripe_subscription_id ? provider.plan ?? null : null,
   }
 }
 
-function pricingCtaForViewer(viewer: PricingViewer) {
-  if (viewer.role === 'admin') {
-    return { href: '/admin/dashboard', label: 'Admin Dashboard' }
-  }
-
-  if (viewer.role === 'customer') {
-    return { href: '/customer/request', label: 'Request Help' }
-  }
-
+function pricingCtaForViewer(viewer: PricingViewer, planId: string) {
   if (viewer.role === 'provider') {
-    return { href: '/provider/subscribe', label: null }
+    return { href: `/provider/subscribe?plan=${planId}` }
   }
 
-  return { href: '/provider/register', label: null }
+  return { href: '/provider/register' }
+}
+
+function planButtonLabel(planId: string): string {
+  if (planId === 'starter') return 'Choose Starter'
+  if (planId === 'pro') return 'Upgrade to Pro'
+  return 'Upgrade to Business'
 }
 
 export default async function PricingPage() {
@@ -146,28 +147,43 @@ export default async function PricingPage() {
         <section className="py-16 px-4 bg-white">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              {PLANS.map((plan) => (
-                <div key={plan.id} className={`rounded-2xl border-2 p-8 relative ${plan.highlight ? 'border-orange-500 shadow-xl shadow-orange-100' : 'border-slate-200'}`}>
-                  {plan.highlight && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-sm font-bold px-4 py-1 rounded-full">Most Popular</div>
-                  )}
-                  <div className="font-bold text-xl text-slate-900 mb-2">{plan.name}</div>
-                  <div className="flex items-end gap-1 mb-6">
-                    <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
-                    <span className="text-slate-500 mb-1">AED{plan.period}</span>
+              {PLANS.map((plan) => {
+                const isCurrentPlan = viewer.currentPlan === plan.id
+                return (
+                  <div key={plan.id} className={`rounded-2xl border-2 p-8 relative ${isCurrentPlan ? 'border-green-500 shadow-xl shadow-green-100' : plan.highlight ? 'border-orange-500 shadow-xl shadow-orange-100' : 'border-slate-200'}`}>
+                    {isCurrentPlan ? (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white text-sm font-bold px-4 py-1 rounded-full">Active Plan</div>
+                    ) : plan.highlight ? (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-sm font-bold px-4 py-1 rounded-full">Most Popular</div>
+                    ) : null}
+                    <div className="font-bold text-xl text-slate-900 mb-2">{plan.name}</div>
+                    <div className="flex items-end gap-1 mb-6">
+                      <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
+                      <span className="text-slate-500 mb-1">AED{plan.period}</span>
+                    </div>
+                    <ul className="flex flex-col gap-2.5 mb-8">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
+                          <span className="text-green-500 font-bold mt-0.5">✓</span>{feature}
+                        </li>
+                      ))}
+                    </ul>
+                    {isCurrentPlan ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="block w-full cursor-not-allowed rounded-xl bg-slate-100 py-3 text-center font-semibold text-slate-500"
+                      >
+                        Current Plan
+                      </button>
+                    ) : (
+                      <Link href={pricingCtaForViewer(viewer, plan.id).href} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
+                        {planButtonLabel(plan.id)}
+                      </Link>
+                    )}
                   </div>
-                  <ul className="flex flex-col gap-2.5 mb-8">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
-                        <span className="text-green-500 font-bold mt-0.5">✓</span>{feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link href={pricingCtaForViewer(viewer).href} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
-                    {pricingCtaForViewer(viewer).label ?? plan.cta}
-                  </Link>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200">
@@ -188,8 +204,8 @@ export default async function PricingPage() {
                     ))}
                   </ul>
                 </div>
-                <Link href={pricingCtaForViewer(viewer).href} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
-                  {pricingCtaForViewer(viewer).label ?? 'Start Free'}
+                <Link href={viewer.role === 'provider' ? '/provider/dashboard' : '/provider/register'} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
+                  {viewer.role === 'provider' ? 'Provider Dashboard' : 'Start Free'}
                 </Link>
               </div>
             </div>

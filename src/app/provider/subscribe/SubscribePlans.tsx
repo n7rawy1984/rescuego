@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { SUBSCRIPTION_PLANS } from '@/types'
 import type { ProviderPlan } from '@/types'
 
@@ -20,7 +21,18 @@ function planPriorityLabel(priority: number): string {
   return 'Normal priority'
 }
 
+function selectedPlanCopy(plan: ProviderPlan): string {
+  if (plan === 'starter') return 'Best for new providers starting with steady monthly jobs.'
+  if (plan === 'pro') return 'Best for growing providers who want more jobs and higher priority.'
+  return 'Best for serious operators who want unlimited jobs and no commission.'
+}
+
 export default function SubscribePlans({ providerId }: SubscribePlansProps) {
+  const searchParams = useSearchParams()
+  const requestedPlan = searchParams.get('plan')
+  const selectedPlan = subscriptionPlans.some((plan) => plan.id === requestedPlan)
+    ? requestedPlan as ProviderPlan
+    : null
   const [loadingPlan, setLoadingPlan] = useState<ProviderPlan | null>(null)
   const [error, setError] = useState('')
 
@@ -54,8 +66,18 @@ export default function SubscribePlans({ providerId }: SubscribePlansProps) {
 
       <div className="grid gap-5 lg:grid-cols-3">
         {subscriptionPlans.map((plan) => (
-          <article key={plan.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
+          <article key={plan.id} className={`rounded-2xl border bg-white p-6 shadow-sm ${selectedPlan === plan.id ? 'border-orange-500 ring-2 ring-orange-100' : 'border-slate-200'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
+              {selectedPlan === plan.id && (
+                <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">Selected</span>
+              )}
+            </div>
+            {selectedPlan === plan.id && (
+              <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-800">
+                {selectedPlanCopy(plan.id)}
+              </p>
+            )}
             <div className="mt-3 flex items-end gap-2">
               <span className="text-3xl font-bold text-slate-950">{plan.price_aed}</span>
               <span className="pb-1 text-sm text-slate-500">AED/mo</span>
