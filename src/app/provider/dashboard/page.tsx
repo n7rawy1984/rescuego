@@ -8,6 +8,7 @@ import { getPlanLabel, getProblemLabel } from '@/lib/utils'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
 import CompleteJobForm from '@/components/forms/CompleteJobForm'
 import type { Metadata } from 'next'
+import { PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
 export const metadata: Metadata = {
@@ -164,15 +165,17 @@ export default async function ProviderDashboardPage() {
               <div>
                 <p className="font-semibold text-orange-900 text-sm">
                   {provider.plan === 'pay_per_job'
-                    ? 'You\'re on Pay Per Job - paying 28% commission per job'
+                    ? `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`
                     : 'You\'re on Starter - 15% commission, normal queue priority'}
                 </p>
                 <p className="text-xs text-orange-700 mt-0.5">
-                  Upgrade to Pro and cut your commission to 10% with high queue priority.
+                  {provider.plan === 'pay_per_job'
+                    ? 'Upgrade to Pro for unlimited jobs with high queue priority.'
+                    : 'Upgrade to Pro and cut your commission to 10% with high queue priority.'}
                 </p>
               </div>
               <a
-                href="/pricing"
+                href="/provider/subscribe"
                 className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600"
               >
                 Upgrade Plan
