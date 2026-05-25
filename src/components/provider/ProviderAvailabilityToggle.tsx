@@ -41,6 +41,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false)
 
   const disabled = providerStatus !== 'active'
 
@@ -74,6 +75,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
     setLoading(true)
     setError('')
     setMessage('')
+    setLocationPermissionDenied(false)
 
     try {
       const now = Date.now()
@@ -108,7 +110,9 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
       setMessage('You are online for nearby roadside requests.')
       router.refresh()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Failed to update dispatch availability.')
+      const message = caught instanceof Error ? caught.message : 'Failed to update dispatch availability.'
+      setError(message)
+      setLocationPermissionDenied(message.includes('permission was denied'))
     } finally {
       setLoading(false)
     }
@@ -118,6 +122,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
     setLoading(true)
     setError('')
     setMessage('')
+    setLocationPermissionDenied(false)
 
     try {
       const res = await fetch('/api/provider/location', {
@@ -198,7 +203,16 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
         </p>
       )}
       {message && <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{message}</p>}
-      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="mt-3 rounded-lg bg-red-50 px-3 py-2">
+          <p className="text-sm text-red-600">{error}</p>
+          {locationPermissionDenied && (
+            <p className="mt-1 text-xs text-red-400">
+              Click the location icon in your browser address bar to allow location access.
+            </p>
+          )}
+        </div>
+      )}
     </section>
   )
 }

@@ -7,6 +7,9 @@ type SubscribePlansProps = {
   providerId: string
   selectedPlan: ProviderPlan | null
   currentPlan: ProviderPlan | null
+  hasSubscription: boolean
+  returnedFromBillingPortal: boolean
+  planWasAlreadyCurrent: boolean
 }
 
 type CheckoutResponse = {
@@ -26,6 +29,14 @@ function selectedPlanCopy(plan: ProviderPlan): string {
   if (plan === 'starter') return 'A practical first step for building steady monthly jobs.'
   if (plan === 'pro') return 'A strong growth plan for providers ready to win more jobs.'
   return 'The best fit for operators who want maximum volume and zero premium commission.'
+}
+
+function planName(plan: ProviderPlan | null): string {
+  if (plan === 'starter') return 'Starter'
+  if (plan === 'pro') return 'Pro'
+  if (plan === 'business') return 'Business'
+  if (plan === 'pay_per_job') return 'Pay Per Job'
+  return 'no active subscription'
 }
 
 function planValueCopy(plan: ProviderPlan): string[] {
@@ -58,7 +69,14 @@ function planValueCopy(plan: ProviderPlan): string[] {
   ]
 }
 
-export default function SubscribePlans({ providerId, selectedPlan, currentPlan }: SubscribePlansProps) {
+export default function SubscribePlans({
+  providerId,
+  selectedPlan,
+  currentPlan,
+  hasSubscription,
+  returnedFromBillingPortal,
+  planWasAlreadyCurrent,
+}: SubscribePlansProps) {
   const [loadingPlan, setLoadingPlan] = useState<ProviderPlan | null>(null)
   const [error, setError] = useState('')
 
@@ -84,6 +102,34 @@ export default function SubscribePlans({ providerId, selectedPlan, currentPlan }
 
   return (
     <div>
+      {(hasSubscription || selectedPlan || returnedFromBillingPortal || planWasAlreadyCurrent) && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">
+            You are currently on {planName(currentPlan)}.
+          </p>
+          {selectedPlan && selectedPlan !== currentPlan && (
+            <p className="mt-1 text-sm text-slate-600">
+              You selected {planName(selectedPlan)} as your upgrade option. Complete the change in Stripe Billing to activate {planName(selectedPlan)}.
+            </p>
+          )}
+          {hasSubscription && (
+            <p className="mt-1 text-xs text-slate-500">
+              Subscription upgrades are securely managed through Stripe. This page always shows your current RescueGo plan from the database.
+            </p>
+          )}
+          {returnedFromBillingPortal && selectedPlan && selectedPlan !== currentPlan && (
+            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              If you just changed plans in Stripe, it may take a moment for the webhook to update your RescueGo account.
+            </p>
+          )}
+          {planWasAlreadyCurrent && (
+            <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+              Your subscription page has been refreshed to remove a stale upgrade target.
+            </p>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
           {error}
@@ -96,7 +142,7 @@ export default function SubscribePlans({ providerId, selectedPlan, currentPlan }
           const isCurrent = currentPlan === plan.id
 
           return (
-          <article key={plan.id} className={`rounded-2xl border bg-white p-6 shadow-sm ${isCurrent ? 'border-green-500 ring-2 ring-green-100' : isSelected ? 'border-orange-500 ring-2 ring-orange-100' : 'border-slate-200'}`}>
+            <article key={plan.id} className={`rounded-2xl border bg-white p-6 shadow-sm ${isCurrent ? 'border-green-500 ring-2 ring-green-100' : isSelected ? 'border-amber-300 ring-1 ring-amber-100' : 'border-slate-200'}`}>
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
               <div className="flex flex-wrap justify-end gap-2">
@@ -104,12 +150,12 @@ export default function SubscribePlans({ providerId, selectedPlan, currentPlan }
                   <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Current Plan</span>
                 )}
                 {isSelected && !isCurrent && (
-                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">Selected</span>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Upgrade Target</span>
                 )}
               </div>
             </div>
             {isSelected && !isCurrent && (
-              <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-800">
+              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 {selectedPlanCopy(plan.id)}
               </p>
             )}
@@ -155,7 +201,13 @@ export default function SubscribePlans({ providerId, selectedPlan, currentPlan }
               disabled={loadingPlan !== null || isCurrent}
               className={`mt-6 flex h-11 w-full items-center justify-center rounded-lg px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-slate-100 text-slate-500' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
             >
-              {isCurrent ? 'Current Plan' : loadingPlan === plan.id ? 'Starting checkout...' : 'Subscribe'}
+              {isCurrent
+                ? 'Current Plan'
+                : loadingPlan === plan.id
+                  ? 'Opening Stripe...'
+                  : hasSubscription
+                    ? `Manage ${plan.name} in Stripe`
+                    : `Subscribe to ${plan.name}`}
             </button>
           </article>
         )})}

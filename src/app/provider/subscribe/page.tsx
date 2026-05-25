@@ -7,6 +7,8 @@ import type { ProviderPlan, UserRole } from '@/types'
 type SubscribePageProps = {
   searchParams?: Promise<{
     plan?: string | string[]
+    portal_return?: string | string[]
+    updated?: string | string[]
   }>
 }
 
@@ -19,6 +21,8 @@ function parseSelectedPlan(plan: string | string[] | undefined): ProviderPlan | 
 export default async function SubscribePage({ searchParams }: SubscribePageProps) {
   const params = await searchParams
   const selectedPlan = parseSelectedPlan(params?.plan)
+  const returnedFromBillingPortal = Boolean(Array.isArray(params?.portal_return) ? params?.portal_return[0] : params?.portal_return)
+  const planWasAlreadyCurrent = Boolean(Array.isArray(params?.updated) ? params?.updated[0] : params?.updated)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -50,6 +54,12 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
     .eq('id', user.id)
     .maybeSingle<{ plan: ProviderPlan | null; status: string | null; stripe_subscription_id: string | null }>()
 
+  const currentPlan = provider?.stripe_subscription_id ? provider.plan ?? null : null
+
+  if (selectedPlan && currentPlan === selectedPlan) {
+    redirect('/provider/subscribe?updated=1')
+  }
+
   return (
     <>
       <Navbar />
@@ -61,7 +71,14 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
               Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower premium commissions.
             </p>
           </div>
-          <SubscribePlans providerId={user.id} selectedPlan={selectedPlan} currentPlan={provider?.stripe_subscription_id ? provider.plan ?? null : null} />
+          <SubscribePlans
+            providerId={user.id}
+            selectedPlan={selectedPlan}
+            currentPlan={currentPlan}
+            hasSubscription={Boolean(provider?.stripe_subscription_id)}
+            returnedFromBillingPortal={returnedFromBillingPortal}
+            planWasAlreadyCurrent={planWasAlreadyCurrent}
+          />
         </div>
       </main>
     </>

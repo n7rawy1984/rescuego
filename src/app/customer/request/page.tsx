@@ -31,6 +31,7 @@ export default function RequestPage() {
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationMessage, setLocationMessage] = useState('')
   const [error, setError] = useState('')
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [requestId, setRequestId] = useState('')
   const [unratedJobsCount, setUnratedJobsCount] = useState(0)
@@ -68,6 +69,7 @@ export default function RequestPage() {
     setLocationLoading(true)
     setError('')
     setLocationMessage('')
+    setLocationPermissionDenied(false)
 
     if (!navigator.geolocation) {
       setError('Location is not supported by this browser. Please enter your address manually.')
@@ -82,13 +84,16 @@ export default function RequestPage() {
         setCoords({ lng, lat })
         setAddress(`Current GPS location (${lat}, ${lng})`)
         setLocationMessage('Location added for this request only. You can edit the address if needed.')
+        setLocationPermissionDenied(false)
         setLocationLoading(false)
       },
       (locationError) => {
-        const message = locationError.code === locationError.PERMISSION_DENIED
+        const denied = locationError.code === locationError.PERMISSION_DENIED
+        const message = denied
           ? 'Location permission was denied. You can still enter your location manually.'
           : 'Could not get your location. Please enter your address manually.'
         setError(message)
+        setLocationPermissionDenied(denied)
         setLocationLoading(false)
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
@@ -291,7 +296,16 @@ export default function RequestPage() {
                   maxLength={500}
                 />
               </div>
-              {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+              {error && (
+                <div className="rounded-lg bg-red-50 px-3 py-2">
+                  <p className="text-sm text-red-500">{error}</p>
+                  {locationPermissionDenied && (
+                    <p className="mt-1 text-xs text-red-400">
+                      Click the location icon in your browser address bar to allow location access.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={() => setStep(1)} className="flex-1">Back</Button>
                 <Button className="flex-1" disabled={!address.trim()} onClick={() => setStep(3)}>Continue</Button>
