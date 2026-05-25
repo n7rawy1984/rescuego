@@ -25,7 +25,7 @@ function planPriorityLabel(priority: number): string {
 function selectedPlanCopy(plan: ProviderPlan): string {
   if (plan === 'starter') return 'A practical first step for building steady monthly jobs.'
   if (plan === 'pro') return 'A strong growth plan for providers ready to win more jobs.'
-  return 'The best fit for operators who want maximum volume and zero commission.'
+  return 'The best fit for operators who want maximum volume and zero premium commission.'
 }
 
 function planValueCopy(plan: ProviderPlan): string[] {
@@ -53,7 +53,7 @@ function planValueCopy(plan: ProviderPlan): string[] {
     'Unlimited monthly jobs',
     'Highest queue priority',
     'No overage fees',
-    'No commission',
+    'No premium commission',
     'Built for serious operators who want maximum scale',
   ]
 }

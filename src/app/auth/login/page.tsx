@@ -25,9 +25,18 @@ export default function LoginPage() {
       return
     }
     const { data: userData } = await supabase.from('users').select('role').eq('id', data.user.id).single()
-    if (userData?.role === 'admin') router.push('/admin/dashboard')
-    else if (userData?.role === 'provider') router.push('/provider/dashboard')
-    else router.push('/customer/request')
+    const requestedRedirect = new URLSearchParams(window.location.search).get('redirect')
+    const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
+      ? requestedRedirect
+      : null
+
+    if (userData?.role === 'admin') {
+      router.push(safeRedirect?.startsWith('/admin') ? safeRedirect : '/admin/dashboard')
+    } else if (userData?.role === 'provider') {
+      router.push(safeRedirect?.startsWith('/provider') ? safeRedirect : '/provider/dashboard')
+    } else {
+      router.push(safeRedirect?.startsWith('/customer') ? safeRedirect : '/customer/request')
+    }
   }
 
   return (

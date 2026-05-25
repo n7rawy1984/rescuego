@@ -57,14 +57,14 @@ const providerPlans = [
     name: 'Starter',
     price: '249 AED/mo',
     jobs: '15 jobs/month',
-    commission: '15% premium commission',
+    commission: '15% premium commission over 400 AED',
     priority: 'Normal priority',
   },
   {
     name: 'Pro',
     price: '449 AED/mo',
     jobs: '35 jobs/month',
-    commission: '10% premium commission',
+    commission: '10% premium commission over 400 AED',
     priority: 'High priority',
     badge: 'Most Popular',
   },
@@ -72,16 +72,16 @@ const providerPlans = [
     name: 'Business',
     price: '849 AED/mo',
     jobs: 'Unlimited jobs',
-    commission: '0% commission',
+    commission: '0% premium commission',
     priority: 'Always shown first',
   },
 ]
 
 const trustPoints = [
-  'Free for drivers',
-  'Vetted providers',
-  'Direct provider payment',
-  'Built for UAE roads',
+  'Trusted roadside assistance network',
+  'Secure Stripe payments',
+  'Fast UAE-wide dispatch',
+  'Verified providers',
 ]
 
 const faqs = [

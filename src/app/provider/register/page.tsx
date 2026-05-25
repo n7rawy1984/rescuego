@@ -12,8 +12,8 @@ import type { UserRole } from '@/types'
 const PLANS = [
   { id: 'starter', name: 'Starter', price: 249, jobs: '15 jobs/mo', commission: '15% on premium', highlight: false },
   { id: 'pro', name: 'Pro', price: 449, jobs: '35 jobs/mo', commission: '10% on premium', highlight: true },
-  { id: 'business', name: 'Business', price: 849, jobs: 'Unlimited', commission: '0% commission', highlight: false },
-  { id: 'pay_per_job', name: 'Pay Per Job', price: 0, jobs: 'No limit', commission: '28% per job', highlight: false },
+  { id: 'business', name: 'Business', price: 849, jobs: 'Unlimited', commission: '0% premium commission', highlight: false },
+  { id: 'pay_per_job', name: 'Pay Per Job', price: 0, jobs: 'No limit', commission: 'Flat acceptance fee, no commission', highlight: false },
 ]
 
 type ProviderPlanId = (typeof PLANS)[number]['id']
@@ -26,11 +26,18 @@ type ExistingAccountState = {
   message: string | null
 }
 
+function getInitialSelectedPlan(): ProviderPlanId {
+  if (typeof window === 'undefined') return 'pay_per_job'
+  const plan = new URLSearchParams(window.location.search).get('plan')
+  if (plan === 'starter' || plan === 'pro' || plan === 'business' || plan === 'pay_per_job') return plan
+  return 'pay_per_job'
+}
+
 export default function ProviderRegisterPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [userId, setUserId] = useState('')
-  const [selectedPlan, setSelectedPlan] = useState<ProviderPlanId>('pay_per_job')
+  const [selectedPlan, setSelectedPlan] = useState<ProviderPlanId>(getInitialSelectedPlan)
   const [form, setForm] = useState({ name: '', phone: '', email: '', password: '' })
   const [files, setFiles] = useState<{ emirates_id?: File; license?: File; vehicle?: File }>({})
   const [loading, setLoading] = useState(false)

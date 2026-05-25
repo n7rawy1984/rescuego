@@ -4,6 +4,8 @@ import { requireEnv } from '@/lib/env'
 
 const PROTECTED_PREFIXES = [
   '/provider/dashboard',
+  '/provider/subscribe',
+  '/admin',
   '/admin/dashboard',
   '/admin/providers',
   '/admin/requests',
@@ -12,6 +14,26 @@ const PROTECTED_PREFIXES = [
   '/customer/ratings',
   '/customer/request',
 ]
+
+const PROVIDER_PREFIXES = ['/provider/dashboard', '/provider/subscribe']
+
+function getSafeRedirectTarget(request: NextRequest): string {
+  const { pathname, search } = request.nextUrl
+  return `${pathname}${search}`
+}
+
+function redirectGuestToProviderRegister(request: NextRequest) {
+  const registerUrl = new URL('/provider/register', request.url)
+  const target = getSafeRedirectTarget(request)
+  const plan = request.nextUrl.searchParams.get('plan')
+
+  if (request.nextUrl.pathname === '/provider/subscribe' && plan) {
+    registerUrl.searchParams.set('plan', plan)
+  }
+
+  registerUrl.searchParams.set('redirect', target)
+  return NextResponse.redirect(registerUrl)
+}
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -41,9 +63,13 @@ export async function proxy(request: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
   if (isProtected && !user) {
-    const loginUrl = new URL('/auth/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    if (pathname.startsWith('/admin') || !pathname.startsWith('/provider')) {
+      const loginUrl = new URL('/auth/login', request.url)
+      loginUrl.searchParams.set('redirect', getSafeRedirectTarget(request))
+      return NextResponse.redirect(loginUrl)
+    }
+
+    return redirectGuestToProviderRegister(request)
   }
 
   if (user && isProtected) {
@@ -54,15 +80,15 @@ export async function proxy(request: NextRequest) {
       .single()
 
     if (pathname.startsWith('/admin') && profile?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(profile?.role === 'provider' ? '/provider/dashboard' : '/', request.url))
     }
 
-    if (pathname.startsWith('/provider/dashboard') && profile?.role !== 'provider') {
-      return NextResponse.redirect(new URL('/', request.url))
+    if (PROVIDER_PREFIXES.some((prefix) => pathname.startsWith(prefix)) && profile?.role !== 'provider') {
+      return NextResponse.redirect(new URL(profile?.role === 'customer' ? '/customer/request' : '/', request.url))
     }
 
     if (pathname.startsWith('/customer') && profile?.role !== 'customer') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(profile?.role === 'provider' ? '/provider/dashboard' : '/', request.url))
     }
   }
 

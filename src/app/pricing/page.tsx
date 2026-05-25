@@ -48,8 +48,8 @@ const PLANS = [
     period: '/month',
     highlight: false,
     cta: 'Go Business',
-    positioning: 'Best for serious operators who want unlimited jobs and no commission.',
-    features: ['Unlimited jobs', 'No overage fees', 'No commission', 'Highest priority', 'Provider dashboard access', 'Verified badge eligibility'],
+    positioning: 'Best for serious operators who want unlimited jobs and no premium commission.',
+    features: ['Unlimited jobs', 'No overage fees', 'No premium commission', 'Highest priority', 'Provider dashboard access', 'Verified badge eligibility'],
   },
 ]
 
@@ -147,7 +147,7 @@ export default async function PricingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href="/provider/register"
+              href="/provider/register?plan=pay_per_job"
               className="inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white transition hover:bg-orange-600"
             >
               Join as Provider
@@ -270,7 +270,7 @@ export default async function PricingPage() {
                     ['Monthly Fee', '249 AED', '449 AED', '849 AED'],
                     ['Jobs/Month', '15', '35', 'Unlimited'],
                     ['Overage Fee', '12 AED/job', '12 AED/job', 'None'],
-                    ['Commission', '15% over 400 AED', '10% over 400 AED', '0%'],
+                    ['Commission', '15% only on premium jobs over 400 AED', '10% only on premium jobs over 400 AED', '0%'],
                     ['Queue Priority', 'Normal', 'High', 'Always First'],
                     ['Verified Badge', 'No', 'No', 'Yes'],
                   ].map(([feature, ...values]) => (

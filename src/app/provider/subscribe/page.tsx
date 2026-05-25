@@ -58,7 +58,7 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
           <div className="mb-8 max-w-2xl">
             <h1 className="text-2xl font-bold text-slate-900">Choose your subscription plan</h1>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower commissions.
+              Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower premium commissions.
             </p>
           </div>
           <SubscribePlans providerId={user.id} selectedPlan={selectedPlan} currentPlan={provider?.stripe_subscription_id ? provider.plan ?? null : null} />
