@@ -97,8 +97,12 @@ async function getPricingViewer(): Promise<PricingViewer> {
   }
 }
 
-function pricingCtaForPlan(planId: string) {
-  return { href: `/provider/subscribe?plan=${planId}` }
+function subscriptionPlanHref(viewer: PricingViewer, planId: string): string {
+  if (viewer.role === 'provider') {
+    return `/provider/subscribe?plan=${planId}`
+  }
+
+  return `/provider/register?plan=${planId}`
 }
 
 function planButtonLabel(planId: string): string {
@@ -173,7 +177,7 @@ export default async function PricingPage() {
                         Current Plan
                       </button>
                     ) : (
-                      <Link href={pricingCtaForPlan(plan.id).href} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
+                      <Link href={subscriptionPlanHref(viewer, plan.id)} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
                         {planButtonLabel(plan.id)}
                       </Link>
                     )}
