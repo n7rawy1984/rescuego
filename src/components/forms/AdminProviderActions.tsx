@@ -49,7 +49,7 @@ export default function AdminProviderActions({ providerId, currentStatus, verifi
           </Button>
         )}
         <Button size="sm" variant="outline" loading={loading} onClick={() => updateProvider({ verified_badge: !verifiedBadge })}>
-          {verifiedBadge ? 'Unverify' : 'Verify'}
+          {verifiedBadge ? 'Remove verified badge' : 'Mark verified'}
         </Button>
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}

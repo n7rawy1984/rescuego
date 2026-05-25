@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { Star } from 'lucide-react'
+import { ShieldCheck, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/layout/Navbar'
 import Badge from '@/components/ui/Badge'
@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { getPlanLabel, getProblemLabel } from '@/lib/utils'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
 import CompleteJobForm from '@/components/forms/CompleteJobForm'
+import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardingChecklist'
 import type { Metadata } from 'next'
 import { PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
@@ -23,6 +24,12 @@ type ProviderDashboardRow = {
   rating: number
   jobs_this_month: number
   verified_badge: boolean
+  documents: {
+    emirates_id_url?: string
+    license_url?: string
+    vehicle_photo_url?: string
+  } | null
+  stripe_subscription_id: string | null
   users: {
     name: string | null
     email: string | null
@@ -108,14 +115,19 @@ export default async function ProviderDashboardPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex flex-wrap items-center gap-2 mt-2">
                 <Badge variant={statusVariant}>{provider.status}</Badge>
                 <Badge variant="info">{getPlanLabel(provider.plan)}</Badge>
-                {provider.verified_badge && <Badge variant="success">Verified</Badge>}
+                {provider.verified_badge && (
+                  <Badge variant="success" className="gap-1">
+                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    Trusted Recovery Partner
+                  </Badge>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -129,33 +141,49 @@ export default async function ProviderDashboardPage() {
                 ))}
                 <span className="ml-2 text-3xl font-bold text-slate-900">{provider.rating.toFixed(1)}</span>
               </div>
-              <div className="text-sm text-slate-500">Your rating</div>
+                <div className="text-sm text-slate-500">Your rating</div>
+                {!recentJobs?.length ? (
+                  <div className="text-xs text-slate-400">Your first reviews will appear after completed jobs.</div>
+                ) : null}
             </div>
           </div>
+
+          <ProviderOnboardingChecklist
+            name={provider.users?.name ?? null}
+            email={provider.users?.email ?? null}
+            phone={provider.users?.phone ?? null}
+            plan={provider.plan}
+            status={provider.status}
+            verifiedBadge={provider.verified_badge}
+            documents={provider.documents}
+          />
 
           <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4 sm:gap-4">
             <Card className="min-h-[80px]">
               <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-slate-900">{provider.jobs_this_month}</div>
-                <div className="text-sm text-slate-500">Jobs This Month</div>
+                <div className="text-sm text-slate-500">Monthly jobs used</div>
               </CardBody>
             </Card>
             <Card className="min-h-[80px]">
               <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-slate-900">{remaining !== null ? remaining : '∞'}</div>
-                <div className="text-sm text-slate-500">Jobs Remaining</div>
+                <div className="text-sm text-slate-500">Included jobs left</div>
               </CardBody>
             </Card>
             <Card className="col-span-2 min-h-[80px] sm:col-span-1">
               <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-orange-500">{getPlanLabel(provider.plan)}</div>
-                <div className="text-sm text-slate-500">Current Plan</div>
+                <div className="text-sm text-slate-500">Current access</div>
               </CardBody>
             </Card>
             <Card className="min-h-[80px]">
               <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-green-600">{totalEarnings > 0 ? `${totalEarnings} AED` : '-'}</div>
-                <div className="text-sm text-slate-500">Total Earned (last 10)</div>
+                <div className="text-sm text-slate-500">Earnings from last 10 jobs</div>
+                {totalEarnings === 0 ? (
+                  <div className="text-xs text-slate-400 mt-1">Completed jobs will build this total.</div>
+                ) : null}
               </CardBody>
             </Card>
           </div>
@@ -178,7 +206,7 @@ export default async function ProviderDashboardPage() {
                 href="/provider/subscribe"
                 className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600"
               >
-                Upgrade Plan
+                Increase monthly capacity
               </a>
             </div>
           )}
@@ -186,7 +214,7 @@ export default async function ProviderDashboardPage() {
           {provider.status === 'pending' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
               <p className="text-yellow-800 font-semibold">Account Under Review</p>
-              <p className="text-yellow-700 text-sm mt-1">Our team is reviewing your documents. You&apos;ll be activated within 24 hours.</p>
+              <p className="text-yellow-700 text-sm mt-1">Our team is reviewing your documents. You&apos;ll be activated after verification is complete.</p>
             </div>
           )}
 
@@ -251,7 +279,7 @@ export default async function ProviderDashboardPage() {
                 <div className="px-6 py-12 text-center">
                   <div className="text-4xl mb-3">🚗</div>
                   <p className="font-medium text-slate-700">No completed jobs yet</p>
-                  <p className="text-sm text-slate-500 mt-1">Accept your first request above and it will appear here.</p>
+                  <p className="text-sm text-slate-500 mt-1">Your first completed jobs, prices, and earning history will appear here.</p>
                 </div>
               )}
             </CardBody>

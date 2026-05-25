@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { BatteryCharging, HelpCircle, Search, Truck, Wrench } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { getProblemLabel } from '@/lib/utils'
@@ -149,7 +150,12 @@ export default function ProviderRequestList({ requests, providerStatus, provider
     router.push(`/provider/overage-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
   }
 
-  const problemIcons: Record<string, string> = { flat_tire: '🔧', battery: '⚡', tow: '🚛', other: '🔍' }
+  const problemIcons = {
+    flat_tire: Wrench,
+    battery: BatteryCharging,
+    tow: Truck,
+    other: HelpCircle,
+  }
 
   return (
     <Card>
@@ -165,15 +171,22 @@ export default function ProviderRequestList({ requests, providerStatus, provider
       <CardBody className="p-0">
         {requestItems.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <div className="text-4xl mb-3">🔍</div>
-            <p className="text-slate-500">No open requests right now. Check back soon.</p>
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <Search className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <p className="font-medium text-slate-700">No active roadside requests right now.</p>
+            <p className="mt-1 text-sm text-slate-500">New nearby customer requests will appear here automatically.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {requestItems.map((req) => (
-              <div key={req.id} className="px-6 py-4 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">{problemIcons[req.problem_type] ?? '🔍'}</div>
+            {requestItems.map((req) => {
+              const Icon = problemIcons[req.problem_type] ?? HelpCircle
+              return (
+              <div key={req.id} className="px-6 py-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </div>
                   <div>
                     <div className="font-semibold text-slate-800">{getProblemLabel(req.problem_type)}</div>
                     <div className="text-sm text-slate-500 mt-0.5 max-w-[300px] truncate">{req.location_address ?? 'Location not specified'}</div>
@@ -195,6 +208,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
                 </div>
                 <Button
                   size="sm"
+                  className="w-full sm:w-auto"
                   loading={accepting === req.id}
                   onClick={() => handleAccept(req.id)}
                   disabled={providerStatus !== 'active'}
@@ -202,7 +216,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
                   {providerPlan === 'pay_per_job' ? 'Pay & Accept' : 'Accept'}
                 </Button>
               </div>
-            ))}
+            )})}
           </div>
         )}
         {error && <div className="px-6 pb-4 text-sm text-red-500">{error}</div>}

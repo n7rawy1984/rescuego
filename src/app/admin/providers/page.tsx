@@ -92,7 +92,7 @@ export default async function AdminProvidersPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
             <h1 className="text-2xl font-bold text-slate-900">Manage Providers</h1>
             <a href="/admin/dashboard" className="text-sm text-orange-500 hover:underline">Back to Dashboard</a>
           </div>
@@ -131,10 +131,18 @@ export default async function AdminProvidersPage() {
                             {provider.documentLinks.emiratesId && <a className="text-orange-500 hover:underline" href={provider.documentLinks.emiratesId} target="_blank" rel="noopener noreferrer">Emirates ID</a>}
                             {provider.documentLinks.license && <a className="text-orange-500 hover:underline" href={provider.documentLinks.license} target="_blank" rel="noopener noreferrer">License</a>}
                             {provider.documentLinks.vehicle && <a className="text-orange-500 hover:underline" href={provider.documentLinks.vehicle} target="_blank" rel="noopener noreferrer">Vehicle</a>}
-                            {!provider.documentLinks.emiratesId && !provider.documentLinks.license && !provider.documentLinks.vehicle && <span className="text-slate-400">Missing</span>}
+                            {!provider.documentLinks.emiratesId && !provider.documentLinks.license && !provider.documentLinks.vehicle && (
+                              <span className="text-slate-400">No documents uploaded</span>
+                            )}
                           </div>
                         </td>
-                        <td className="px-4 py-3">{provider.verified_badge ? 'Yes' : 'No'}</td>
+                        <td className="px-4 py-3">
+                          {provider.verified_badge ? (
+                            <Badge variant="success">Verified Provider</Badge>
+                          ) : (
+                            <span className="text-xs text-slate-400">Not verified</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <AdminProviderActions providerId={provider.id} currentStatus={provider.status} verifiedBadge={Boolean(provider.verified_badge)} />
                         </td>
