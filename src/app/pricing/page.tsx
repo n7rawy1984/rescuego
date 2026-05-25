@@ -5,9 +5,6 @@ import Footer from '@/components/layout/Footer'
 import { createClient } from '@/lib/supabase/server'
 import {
   LAUNCH_PROMO,
-  PAY_PER_JOB_DISTANCE_THRESHOLD_M,
-  PAY_PER_JOB_FEE_FAR_AED,
-  PAY_PER_JOB_FEE_NEAR_AED,
   PAY_PER_JOB_PROMO_FEE_AED,
 } from '@/types'
 import type { ProviderPlan, UserRole } from '@/types'
@@ -31,7 +28,8 @@ const PLANS = [
     period: '/month',
     highlight: false,
     cta: 'Get Started',
-    features: ['15 job requests per month', '12 AED overage per extra job', '15% commission on premium jobs', 'Normal queue priority', 'Provider dashboard access', 'Customer ratings and reviews'],
+    positioning: 'Best for new providers starting with steady monthly jobs.',
+    features: ['15 jobs/month included', '12 AED overage per extra job', '15% premium commission only over 400 AED', 'Normal queue priority', 'Provider dashboard access', 'Customer ratings and reviews'],
   },
   {
     id: 'pro',
@@ -40,7 +38,8 @@ const PLANS = [
     period: '/month',
     highlight: true,
     cta: 'Start Pro',
-    features: ['35 job requests per month', '12 AED overage per extra job', '10% commission on premium jobs', 'High queue priority', 'Provider dashboard access', 'Customer ratings and reviews'],
+    positioning: 'Best for growing providers who want more jobs and higher priority.',
+    features: ['35 jobs/month included', '12 AED overage per extra job', '10% premium commission only over 400 AED', 'High queue priority', 'Provider dashboard access', 'Customer ratings and reviews'],
   },
   {
     id: 'business',
@@ -49,7 +48,8 @@ const PLANS = [
     period: '/month',
     highlight: false,
     cta: 'Go Business',
-    features: ['Unlimited job requests', 'No overage fees', '0% commission on all jobs', 'Always shown first to customers', 'Provider dashboard access', 'Verified badge eligibility'],
+    positioning: 'Best for serious operators who want unlimited jobs and no commission.',
+    features: ['Unlimited jobs', 'No overage fees', 'No commission', 'Highest priority', 'Provider dashboard access', 'Verified badge eligibility'],
   },
 ]
 
@@ -57,6 +57,7 @@ type PricingViewer = {
   role: UserRole | null
   providerStatus: string | null
   providerSubscriptionId: string | null
+  providerPlan: ProviderPlan | null
   currentPlan: ProviderPlan | null
 }
 
@@ -65,7 +66,7 @@ async function getPricingViewer(): Promise<PricingViewer> {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return { role: null, providerStatus: null, providerSubscriptionId: null, currentPlan: null }
+    return { role: null, providerStatus: null, providerSubscriptionId: null, providerPlan: null, currentPlan: null }
   }
 
   const { data: profile } = await supabase
@@ -79,6 +80,7 @@ async function getPricingViewer(): Promise<PricingViewer> {
       role: profile?.role ?? 'customer',
       providerStatus: null,
       providerSubscriptionId: null,
+      providerPlan: null,
       currentPlan: null,
     }
   }
@@ -93,6 +95,7 @@ async function getPricingViewer(): Promise<PricingViewer> {
     role: 'provider',
     providerStatus: provider?.status ?? null,
     providerSubscriptionId: provider?.stripe_subscription_id ?? null,
+    providerPlan: provider?.plan ?? null,
     currentPlan: provider?.stripe_subscription_id ? provider.plan ?? null : null,
   }
 }
@@ -109,6 +112,20 @@ function planButtonLabel(planId: string): string {
   if (planId === 'starter') return 'Choose Starter'
   if (planId === 'pro') return 'Upgrade to Pro'
   return 'Upgrade to Business'
+}
+
+function payPerJobHref(viewer: PricingViewer): string {
+  if (viewer.role === 'provider') return '/provider/dashboard'
+  return '/provider/register?plan=pay_per_job'
+}
+
+function payPerJobLabel(viewer: PricingViewer): string {
+  if (viewer.role === 'provider' && viewer.providerPlan === 'pay_per_job') {
+    return 'Continue with Pay Per Job'
+  }
+
+  if (viewer.role === 'provider') return 'Use Pay Per Job'
+  return 'Start Free'
 }
 
 export default async function PricingPage() {
@@ -146,7 +163,54 @@ export default async function PricingPage() {
 
         <section className="py-16 px-4 bg-white">
           <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="mb-12 rounded-2xl border border-orange-200 bg-orange-50 p-8">
+              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="max-w-2xl">
+                  <h2 className="text-2xl font-bold text-slate-900">Start free with Pay Per Job</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-700">
+                    Accept roadside assistance requests without a monthly commitment. Pay only a flat acceptance fee when you take a job.
+                  </p>
+                  <ul className="mt-5 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                    {[
+                      'No monthly subscription',
+                      'No percentage commission',
+                      `Launch promo: ${PAY_PER_JOB_PROMO_FEE_AED} AED per accepted request`,
+                      'Upgrade anytime when you are ready for more predictable monthly growth',
+                    ].map((feature) => (
+                      <li key={feature} className="flex items-start gap-2">
+                        <span className="font-bold text-green-600">✓</span>
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Link
+                  href={payPerJobHref(viewer)}
+                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-orange-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                >
+                  {payPerJobLabel(viewer)}
+                </Link>
+              </div>
+            </div>
+
+            <div className="mb-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+              <h2 className="text-2xl font-bold text-slate-900">Ready to grow faster?</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Our subscription plans are built for recovery providers who want more visibility, more monthly jobs, and a clearer path to predictable revenue.
+              </p>
+              <ul className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  'Get monthly jobs included',
+                  'Improve queue priority',
+                  'Reduce costs as you scale',
+                  'Unlock better growth potential',
+                ].map((item) => (
+                  <li key={item} className="rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {PLANS.map((plan) => {
                 const isCurrentPlan = viewer.currentPlan === plan.id
                 return (
@@ -157,6 +221,7 @@ export default async function PricingPage() {
                       <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-sm font-bold px-4 py-1 rounded-full">Most Popular</div>
                     ) : null}
                     <div className="font-bold text-xl text-slate-900 mb-2">{plan.name}</div>
+                    <p className="mb-4 text-sm leading-6 text-slate-600">{plan.positioning}</p>
                     <div className="flex items-end gap-1 mb-6">
                       <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
                       <span className="text-slate-500 mb-1">AED{plan.period}</span>
@@ -184,30 +249,6 @@ export default async function PricingPage() {
                   </div>
                 )
               })}
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">Pay Per Job - How It Works</h2>
-                  <ul className="mt-3 flex flex-col gap-1.5">
-                    {[
-                      'No monthly fee',
-                      'Pay a flat acceptance fee per job you choose to accept',
-                      `During launch promo: ${PAY_PER_JOB_PROMO_FEE_AED} AED flat per job`,
-                      `After promo: ${PAY_PER_JOB_FEE_NEAR_AED} AED under ${PAY_PER_JOB_DISTANCE_THRESHOLD_M / 1000} km, or ${PAY_PER_JOB_FEE_FAR_AED} AED over ${PAY_PER_JOB_DISTANCE_THRESHOLD_M / 1000} km`,
-                      'No commission on job value - price agreed directly with customer',
-                      'Lowest queue priority',
-                      'No monthly commitment',
-                    ].map(feature => (
-                      <li key={feature} className="text-sm text-slate-600 flex items-center gap-2"><span className="text-green-500">✓</span>{feature}</li>
-                    ))}
-                  </ul>
-                </div>
-                <Link href={viewer.role === 'provider' ? '/provider/dashboard' : '/provider/register'} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap">
-                  {viewer.role === 'provider' ? 'Provider Dashboard' : 'Start Free'}
-                </Link>
-              </div>
             </div>
           </div>
         </section>

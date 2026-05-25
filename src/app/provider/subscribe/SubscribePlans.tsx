@@ -23,9 +23,39 @@ function planPriorityLabel(priority: number): string {
 }
 
 function selectedPlanCopy(plan: ProviderPlan): string {
-  if (plan === 'starter') return 'Best for new providers starting with steady monthly jobs.'
-  if (plan === 'pro') return 'Best for growing providers who want more jobs and higher priority.'
-  return 'Best for serious operators who want unlimited jobs and no commission.'
+  if (plan === 'starter') return 'A practical first step for building steady monthly jobs.'
+  if (plan === 'pro') return 'A strong growth plan for providers ready to win more jobs.'
+  return 'The best fit for operators who want maximum volume and zero commission.'
+}
+
+function planValueCopy(plan: ProviderPlan): string[] {
+  if (plan === 'starter') {
+    return [
+      '15 monthly jobs included',
+      'Normal queue priority',
+      '12 AED overage per extra job',
+      '15% premium commission only over 400 AED',
+      'A simple way to start building steady monthly volume',
+    ]
+  }
+
+  if (plan === 'pro') {
+    return [
+      '35 monthly jobs included',
+      'High queue priority',
+      '12 AED overage per extra job',
+      '10% premium commission only over 400 AED',
+      'Designed for providers ready to grow faster',
+    ]
+  }
+
+  return [
+    'Unlimited monthly jobs',
+    'Highest queue priority',
+    'No overage fees',
+    'No commission',
+    'Built for serious operators who want maximum scale',
+  ]
 }
 
 export default function SubscribePlans({ providerId, selectedPlan, currentPlan }: SubscribePlansProps) {
@@ -106,6 +136,18 @@ export default function SubscribePlans({ providerId, selectedPlan, currentPlan }
                 <dd className="font-semibold text-slate-800">{planPriorityLabel(plan.priority)}</dd>
               </div>
             </dl>
+
+            <div className="mt-6 rounded-xl bg-slate-50 p-4">
+              <h3 className="text-sm font-semibold text-slate-900">What you get</h3>
+              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                {planValueCopy(plan.id).map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="font-bold text-green-600">✓</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             <button
               type="button"
