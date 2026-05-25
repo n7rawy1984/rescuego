@@ -130,6 +130,7 @@ function payPerJobLabel(viewer: PricingViewer): string {
 
 export default async function PricingPage() {
   const viewer = await getPricingViewer()
+  const isSubscribedProvider = viewer.role === 'provider' && Boolean(viewer.currentPlan)
 
   return (
     <>
@@ -163,7 +164,17 @@ export default async function PricingPage() {
 
         <section className="py-16 px-4 bg-white">
           <div className="max-w-6xl mx-auto">
-            <div className="mb-12 rounded-2xl border border-orange-200 bg-orange-50 p-8">
+            {isSubscribedProvider ? (
+              <div className="mb-10 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+                <div className="max-w-3xl">
+                  <h2 className="text-2xl font-bold text-slate-900">Manage or upgrade your subscription</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    You are already subscribed to RescueGo. Compare the subscription plans below, then open Stripe Billing to manage upgrades securely without creating a duplicate subscription.
+                  </p>
+                </div>
+              </div>
+            ) : (
+            <div className="mb-12 rounded-2xl border border-orange-200 bg-orange-50 p-6 md:p-8">
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="max-w-2xl">
                   <h2 className="text-2xl font-bold text-slate-900">Start free with Pay Per Job</h2>
@@ -192,13 +203,14 @@ export default async function PricingPage() {
                 </Link>
               </div>
             </div>
+            )}
 
-            <div className="mb-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <div className="mb-10 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
               <h2 className="text-2xl font-bold text-slate-900">Ready to grow faster?</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                 Our subscription plans are built for recovery providers who want more visibility, more monthly jobs, and a clearer path to predictable revenue.
               </p>
-              <ul className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+              <ul className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2 xl:grid-cols-4">
                 {[
                   'Get monthly jobs included',
                   'Improve queue priority',
@@ -214,7 +226,7 @@ export default async function PricingPage() {
               {PLANS.map((plan) => {
                 const isCurrentPlan = viewer.currentPlan === plan.id
                 return (
-                  <div key={plan.id} className={`rounded-2xl border-2 p-8 relative ${isCurrentPlan ? 'border-green-500 shadow-xl shadow-green-100' : plan.highlight ? 'border-orange-500 shadow-xl shadow-orange-100' : 'border-slate-200'}`}>
+                  <div key={plan.id} className={`relative rounded-2xl border-2 p-6 md:p-8 ${isCurrentPlan ? 'border-green-500 shadow-xl shadow-green-100' : plan.highlight ? 'border-orange-500 shadow-xl shadow-orange-100' : 'border-slate-200'}`}>
                     {isCurrentPlan ? (
                       <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white text-sm font-bold px-4 py-1 rounded-full">Active Plan</div>
                     ) : plan.highlight ? (

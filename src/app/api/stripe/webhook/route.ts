@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger'
 import { notificationEvents } from '@/lib/notifications'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
+import type { ProviderPlan } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,17 @@ type StripeEventRow = {
   processing_started_at: string | null
 }
 
+type SubscriptionPlan = Exclude<ProviderPlan, 'pay_per_job'>
+
 const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000
+
+const PLAN_BY_PRICE_ID = new Map<string, SubscriptionPlan>(
+  [
+    [process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID, 'starter'],
+    [process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID, 'pro'],
+    [process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID, 'business'],
+  ].filter((entry): entry is [string, SubscriptionPlan] => Boolean(entry[0]))
+)
 
 function isProcessingStale(startedAt: string | null): boolean {
   if (!startedAt) return true
@@ -132,6 +143,32 @@ function throwIfError(error: { message: string } | null, message: string): void 
 
 function stripeUnixToIso(timestamp: number | undefined): string | null {
   return typeof timestamp === 'number' ? new Date(timestamp * 1000).toISOString() : null
+}
+
+function isSubscriptionPlan(plan: string | undefined): plan is SubscriptionPlan {
+  return plan === 'starter' || plan === 'pro' || plan === 'business'
+}
+
+function resolveSubscriptionPlan(subscription: Stripe.Subscription): {
+  plan: SubscriptionPlan | null
+  source: 'price_id' | 'metadata' | 'unresolved'
+  priceIds: string[]
+} {
+  const priceIds = subscription.items.data
+    .map((item) => item.price?.id)
+    .filter((priceId): priceId is string => Boolean(priceId))
+
+  for (const priceId of priceIds) {
+    const plan = PLAN_BY_PRICE_ID.get(priceId)
+    if (plan) return { plan, source: 'price_id', priceIds }
+  }
+
+  const metadataPlan = subscription.metadata?.plan
+  if (isSubscriptionPlan(metadataPlan)) {
+    return { plan: metadataPlan, source: 'metadata', priceIds }
+  }
+
+  return { plan: null, source: 'unresolved', priceIds }
 }
 
 async function incrementProviderJobCount(
@@ -308,24 +345,52 @@ async function processStripeEvent(
   if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
     const sub = event.data.object as Stripe.Subscription
     const status = sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'suspended' : 'pending'
-    const plan = (sub.metadata?.plan ?? 'starter') as string
+    const resolvedPlan = resolveSubscriptionPlan(sub)
     const subscriptionWithPeriod = sub as Stripe.Subscription & {
       current_period_start?: number
       current_period_end?: number
     }
     const currentPeriodStart = stripeUnixToIso(subscriptionWithPeriod.current_period_start)
     const currentPeriodEnd = stripeUnixToIso(subscriptionWithPeriod.current_period_end)
+    const updatePayload: {
+      status: string
+      stripe_subscription_id: string
+      stripe_current_period_start: string | null
+      stripe_current_period_end: string | null
+      plan?: SubscriptionPlan
+    } = {
+      status,
+      stripe_subscription_id: sub.id,
+      stripe_current_period_start: currentPeriodStart,
+      stripe_current_period_end: currentPeriodEnd,
+    }
+
+    if (resolvedPlan.plan) {
+      updatePayload.plan = resolvedPlan.plan
+    } else {
+      logger.warn({
+        event: 'stripe_subscription_plan_unresolved',
+        stripe_subscription_id: sub.id,
+        stripe_customer_id: sub.customer,
+        price_ids: resolvedPlan.priceIds,
+        metadata_plan: sub.metadata?.plan ?? null,
+      })
+    }
+
     const { error } = await supabase
       .from('providers')
-      .update({
-        status,
-        plan,
-        stripe_subscription_id: sub.id,
-        stripe_current_period_start: currentPeriodStart,
-        stripe_current_period_end: currentPeriodEnd,
-      })
+      .update(updatePayload)
       .eq('stripe_customer_id', sub.customer as string)
     throwIfError(error, 'Failed to update provider subscription')
+
+    logger.info({
+      event: 'stripe_subscription_synced',
+      stripe_subscription_id: sub.id,
+      stripe_customer_id: sub.customer,
+      plan: resolvedPlan.plan,
+      plan_source: resolvedPlan.source,
+      subscription_status: sub.status,
+    })
 
     if (status === 'suspended') {
       logger.warn({

@@ -114,7 +114,7 @@ export default function SubscribePlans({
           )}
           {hasSubscription && (
             <p className="mt-1 text-xs text-slate-500">
-              Subscription upgrades are securely managed through Stripe. This page always shows your current RescueGo plan from the database.
+              Subscription upgrades are securely managed through Stripe. Plan switching must be enabled in Stripe Billing Portal settings.
             </p>
           )}
           {returnedFromBillingPortal && selectedPlan && selectedPlan !== currentPlan && (
@@ -194,6 +194,12 @@ export default function SubscribePlans({
                 ))}
               </ul>
             </div>
+
+            {hasSubscription && !isCurrent && (
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                Your current plan is {planName(currentPlan)}. To upgrade, open Stripe Billing and choose a new plan if available.
+              </div>
+            )}
 
             <button
               type="button"
