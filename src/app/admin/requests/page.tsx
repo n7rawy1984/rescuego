@@ -75,7 +75,7 @@ export default async function AdminRequestsPage() {
                         <td className="px-4 py-3 text-slate-600">{req.users?.name ?? 'Guest'}</td>
                         <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate">{req.location_address ?? '—'}</td>
                         <td className="px-4 py-3">
-                          <Badge variant={req.status === 'completed' ? 'success' : req.status === 'open' ? 'info' : req.status === 'cancelled' ? 'default' : 'warning'}>
+                          <Badge variant={req.status === 'completed' ? 'success' : req.status === 'open' ? 'info' : req.status === 'expired' || req.status === 'cancelled' ? 'default' : 'warning'}>
                             {req.status}
                           </Badge>
                         </td>

@@ -25,13 +25,19 @@ export default async function AdminDashboardPage() {
     { data: requestsByStatus },
     { data: recentEvents },
     { data: recentPayouts },
+    { count: activeSubscriptions },
+    { count: failedStripeEvents },
+    { count: failedOveragePayments },
   ] = await Promise.all([
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'provider'),
     supabase.from('providers').select('status'),
     supabase.from('requests').select('status'),
-    supabase.from('stripe_events').select('id, type, processed_at').order('processed_at', { ascending: false }).limit(10),
+    supabase.from('stripe_events').select('id, type, status, processed_at, error_message').order('updated_at', { ascending: false }).limit(10),
     supabase.from('payout_log').select('*').order('created_at', { ascending: false }).limit(5),
+    supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'active').not('stripe_subscription_id', 'is', null),
+    supabase.from('stripe_events').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+    supabase.from('overage_payments').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
   ])
 
   const activeProviders = providersByStatus?.filter(p => p.status === 'active').length ?? 0
@@ -40,6 +46,7 @@ export default async function AdminDashboardPage() {
 
   const openRequests = requestsByStatus?.filter(r => r.status === 'open').length ?? 0
   const completedRequests = requestsByStatus?.filter(r => r.status === 'completed').length ?? 0
+  const expiredRequests = requestsByStatus?.filter(r => r.status === 'expired').length ?? 0
   const totalRequests = requestsByStatus?.length ?? 0
 
   return (
@@ -55,6 +62,10 @@ export default async function AdminDashboardPage() {
               { label: 'Total Providers', value: totalProviders ?? 0, color: 'text-purple-600' },
               { label: 'Total Requests', value: totalRequests, color: 'text-orange-600' },
               { label: 'Completed Jobs', value: completedRequests, color: 'text-green-600' },
+              { label: 'Active Subscriptions', value: activeSubscriptions ?? 0, color: 'text-green-600' },
+              { label: 'Expired Requests', value: expiredRequests, color: 'text-slate-600' },
+              { label: 'Failed Stripe Events', value: failedStripeEvents ?? 0, color: 'text-red-600' },
+              { label: 'Failed Overages', value: failedOveragePayments ?? 0, color: 'text-red-600' },
             ].map(stat => (
               <Card key={stat.label}>
                 <CardBody>
@@ -91,7 +102,8 @@ export default async function AdminDashboardPage() {
                   {[
                     { label: 'Open', count: openRequests, variant: 'info' as const },
                     { label: 'Completed', count: completedRequests, variant: 'success' as const },
-                    { label: 'Other', count: totalRequests - openRequests - completedRequests, variant: 'default' as const },
+                    { label: 'Expired', count: expiredRequests, variant: 'default' as const },
+                    { label: 'Other', count: totalRequests - openRequests - completedRequests - expiredRequests, variant: 'default' as const },
                   ].map(item => (
                     <div key={item.label} className="flex justify-between items-center">
                       <Badge variant={item.variant}>{item.label}</Badge>
@@ -114,7 +126,14 @@ export default async function AdminDashboardPage() {
                     {recentEvents.map(event => (
                       <div key={event.id} className="px-6 py-3 flex justify-between items-center">
                         <span className="text-sm font-mono text-slate-700">{event.type}</span>
-                        <span className="text-xs text-slate-400">{new Date(event.processed_at).toLocaleDateString()}</span>
+                        <div className="text-right">
+                          <Badge variant={event.status === 'failed' ? 'danger' : event.status === 'processing' ? 'warning' : 'success'}>
+                            {event.status ?? 'processed'}
+                          </Badge>
+                          <div className="mt-1 text-xs text-slate-400">
+                            {event.processed_at ? new Date(event.processed_at).toLocaleDateString() : 'Not processed'}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

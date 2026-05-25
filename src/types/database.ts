@@ -1,7 +1,7 @@
 export type UserRole = 'customer' | 'provider' | 'admin'
 export type ProviderPlan = 'starter' | 'pro' | 'business' | 'pay_per_job'
 export type ProviderStatus = 'pending' | 'active' | 'suspended'
-export type RequestStatus = 'open' | 'accepted' | 'in_progress' | 'completed' | 'cancelled'
+export type RequestStatus = 'open' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 export type ProblemType = 'flat_tire' | 'battery' | 'tow' | 'other'
 
 export interface User {
@@ -27,6 +27,9 @@ export interface Provider {
   } | null
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
+  stripe_current_period_start: string | null
+  stripe_current_period_end: string | null
+  jobs_reset_at: string | null
   created_at: string
 }
 

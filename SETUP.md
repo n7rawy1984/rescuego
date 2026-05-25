@@ -43,10 +43,15 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIza...
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Internal operations, server-only
+OPS_CRON_SECRET=generate-a-long-random-secret
 ```
 
 Important:
 - Never expose `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, or `STRIPE_WEBHOOK_SECRET` in client code.
+- Never expose `OPS_CRON_SECRET` in client code. It is server-only and is used to protect internal operations endpoints.
 - For local development, use Stripe test keys.
 - For production, change `NEXT_PUBLIC_APP_URL` to `https://rescuego.ae`.
 
@@ -57,6 +62,10 @@ Run all SQL migrations in order from the `supabase/migrations` folder:
 1. `001_initial_schema.sql`
 2. `002_rpc_functions.sql`
 3. `003_harden_provider_rls.sql`
+4. `004_nearby_open_requests.sql`
+5. `005_ppj_payments.sql`
+6. `006_billing_stability.sql`
+7. `007_operational_lifecycle.sql`
 
 In Supabase:
 
@@ -64,8 +73,7 @@ In Supabase:
 2. Create a new query.
 3. Paste the contents of `001_initial_schema.sql`.
 4. Run it.
-5. Repeat for `002_rpc_functions.sql`.
-6. Repeat for `003_harden_provider_rls.sql`.
+5. Repeat for each migration in order through `007_operational_lifecycle.sql`.
 
 These migrations create:
 - `users`
@@ -83,6 +91,10 @@ These migrations create:
 - rating update trigger
 - provider suspension trigger
 - nearby provider RPC
+- PPJ and overage payment tracking
+- Stripe webhook status tracking
+- Stripe billing-cycle period fields for subscription allowance resets
+- stale open request expiry RPC
 
 Required extensions:
 
@@ -294,7 +306,62 @@ npm run lint
 npm run build
 ```
 
-## 9. Common Errors and Fixes
+## 9. Operational Lifecycle Automation
+
+The project includes two internal operations endpoints for production lifecycle automation. They are intended for Vercel Cron or trusted internal automation only.
+
+Required migration:
+
+```txt
+supabase/migrations/007_operational_lifecycle.sql
+```
+
+Required environment variable:
+
+```env
+OPS_CRON_SECRET=generate-a-long-random-secret
+```
+
+Security:
+- `OPS_CRON_SECRET` is server-only.
+- Do not prefix it with `NEXT_PUBLIC_`.
+- Do not use it in client components.
+- If it is missing, ops endpoints fail closed with an error instead of running.
+- Requests must include:
+
+```txt
+Authorization: Bearer <OPS_CRON_SECRET>
+```
+
+Monthly allowance reset:
+
+```bash
+curl -X POST http://localhost:3000/api/ops/monthly-allowance-reset \
+  -H "Authorization: Bearer <OPS_CRON_SECRET>"
+```
+
+Behavior:
+- Resets Starter and Pro `jobs_this_month` only when Stripe subscription period has renewed.
+- Uses `stripe_current_period_start`, persisted from Stripe subscription webhooks.
+- Does not reset Pay Per Job providers.
+- Does not reset Business providers.
+- Safe to run more than once.
+
+Request expiry:
+
+```bash
+curl -X POST http://localhost:3000/api/ops/expire-requests \
+  -H "Authorization: Bearer <OPS_CRON_SECRET>"
+```
+
+Behavior:
+- Expires stale `open` requests older than the configured window.
+- Does not touch accepted, in-progress, completed, cancelled, or actively locked requests.
+- Logs expired request count only, without customer PII.
+
+For production, call these endpoints from Vercel Cron using the same authorization header.
+
+## 10. Common Errors and Fixes
 
 ### Login works but redirects to home
 
@@ -425,6 +492,26 @@ Cause:
 
 Fix:
 - Run all SQL files in `supabase/migrations` in order.
+
+### Ops endpoint returns unauthorized
+
+Cause:
+- Missing or incorrect `Authorization` header.
+
+Fix:
+
+```txt
+Authorization: Bearer <OPS_CRON_SECRET>
+```
+
+### Ops endpoint says operations secret is not configured
+
+Cause:
+- `OPS_CRON_SECRET` is missing from `.env.local` or production environment variables.
+
+Fix:
+- Add `OPS_CRON_SECRET`.
+- Restart the dev server or redeploy.
 
 ### PostGIS function error
 

@@ -26,6 +26,7 @@ const statusColors: Record<RequestStatus, string> = {
   in_progress: 'bg-yellow-100 text-yellow-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-slate-100 text-slate-500',
+  expired: 'bg-slate-100 text-slate-500',
 }
 
 export default async function CustomerHistoryPage() {

@@ -48,6 +48,17 @@ type PPJPaymentRow = {
   } | null
 }
 
+type OveragePaymentRow = {
+  id: string
+  fee_aed: number
+  status: string
+  stripe_payment_intent_id: string | null
+  created_at: string
+  providers: {
+    users: { name: string | null; phone: string | null } | null
+  } | null
+}
+
 export default async function AdminRevenuePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -55,10 +66,11 @@ export default async function AdminRevenuePage() {
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (userData?.role !== 'admin') redirect('/')
 
-  const [{ data: payouts }, { data: jobs }, { data: ppjPayments }] = await Promise.all([
+  const [{ data: payouts }, { data: jobs }, { data: ppjPayments }, { data: failedOverages }] = await Promise.all([
     supabase.from('payout_log').select('*').order('created_at', { ascending: false }).returns<PayoutRow[]>(),
     supabase.from('jobs').select('*, providers(plan, users(name)), requests(problem_type)').order('completed_at', { ascending: false }).limit(50).returns<RevenueJobRow[]>(),
     supabase.from('ppj_payments').select('*, providers(users(name, phone))').eq('status', 'paid').order('created_at', { ascending: false }).limit(100).returns<PPJPaymentRow[]>(),
+    supabase.from('overage_payments').select('*, providers(users(name, phone))').eq('status', 'failed').order('created_at', { ascending: false }).limit(50).returns<OveragePaymentRow[]>(),
   ])
 
   const totalPaid = payouts?.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.amount ?? 0), 0) ?? 0
@@ -99,6 +111,13 @@ export default async function AdminRevenuePage() {
                 <div className="text-2xl font-bold text-green-600">{totalPPJRevenue} AED</div>
                 <div className="text-sm text-slate-500">PPJ Revenue (paid)</div>
                 <div className="text-xs text-slate-400 mt-1">{ppjPayments?.length ?? 0} payments</div>
+              </CardBody>
+            </Card>
+            <Card>
+              <CardBody>
+                <div className="text-2xl font-bold text-red-600">{failedOverages?.length ?? 0}</div>
+                <div className="text-sm text-slate-500">Failed Overage Payments</div>
+                <div className="text-xs text-slate-400 mt-1">Needs provider follow-up</div>
               </CardBody>
             </Card>
           </div>
@@ -173,6 +192,40 @@ export default async function AdminRevenuePage() {
                             : <span className="text-slate-400 text-xs">No</span>
                           }
                         </td>
+                        <td className="px-4 py-3 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                          {payment.stripe_payment_intent_id
+                            ? <span title={payment.stripe_payment_intent_id}>{payment.stripe_payment_intent_id.slice(0, 16)}...</span>
+                            : '-'
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardBody>
+            </Card>
+          )}
+
+          {failedOverages && failedOverages.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <h2 className="font-semibold text-slate-800">Failed Overage Payments</h2>
+              </CardHeader>
+              <CardBody className="p-0 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                      {['Provider', 'Fee', 'Date', 'Stripe PI'].map((heading) => (
+                        <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{heading}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {failedOverages.map((payment) => (
+                      <tr key={payment.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 font-medium text-slate-800">{payment.providers?.users?.name ?? '-'}</td>
+                        <td className="px-4 py-3 text-slate-700">{payment.fee_aed} AED</td>
                         <td className="px-4 py-3 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-400">
                           {payment.stripe_payment_intent_id

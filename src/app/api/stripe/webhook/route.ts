@@ -3,6 +3,7 @@ import { getStripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireEnv } from '@/lib/env'
 import { logger } from '@/lib/logger'
+import { notificationEvents } from '@/lib/notifications'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
 
@@ -127,6 +128,10 @@ function throwIfError(error: { message: string } | null, message: string): void 
   if (error) {
     throw new Error(`${message}: ${error.message}`)
   }
+}
+
+function stripeUnixToIso(timestamp: number | undefined): string | null {
+  return typeof timestamp === 'number' ? new Date(timestamp * 1000).toISOString() : null
 }
 
 async function incrementProviderJobCount(
@@ -282,7 +287,7 @@ async function processPaymentIntentFailed(
     throwIfError(error, 'Failed to mark overage payment as failed')
 
     logger.warn({
-      event: 'overage_payment_failed',
+      event: notificationEvents.overageFailed,
       provider_id,
       request_id,
       payment_intent_id: paymentIntent.id,
@@ -304,18 +309,44 @@ async function processStripeEvent(
     const sub = event.data.object as Stripe.Subscription
     const status = sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'suspended' : 'pending'
     const plan = (sub.metadata?.plan ?? 'starter') as string
+    const subscriptionWithPeriod = sub as Stripe.Subscription & {
+      current_period_start?: number
+      current_period_end?: number
+    }
+    const currentPeriodStart = stripeUnixToIso(subscriptionWithPeriod.current_period_start)
+    const currentPeriodEnd = stripeUnixToIso(subscriptionWithPeriod.current_period_end)
     const { error } = await supabase
       .from('providers')
-      .update({ status, plan, stripe_subscription_id: sub.id })
+      .update({
+        status,
+        plan,
+        stripe_subscription_id: sub.id,
+        stripe_current_period_start: currentPeriodStart,
+        stripe_current_period_end: currentPeriodEnd,
+      })
       .eq('stripe_customer_id', sub.customer as string)
     throwIfError(error, 'Failed to update provider subscription')
+
+    if (status === 'suspended') {
+      logger.warn({
+        event: notificationEvents.subscriptionRequiresAttention,
+        stripe_subscription_id: sub.id,
+        stripe_customer_id: sub.customer,
+        subscription_status: sub.status,
+      })
+    }
   }
 
   if (event.type === 'customer.subscription.deleted') {
     const sub = event.data.object as Stripe.Subscription
     const { error } = await supabase
       .from('providers')
-      .update({ status: 'suspended', stripe_subscription_id: null })
+      .update({
+        status: 'suspended',
+        stripe_subscription_id: null,
+        stripe_current_period_start: null,
+        stripe_current_period_end: null,
+      })
       .eq('stripe_customer_id', sub.customer as string)
     throwIfError(error, 'Failed to delete provider subscription')
   }
@@ -327,6 +358,11 @@ async function processStripeEvent(
       .update({ status: 'suspended' })
       .eq('stripe_customer_id', invoice.customer as string)
     throwIfError(error, 'Failed to suspend provider after invoice failure')
+    logger.warn({
+      event: notificationEvents.subscriptionRequiresAttention,
+      stripe_customer_id: invoice.customer,
+      invoice_id: invoice.id,
+    })
   }
 
   if (event.type === 'payment_intent.succeeded') {
@@ -361,7 +397,7 @@ export async function POST(req: NextRequest) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (error) {
     logger.error({
-      event: 'stripe_webhook_failed',
+      event: notificationEvents.webhookFailed,
       error: error instanceof Error ? error.message : 'Invalid signature',
     })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
@@ -387,7 +423,7 @@ export async function POST(req: NextRequest) {
     await setStripeEventStatus(supabase, event.id, 'failed', errorMessage)
 
     logger.error({
-      event: 'stripe_webhook_failed',
+      event: notificationEvents.webhookFailed,
       stripe_event_id: event.id,
       event_type: event.type,
       error: errorMessage,

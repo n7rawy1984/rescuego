@@ -11,6 +11,7 @@ type EnvName =
   | 'NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID'
   | 'NEXT_PUBLIC_APP_URL'
   | 'NEXT_PUBLIC_SITE_URL'
+  | 'OPS_CRON_SECRET'
 
 export function requireEnv(name: EnvName): string {
   const value = process.env[name]
@@ -24,6 +25,10 @@ export function requireEnv(name: EnvName): string {
 
 export function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+}
+
+export function getOpsCronSecret(): string | null {
+  return process.env.OPS_CRON_SECRET || null
 }
 
 const SERVER_REQUIRED_ENVS: EnvName[] = [
