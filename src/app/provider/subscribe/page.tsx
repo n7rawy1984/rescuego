@@ -46,13 +46,9 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
 
   const { data: provider } = await supabase
     .from('providers')
-    .select('status, stripe_subscription_id')
+    .select('plan, status, stripe_subscription_id')
     .eq('id', user.id)
-    .maybeSingle<{ status: string | null; stripe_subscription_id: string | null }>()
-
-  if (provider?.stripe_subscription_id) {
-    redirect('/provider/dashboard')
-  }
+    .maybeSingle<{ plan: ProviderPlan | null; status: string | null; stripe_subscription_id: string | null }>()
 
   return (
     <>
@@ -65,7 +61,7 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
               Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower commissions.
             </p>
           </div>
-          <SubscribePlans providerId={user.id} selectedPlan={selectedPlan} />
+          <SubscribePlans providerId={user.id} selectedPlan={selectedPlan} currentPlan={provider?.stripe_subscription_id ? provider.plan ?? null : null} />
         </div>
       </main>
     </>

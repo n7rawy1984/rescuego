@@ -6,6 +6,7 @@ import type { ProviderPlan } from '@/types'
 type SubscribePlansProps = {
   providerId: string
   selectedPlan: ProviderPlan | null
+  currentPlan: ProviderPlan | null
 }
 
 type CheckoutResponse = {
@@ -27,7 +28,7 @@ function selectedPlanCopy(plan: ProviderPlan): string {
   return 'Best for serious operators who want unlimited jobs and no commission.'
 }
 
-export default function SubscribePlans({ providerId, selectedPlan }: SubscribePlansProps) {
+export default function SubscribePlans({ providerId, selectedPlan, currentPlan }: SubscribePlansProps) {
   const [loadingPlan, setLoadingPlan] = useState<ProviderPlan | null>(null)
   const [error, setError] = useState('')
 
@@ -60,15 +61,24 @@ export default function SubscribePlans({ providerId, selectedPlan }: SubscribePl
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {subscriptionPlans.map((plan) => (
-          <article key={plan.id} className={`rounded-2xl border bg-white p-6 shadow-sm ${selectedPlan === plan.id ? 'border-orange-500 ring-2 ring-orange-100' : 'border-slate-200'}`}>
+        {subscriptionPlans.map((plan) => {
+          const isSelected = selectedPlan === plan.id
+          const isCurrent = currentPlan === plan.id
+
+          return (
+          <article key={plan.id} className={`rounded-2xl border bg-white p-6 shadow-sm ${isCurrent ? 'border-green-500 ring-2 ring-green-100' : isSelected ? 'border-orange-500 ring-2 ring-orange-100' : 'border-slate-200'}`}>
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
-              {selectedPlan === plan.id && (
-                <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">Selected</span>
-              )}
+              <div className="flex flex-wrap justify-end gap-2">
+                {isCurrent && (
+                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Current Plan</span>
+                )}
+                {isSelected && !isCurrent && (
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">Selected</span>
+                )}
+              </div>
             </div>
-            {selectedPlan === plan.id && (
+            {isSelected && !isCurrent && (
               <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-800">
                 {selectedPlanCopy(plan.id)}
               </p>
@@ -100,13 +110,13 @@ export default function SubscribePlans({ providerId, selectedPlan }: SubscribePl
             <button
               type="button"
               onClick={() => handleSubscribe(plan.id)}
-              disabled={loadingPlan !== null}
-              className="mt-6 flex h-11 w-full items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={loadingPlan !== null || isCurrent}
+              className={`mt-6 flex h-11 w-full items-center justify-center rounded-lg px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-slate-100 text-slate-500' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
             >
-              {loadingPlan === plan.id ? 'Starting checkout...' : 'Subscribe'}
+              {isCurrent ? 'Current Plan' : loadingPlan === plan.id ? 'Starting checkout...' : 'Subscribe'}
             </button>
           </article>
-        ))}
+        )})}
       </div>
     </div>
   )
