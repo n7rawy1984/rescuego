@@ -21,6 +21,7 @@ type CheckoutRequestBody = {
 
 type ProviderBillingRow = {
   stripe_customer_id: string | null
+  stripe_subscription_id: string | null
   users: {
     email: string | null
     name: string | null
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: provider, error: providerError } = await supabase
     .from('providers')
-    .select('stripe_customer_id, users(email, name)')
+    .select('stripe_customer_id, stripe_subscription_id, users(email, name)')
     .eq('id', provider_id)
     .single<ProviderBillingRow>()
 
@@ -86,6 +87,15 @@ export async function POST(req: NextRequest) {
     })
     customerId = customer.id
     await supabase.from('providers').update({ stripe_customer_id: customerId }).eq('id', provider_id)
+  }
+
+  if (provider.stripe_subscription_id) {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${getAppUrl()}/provider/subscribe?plan=${plan}`,
+    })
+
+    return NextResponse.json({ url: portalSession.url })
   }
 
   const session = await stripe.checkout.sessions.create({

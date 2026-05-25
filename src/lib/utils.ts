@@ -50,6 +50,8 @@ export function getStatusColor(status: RequestStatus | ProviderStatus): string {
 
 export function calculateCommission(jobValueAed: number, plan: ProviderPlan): number {
   if (jobValueAed <= PREMIUM_JOB_THRESHOLD_AED) return 0
+  // Current MVP rule: subscribed provider premium commission is calculated on the total job value
+  // once the final price is above the premium threshold, not only on the amount above the threshold.
   const rates: Partial<Record<ProviderPlan, number>> = {
     starter: 0.15,
     pro: 0.10,

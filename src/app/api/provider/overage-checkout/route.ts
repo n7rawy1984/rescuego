@@ -21,6 +21,13 @@ type RequestRow = {
   status: string
 }
 
+type OveragePaymentRow = {
+  id: string
+  fee_aed: number
+  status: string
+  stripe_payment_intent_id: string | null
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const parsed = schema.safeParse(body)
@@ -55,6 +62,44 @@ export async function POST(req: NextRequest) {
   if (!request) return NextResponse.json({ error: 'Request not found or no longer open' }, { status: 404 })
 
   const stripe = getStripe()
+
+  const { data: existing } = await admin
+    .from('overage_payments')
+    .select('id, fee_aed, status, stripe_payment_intent_id')
+    .eq('request_id', parsed.data.request_id)
+    .eq('provider_id', user.id)
+    .maybeSingle<OveragePaymentRow>()
+
+  if (existing?.status === 'paid') {
+    return NextResponse.json({ error: 'Overage already paid for this request' }, { status: 409 })
+  }
+
+  if (existing?.stripe_payment_intent_id && existing.status === 'pending') {
+    try {
+      const existingPaymentIntent = await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id)
+      if (existingPaymentIntent.status !== 'canceled' && existingPaymentIntent.client_secret) {
+        logger.info({
+          event: 'overage_checkout_reused',
+          provider_id: user.id,
+          request_id: parsed.data.request_id,
+          payment_intent_id: existingPaymentIntent.id,
+        })
+        return NextResponse.json({
+          client_secret: existingPaymentIntent.client_secret,
+          fee_aed: existing.fee_aed,
+        })
+      }
+    } catch (error) {
+      logger.warn({
+        event: 'overage_checkout_reuse_failed',
+        provider_id: user.id,
+        request_id: parsed.data.request_id,
+        payment_intent_id: existing.stripe_payment_intent_id,
+        error: error instanceof Error ? error.message : 'Payment Intent not found',
+      })
+    }
+  }
+
   const paymentIntent = await stripe.paymentIntents.create({
     amount: OVERAGE_FEE_AED * 100,
     currency: 'aed',
@@ -77,6 +122,29 @@ export async function POST(req: NextRequest) {
       error: 'Payment Intent missing client secret',
     })
     return NextResponse.json({ error: 'Failed to create overage payment' }, { status: 500 })
+  }
+
+  const { error: overageRecordError } = await admin.from('overage_payments').upsert(
+    {
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      fee_aed: OVERAGE_FEE_AED,
+      stripe_payment_intent_id: paymentIntent.id,
+      status: 'pending',
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'provider_id,request_id' }
+  )
+
+  if (overageRecordError) {
+    logger.error({
+      event: 'overage_checkout_record_failed',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      payment_intent_id: paymentIntent.id,
+      error: overageRecordError.message,
+    })
+    return NextResponse.json({ error: 'Failed to save overage payment' }, { status: 500 })
   }
 
   logger.info({

@@ -2,6 +2,9 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14'
 
+// DEPRECATED: RescueGo now uses Next.js API routes under src/app/api.
+// This function contains stale Pay Per Job percentage logic and should not be deployed.
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2025-04-30.basil' })
 
 const PLAN_LIMITS: Record<string, number | null> = {
