@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { BatteryCharging, HelpCircle, Truck, Wrench } from 'lucide-react'
+import { BatteryCharging, HelpCircle, LocateFixed, Truck, Wrench } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { roundDispatchCoordinate } from '@/lib/geo'
 import type { ProblemType } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
@@ -28,6 +29,7 @@ export default function RequestPage() {
   const [coords, setCoords] = useState<{ lng: number; lat: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
+  const [locationMessage, setLocationMessage] = useState('')
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [requestId, setRequestId] = useState('')
@@ -58,12 +60,14 @@ export default function RequestPage() {
     setAddress('')
     setNote('')
     setCoords(null)
+    setLocationMessage('')
     setError('')
   }
 
   function useMyLocation() {
     setLocationLoading(true)
     setError('')
+    setLocationMessage('')
 
     if (!navigator.geolocation) {
       setError('Location is not supported by this browser. Please enter your address manually.')
@@ -72,33 +76,31 @@ export default function RequestPage() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords
+      (pos) => {
+        const lat = roundDispatchCoordinate(pos.coords.latitude)
+        const lng = roundDispatchCoordinate(pos.coords.longitude)
         setCoords({ lng, lat })
-
-        try {
-          const googleMapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-          if (!googleMapsKey) {
-            setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`)
-          } else {
-            const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googleMapsKey}`)
-            const data = await res.json()
-            if (data.results?.[0]) setAddress(data.results[0].formatted_address)
-            else setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`)
-          }
-        } catch {
-          setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`)
-        }
-
+        setAddress(`Current GPS location (${lat}, ${lng})`)
+        setLocationMessage('Location added for this request only. You can edit the address if needed.')
         setLocationLoading(false)
       },
-      () => {
-        setError('Could not get your location. Please enter your address manually.')
+      (locationError) => {
+        const message = locationError.code === locationError.PERMISSION_DENIED
+          ? 'Location permission was denied. You can still enter your location manually.'
+          : 'Could not get your location. Please enter your address manually.'
+        setError(message)
         setLocationLoading(false)
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     )
+  }
+
+  function handleAddressChange(value: string) {
+    setAddress(value)
+    if (coords) {
+      setCoords(null)
+      setLocationMessage('Using manual location entry. GPS coordinates were cleared.')
+    }
   }
 
   async function handleSubmit() {
@@ -262,15 +264,22 @@ export default function RequestPage() {
             <div className="flex flex-col gap-4">
               <h2 className="text-lg font-semibold text-slate-800">Where are you?</h2>
               <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="w-full">
-                Use My Current Location
+                <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
+                Use my current location
               </Button>
+              <p className="text-xs text-slate-500">
+                RescueGo requests your location once and only uses it to find nearby providers for this recovery request.
+              </p>
               <Input
                 id="address"
                 label="Or enter your location"
                 value={address}
-                onChange={e => setAddress(e.target.value)}
+                onChange={e => handleAddressChange(e.target.value)}
                 placeholder="e.g. Dubai Mall, Al Wasl Road, Dubai"
               />
+              {locationMessage && (
+                <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{locationMessage}</p>
+              )}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="note" className="text-sm font-medium text-slate-700">Additional Note (optional)</label>
                 <textarea

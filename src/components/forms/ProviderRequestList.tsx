@@ -33,6 +33,7 @@ interface Props {
   requests: ProviderRequestCard[]
   providerStatus: ProviderStatus
   providerPlan: ProviderPlan
+  providerOnline: boolean
 }
 
 function formatDistance(meters: number): string {
@@ -40,7 +41,7 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km away`
 }
 
-export default function ProviderRequestList({ requests, providerStatus, providerPlan }: Props) {
+export default function ProviderRequestList({ requests, providerStatus, providerPlan, providerOnline }: Props) {
   const router = useRouter()
   const [requestItems, setRequestItems] = useState<ProviderRequestCard[]>(requests)
   const [accepting, setAccepting] = useState<string | null>(null)
@@ -161,7 +162,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-slate-800">Open Requests Near You ({requestItems.length})</h2>
+          <h2 className="font-semibold text-slate-800">Nearby Roadside Requests ({requestItems.length})</h2>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
             <span className="h-2 w-2 rounded-full bg-green-500" />
             Live
@@ -174,8 +175,14 @@ export default function ProviderRequestList({ requests, providerStatus, provider
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
               <Search className="h-5 w-5" aria-hidden="true" />
             </div>
-            <p className="font-medium text-slate-700">No active roadside requests right now.</p>
-            <p className="mt-1 text-sm text-slate-500">New nearby customer requests will appear here automatically.</p>
+            <p className="font-medium text-slate-700">
+              {providerOnline ? 'No nearby roadside requests right now.' : 'Go online to see nearby roadside requests.'}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {providerOnline
+                ? 'New customer requests near your dispatch location will appear here automatically.'
+                : 'Share your dispatch location above when you are available for jobs.'}
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">

@@ -5,11 +5,13 @@ import Navbar from '@/components/layout/Navbar'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { getPlanLabel, getProblemLabel } from '@/lib/utils'
+import { isTimestampWithinMinutes } from '@/lib/geo'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
 import CompleteJobForm from '@/components/forms/CompleteJobForm'
 import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardingChecklist'
+import ProviderAvailabilityToggle from '@/components/provider/ProviderAvailabilityToggle'
 import type { Metadata } from 'next'
-import { PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
+import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_STALE_MINUTES } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
 export const metadata: Metadata = {
@@ -66,6 +68,10 @@ type RecentJobRow = {
   } | null
 }
 
+type ProviderLocationRow = {
+  updated_at: string | null
+}
+
 export default async function ProviderDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -93,6 +99,12 @@ export default async function ProviderDashboardPage() {
     .in('status', ['accepted', 'in_progress'])
     .maybeSingle<DashboardRequestRow>()
 
+  const { data: providerLocation } = await supabase
+    .from('provider_locations')
+    .select('updated_at')
+    .eq('provider_id', user.id)
+    .maybeSingle<ProviderLocationRow>()
+
   const { data: recentJobs } = await supabase
     .from('jobs')
     .select('*, requests(problem_type, location_address, final_price)')
@@ -104,6 +116,8 @@ export default async function ProviderDashboardPage() {
   const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
   const remaining = planLimit !== null ? Math.max(0, planLimit - provider.jobs_this_month) : null
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests) ? openRequests : []
+  const providerLocationUpdatedAt = providerLocation?.updated_at ?? null
+  const providerIsOnline = isTimestampWithinMinutes(providerLocationUpdatedAt, PROVIDER_STALE_MINUTES)
   const totalEarnings = (recentJobs ?? []).reduce((sum, job) => {
     return sum + (job.requests?.final_price ?? 0)
   }, 0)
@@ -249,10 +263,17 @@ export default async function ProviderDashboardPage() {
             </Card>
           )}
 
+          <ProviderAvailabilityToggle
+            providerStatus={provider.status}
+            initialOnline={providerIsOnline}
+            initialUpdatedAt={providerLocationUpdatedAt}
+          />
+
           <ProviderRequestList
             requests={nearbyOpenRequests}
             providerStatus={provider.status}
             providerPlan={provider.plan}
+            providerOnline={providerIsOnline}
           />
 
           <Card className="mt-6">

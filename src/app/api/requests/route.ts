@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { roundDispatchCoordinate, UAE_BOUNDS } from '@/lib/geo'
 
 const requestSchema = z.object({
   problem_type: z.enum(['flat_tire', 'battery', 'tow', 'other']),
@@ -10,8 +11,8 @@ const requestSchema = z.object({
   note: z.string().trim().max(500).optional().nullable(),
   coords: z
     .object({
-      lng: z.number().min(51).max(57),
-      lat: z.number().min(22).max(27),
+      lng: z.number().min(UAE_BOUNDS.minLng).max(UAE_BOUNDS.maxLng),
+      lat: z.number().min(UAE_BOUNDS.minLat).max(UAE_BOUNDS.maxLat),
     })
     .optional()
     .nullable(),
@@ -54,7 +55,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { problem_type, location_address, note, coords } = parsed.data
-  const point = coords ? `POINT(${coords.lng} ${coords.lat})` : 'POINT(55.2708 25.2048)'
+  const point = coords
+    ? `POINT(${roundDispatchCoordinate(coords.lng)} ${roundDispatchCoordinate(coords.lat)})`
+    : 'POINT(55.2708 25.2048)'
 
   const { data, error } = await supabase
     .from('requests')
