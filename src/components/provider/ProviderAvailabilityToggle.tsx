@@ -144,21 +144,23 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
   }
 
   return (
-    <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className={`mb-6 rounded-xl border bg-white p-4 shadow-sm ${online ? 'border-green-200 ring-1 ring-green-100' : 'border-orange-200 ring-1 ring-orange-100'}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-semibold text-slate-900">Dispatch availability</h2>
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${online ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+            <h2 className="font-semibold text-slate-900">
+              {online ? 'You are online for dispatch' : 'You are offline'}
+            </h2>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${online ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
               <span className={`h-2 w-2 rounded-full ${online ? 'bg-green-500' : 'bg-slate-400'}`} />
               {online ? 'Online' : 'Offline'}
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            {online ? formatUpdatedAt(updatedAt) : 'Go online to appear in nearby request discovery.'}
+            {online ? formatUpdatedAt(updatedAt) : 'Go online when you are available for nearby roadside requests.'}
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            Location is shared only while online. RescueGo does not track you in the background.
+            Your location is only shared while you are online.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:w-auto sm:flex-row">
@@ -174,7 +176,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
             ) : (
               <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
             )}
-            {online ? 'Refresh location' : 'Go online'}
+            {online ? 'Refresh Location' : 'Go Online'}
           </Button>
           {online && (
             <Button
@@ -185,7 +187,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
               className="w-full sm:w-auto"
             >
               <Power className="mr-2 h-4 w-4" aria-hidden="true" />
-              Go offline
+              Go Offline
             </Button>
           )}
         </div>

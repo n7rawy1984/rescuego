@@ -162,6 +162,12 @@ export default async function ProviderDashboardPage() {
             </div>
           </div>
 
+          <ProviderAvailabilityToggle
+            providerStatus={provider.status}
+            initialOnline={providerIsOnline}
+            initialUpdatedAt={providerLocationUpdatedAt}
+          />
+
           <ProviderOnboardingChecklist
             name={provider.users?.name ?? null}
             email={provider.users?.email ?? null}
@@ -262,12 +268,6 @@ export default async function ProviderDashboardPage() {
               </CardBody>
             </Card>
           )}
-
-          <ProviderAvailabilityToggle
-            providerStatus={provider.status}
-            initialOnline={providerIsOnline}
-            initialUpdatedAt={providerLocationUpdatedAt}
-          />
 
           <ProviderRequestList
             requests={nearbyOpenRequests}

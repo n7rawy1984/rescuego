@@ -163,9 +163,9 @@ export default function ProviderRequestList({ requests, providerStatus, provider
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-semibold text-slate-800">Nearby Roadside Requests ({requestItems.length})</h2>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-            <span className="h-2 w-2 rounded-full bg-green-500" />
-            Live
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+            <span className="h-2 w-2 rounded-full bg-slate-400" />
+            Auto updates
           </span>
         </div>
       </CardHeader>
