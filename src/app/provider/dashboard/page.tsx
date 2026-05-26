@@ -126,6 +126,28 @@ export default async function ProviderDashboardPage() {
 
   const statusVariant = provider.status === 'active' ? 'success' : provider.status === 'suspended' ? 'danger' : 'warning'
   const roundedRating = Math.round(provider.rating)
+  const upgradePrompt = provider.plan === 'pay_per_job'
+    ? {
+        title: `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`,
+        subtitle: 'Upgrade to a monthly plan when you want predictable capacity and stronger queue priority.',
+        href: '/provider/subscribe',
+        label: 'Upgrade to a monthly plan',
+      }
+    : provider.plan === 'starter'
+      ? {
+          title: 'You\'re on Starter - 15 jobs/month, normal queue priority',
+          subtitle: 'Upgrade to Pro for 35 jobs/month and high queue priority.',
+          href: '/provider/subscribe?plan=pro',
+          label: 'Increase monthly capacity',
+        }
+      : provider.plan === 'pro'
+        ? {
+            title: 'You\'re on Pro - 35 jobs/month, high queue priority',
+            subtitle: 'Upgrade to Business for unlimited jobs and no premium commission.',
+            href: '/provider/subscribe?plan=business',
+            label: 'Upgrade to Business',
+          }
+        : null
 
   return (
     <>
@@ -213,26 +235,29 @@ export default async function ProviderDashboardPage() {
             </Card>
           </div>
 
-          {(provider.plan === 'pay_per_job' || provider.plan === 'starter') && (
+          {upgradePrompt && (
             <div className="mb-6 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <p className="font-semibold text-orange-900 text-sm">
-                  {provider.plan === 'pay_per_job'
-                    ? `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`
-                    : 'You\'re on Starter — 15 jobs/month, normal queue priority'}
+                  {upgradePrompt.title}
                 </p>
                 <p className="text-xs text-orange-700 mt-0.5">
-                  {provider.plan === 'pay_per_job'
-                    ? 'Upgrade to Pro for unlimited jobs with high queue priority.'
-                    : 'Upgrade to Pro for 35 jobs/month and high queue priority.'}
+                  {upgradePrompt.subtitle}
                 </p>
               </div>
               <a
-                href="/provider/subscribe"
+                href={upgradePrompt.href}
                 className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600"
               >
-                Increase monthly capacity
+                {upgradePrompt.label}
               </a>
+            </div>
+          )}
+
+          {provider.plan === 'business' && (
+            <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+              <p className="font-semibold text-slate-800 text-sm">You are on the highest plan.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Business includes unlimited jobs, highest priority, and no premium commission.</p>
             </div>
           )}
 

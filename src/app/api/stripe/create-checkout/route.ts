@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/supabase/request-user'
 import { getAppUrl } from '@/lib/env'
 import type { ProviderPlan } from '@/types'
 
@@ -45,8 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Stripe price is not configured for this plan' }, { status: 500 })
   }
 
-  const authClient = await createClient()
-  const { data: { user }, error: authError } = await authClient.auth.getUser()
+  const { user, authError } = await getRequestUser(req)
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -55,7 +54,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data: userRole } = await authClient
+  const supabase = createAdminClient()
+  const { data: userRole } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only providers can create checkout sessions' }, { status: 403 })
   }
 
-  const supabase = createAdminClient()
   const { data: provider, error: providerError } = await supabase
     .from('providers')
     .select('stripe_customer_id, stripe_subscription_id, users(email, name)')

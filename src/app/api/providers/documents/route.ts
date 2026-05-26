@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/supabase/request-user'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf'])
@@ -22,14 +22,14 @@ function extensionFor(file: File): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const { user, authError } = await getRequestUser(req)
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: profile } = await supabase
+  const admin = createAdminClient()
+  const { data: profile } = await admin
     .from('users')
     .select('role')
     .eq('id', user.id)
@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData()
   const uploads: Record<string, string> = {}
-  const admin = createAdminClient()
 
   for (const field of DOCUMENT_FIELDS) {
     const value = formData.get(field)

@@ -41,7 +41,9 @@ export default function ProviderRegisterPage() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', password: '' })
   const [files, setFiles] = useState<{ emirates_id?: File; license?: File; vehicle?: File }>({})
   const [loading, setLoading] = useState(false)
+  const [loadingLabel, setLoadingLabel] = useState('')
   const [error, setError] = useState('')
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [existingAccount, setExistingAccount] = useState<ExistingAccountState>({
     checked: false,
     role: null,
@@ -131,9 +133,17 @@ export default function ProviderRegisterPage() {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
+  function authHeaders(contentType = true): HeadersInit {
+    return {
+      ...(contentType ? { 'Content-Type': 'application/json' } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    }
+  }
+
   async function handleAccountSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setLoadingLabel('Creating your account...')
     setError('')
     const supabase = createClient()
     const { data, error: authError } = await supabase.auth.signUp({
@@ -141,15 +151,33 @@ export default function ProviderRegisterPage() {
       password: form.password,
       options: { data: { name: form.name, phone: form.phone } },
     })
-    if (authError || !data.user) {
-      setError(authError?.message ?? 'Registration failed')
-      setLoading(false)
-      return
+    let signedUpUser = data.user
+    let sessionAccessToken = data.session?.access_token ?? null
+
+    if (authError || !signedUpUser) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const sessionUser = sessionData.session?.user ?? null
+      if (sessionUser?.email?.toLowerCase() === form.email.toLowerCase()) {
+        signedUpUser = sessionUser
+        sessionAccessToken = sessionData.session?.access_token ?? null
+      } else {
+        setError(authError?.message
+          ? `${authError.message}. If you already registered, sign in to continue provider setup.`
+          : 'Registration failed. If you already registered, sign in to continue provider setup.')
+        setLoading(false)
+        setLoadingLabel('')
+        return
+      }
     }
 
+    setAccessToken(sessionAccessToken)
+    setLoadingLabel('Setting up your provider profile...')
     const profileRes = await fetch('/api/providers/profile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(sessionAccessToken ? { Authorization: `Bearer ${sessionAccessToken}` } : {}),
+      },
       body: JSON.stringify({
         name: form.name,
         phone: form.phone,
@@ -159,13 +187,15 @@ export default function ProviderRegisterPage() {
     const profile = await profileRes.json().catch(() => null) as { id?: string; error?: string } | null
 
     if (!profileRes.ok || !profile?.id) {
-      setError(profile?.error ?? 'Account created, but provider profile setup failed. Please sign in and try again.')
+      setError(profile?.error ?? 'Account created, but provider profile setup failed. Please sign in to continue setup.')
       setLoading(false)
+      setLoadingLabel('')
       return
     }
 
     setUserId(profile.id)
     setLoading(false)
+    setLoadingLabel('')
     setStep(2)
   }
 
@@ -176,6 +206,7 @@ export default function ProviderRegisterPage() {
       return
     }
     setLoading(true)
+    setLoadingLabel('Uploading documents...')
     setError('')
 
     const formData = new FormData()
@@ -185,6 +216,7 @@ export default function ProviderRegisterPage() {
 
     const res = await fetch('/api/providers/documents', {
       method: 'POST',
+      headers: authHeaders(false),
       body: formData,
     })
     const result = await res.json().catch(() => null) as { error?: string } | null
@@ -192,20 +224,23 @@ export default function ProviderRegisterPage() {
     if (!res.ok) {
       setError(result?.error ?? 'Failed to upload documents. Please try again.')
       setLoading(false)
+      setLoadingLabel('')
       return
     }
 
     setLoading(false)
+    setLoadingLabel('')
     setStep(3)
   }
 
   async function handlePlanSubmit() {
     if (selectedPlan === 'pay_per_job') {
       setLoading(true)
+      setLoadingLabel('Saving your plan...')
       setError('')
       const res = await fetch('/api/providers/plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ plan: 'pay_per_job' }),
       })
 
@@ -213,6 +248,7 @@ export default function ProviderRegisterPage() {
         const result = await res.json().catch(() => null) as { error?: string } | null
         setError(result?.error ?? 'Failed to select plan')
         setLoading(false)
+        setLoadingLabel('')
         return
       }
 
@@ -220,14 +256,15 @@ export default function ProviderRegisterPage() {
       return
     }
     setLoading(true)
+    setLoadingLabel('Opening secure checkout...')
     const res = await fetch('/api/stripe/create-checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ plan: selectedPlan, provider_id: userId }),
     })
     const { url, error: checkoutError } = await res.json()
     if (url) window.location.href = url
-    else { setError(checkoutError ?? 'Failed to create checkout'); setLoading(false) }
+    else { setError(checkoutError ?? 'Failed to create checkout'); setLoading(false); setLoadingLabel('') }
   }
 
   return (
@@ -282,7 +319,9 @@ export default function ProviderRegisterPage() {
                 <Input id="email" type="email" label="Email" value={form.email} onChange={e => update('email', e.target.value)} required placeholder="you@example.com" />
                 <Input id="password" type="password" label="Password" value={form.password} onChange={e => update('password', e.target.value)} required placeholder="Min 8 characters" minLength={8} />
                 {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-                <Button type="submit" loading={loading} size="lg" className="w-full">Create Account</Button>
+                <Button type="submit" loading={loading} size="lg" className="w-full">
+                  {loading ? loadingLabel || 'Creating Account...' : 'Create Account'}
+                </Button>
               </form>
               <p className="mt-4 text-center text-sm text-slate-500">
                 Already registered? <Link href="/auth/login" className="text-orange-500 font-semibold hover:underline">Sign In</Link>
@@ -311,7 +350,9 @@ export default function ProviderRegisterPage() {
                   </div>
                 ))}
                 {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-                <Button type="submit" loading={loading} size="lg" className="w-full">Upload & Continue</Button>
+                <Button type="submit" loading={loading} size="lg" className="w-full">
+                  {loading ? loadingLabel || 'Uploading...' : 'Upload & Continue'}
+                </Button>
               </form>
             </div>
           )}
@@ -336,7 +377,7 @@ export default function ProviderRegisterPage() {
               </div>
               {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mb-4">{error}</p>}
               <Button className="w-full" loading={loading} onClick={handlePlanSubmit} size="lg">
-                {selectedPlan === 'pay_per_job' ? 'Start for Free' : 'Proceed to Payment'}
+                {loading ? loadingLabel || 'Working...' : selectedPlan === 'pay_per_job' ? 'Start for Free' : 'Proceed to Payment'}
               </Button>
             </div>
           )}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/supabase/request-user'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 const providerProfileSchema = z.object({
@@ -24,8 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many registration attempts from this address.' }, { status: 429 })
   }
 
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const { user, authError } = await getRequestUser(req)
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,6 +35,20 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+  const { data: existingUser, error: existingUserError } = await admin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle<{ role: string | null }>()
+
+  if (existingUserError) {
+    return NextResponse.json({ error: 'Failed to check account status' }, { status: 500 })
+  }
+
+  if (existingUser?.role && existingUser.role !== 'provider') {
+    return NextResponse.json({ error: 'This account is already registered with a different role.' }, { status: 409 })
+  }
+
   const { error: userError } = await admin
     .from('users')
     .upsert({
@@ -50,16 +63,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save provider account' }, { status: 500 })
   }
 
-  const { error: providerError } = await admin
+  const { data: existingProvider, error: existingProviderError } = await admin
     .from('providers')
-    .upsert({
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle<{ id: string }>()
+
+  if (existingProviderError) {
+    return NextResponse.json({ error: 'Failed to check provider profile' }, { status: 500 })
+  }
+
+  if (!existingProvider) {
+    const { error: providerError } = await admin
+      .from('providers')
+      .insert({
       id: user.id,
       plan: 'pay_per_job',
       status: 'pending',
-    })
+      })
 
-  if (providerError) {
-    return NextResponse.json({ error: 'Failed to create provider profile' }, { status: 500 })
+    if (providerError) {
+      return NextResponse.json({ error: 'Failed to create provider profile' }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ id: user.id })

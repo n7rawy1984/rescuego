@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/supabase/request-user'
 
 const providerPlanSchema = z.object({
   plan: z.literal('pay_per_job'),
@@ -15,14 +15,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid provider plan' }, { status: 400 })
   }
 
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const { user, authError } = await getRequestUser(req)
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: profile } = await supabase
+  const admin = createAdminClient()
+  const { data: profile } = await admin
     .from('users')
     .select('role')
     .eq('id', user.id)
@@ -32,7 +32,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only providers can update plan selection' }, { status: 403 })
   }
 
-  const admin = createAdminClient()
   const { error } = await admin
     .from('providers')
     .update({ plan: parsed.data.plan })
