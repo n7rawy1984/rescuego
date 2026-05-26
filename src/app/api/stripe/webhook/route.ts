@@ -149,14 +149,30 @@ function isSubscriptionPlan(plan: string | undefined): plan is SubscriptionPlan 
   return plan === 'starter' || plan === 'pro' || plan === 'business'
 }
 
+function getSubscriptionItemPriceIds(subscription: Stripe.Subscription): string[] {
+  const items = subscription.items?.data ?? []
+
+  return items
+    .map((item) => {
+      const price = item.price
+      if (!price) return null
+      return typeof price === 'string' ? price : price.id
+    })
+    .filter((priceId): priceId is string => Boolean(priceId))
+}
+
 function resolveSubscriptionPlan(subscription: Stripe.Subscription): {
   plan: SubscriptionPlan | null
   source: 'price_id' | 'metadata' | 'unresolved'
   priceIds: string[]
 } {
-  const priceIds = subscription.items.data
-    .map((item) => item.price?.id)
-    .filter((priceId): priceId is string => Boolean(priceId))
+  const priceIds = getSubscriptionItemPriceIds(subscription)
+  const primaryPriceId = priceIds[0]
+
+  if (primaryPriceId) {
+    const primaryPlan = PLAN_BY_PRICE_ID.get(primaryPriceId)
+    if (primaryPlan) return { plan: primaryPlan, source: 'price_id', priceIds }
+  }
 
   for (const priceId of priceIds) {
     const plan = PLAN_BY_PRICE_ID.get(priceId)
@@ -344,6 +360,7 @@ async function processStripeEvent(
 
   if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
     const sub = event.data.object as Stripe.Subscription
+    const stripeCustomerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
     const status = sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'suspended' : 'pending'
     const resolvedPlan = resolveSubscriptionPlan(sub)
     const subscriptionWithPeriod = sub as Stripe.Subscription & {
@@ -371,24 +388,26 @@ async function processStripeEvent(
       logger.warn({
         event: 'stripe_subscription_plan_unresolved',
         stripe_subscription_id: sub.id,
-        stripe_customer_id: sub.customer,
+        stripe_customer_id: stripeCustomerId,
         price_ids: resolvedPlan.priceIds,
         metadata_plan: sub.metadata?.plan ?? null,
+        price_mapping_configured: PLAN_BY_PRICE_ID.size,
       })
     }
 
     const { error } = await supabase
       .from('providers')
       .update(updatePayload)
-      .eq('stripe_customer_id', sub.customer as string)
+      .eq('stripe_customer_id', stripeCustomerId)
     throwIfError(error, 'Failed to update provider subscription')
 
     logger.info({
       event: 'stripe_subscription_synced',
       stripe_subscription_id: sub.id,
-      stripe_customer_id: sub.customer,
+      stripe_customer_id: stripeCustomerId,
       plan: resolvedPlan.plan,
       plan_source: resolvedPlan.source,
+      price_ids: resolvedPlan.priceIds,
       subscription_status: sub.status,
     })
 
@@ -396,7 +415,7 @@ async function processStripeEvent(
       logger.warn({
         event: notificationEvents.subscriptionRequiresAttention,
         stripe_subscription_id: sub.id,
-        stripe_customer_id: sub.customer,
+        stripe_customer_id: stripeCustomerId,
         subscription_status: sub.status,
       })
     }
