@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       .from('providers')
       .update({
         jobs_this_month: 0,
+        job_credit_balance: 0,
         jobs_reset_at: provider.stripe_current_period_start,
       })
       .eq('id', provider.id)

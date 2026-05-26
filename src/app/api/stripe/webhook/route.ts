@@ -19,6 +19,14 @@ type StripeEventRow = {
 
 type SubscriptionPlan = Exclude<ProviderPlan, 'pay_per_job'>
 
+type ProviderSubscriptionRow = {
+  id: string
+  plan: ProviderPlan
+  jobs_this_month: number | null
+  job_credit_balance: number | null
+  last_upgrade_bonus_key: string | null
+}
+
 const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000
 
 const PLAN_BY_PRICE_ID = new Map<string, SubscriptionPlan>(
@@ -147,6 +155,19 @@ function stripeUnixToIso(timestamp: number | undefined): string | null {
 
 function isSubscriptionPlan(plan: string | undefined): plan is SubscriptionPlan {
   return plan === 'starter' || plan === 'pro' || plan === 'business'
+}
+
+function planTier(plan: ProviderPlan | null): number {
+  if (plan === 'starter') return 1
+  if (plan === 'pro') return 2
+  if (plan === 'business') return 3
+  return 0
+}
+
+function monthlyJobAllowance(plan: ProviderPlan | null): number | null {
+  if (plan === 'starter') return 15
+  if (plan === 'pro') return 35
+  return null
 }
 
 function getSubscriptionItemPriceIds(subscription: Stripe.Subscription): string[] {
@@ -375,6 +396,8 @@ async function processStripeEvent(
       stripe_current_period_start: string | null
       stripe_current_period_end: string | null
       plan?: SubscriptionPlan
+      job_credit_balance?: number
+      last_upgrade_bonus_key?: string
     } = {
       status,
       stripe_subscription_id: sub.id,
@@ -393,6 +416,42 @@ async function processStripeEvent(
         metadata_plan: sub.metadata?.plan ?? null,
         price_mapping_configured: PLAN_BY_PRICE_ID.size,
       })
+    }
+
+    const { data: existingProvider, error: providerLookupError } = await supabase
+      .from('providers')
+      .select('id, plan, jobs_this_month, job_credit_balance, last_upgrade_bonus_key')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle<ProviderSubscriptionRow>()
+    throwIfError(providerLookupError, 'Failed to read provider before subscription update')
+
+    if (existingProvider && resolvedPlan.plan) {
+      const oldPlan = existingProvider.plan
+      const newPlan = resolvedPlan.plan
+      const isUpgrade = planTier(newPlan) > planTier(oldPlan)
+      const bonusKey = `${sub.id}:${currentPeriodStart ?? 'no-period'}:${oldPlan}->${newPlan}`
+      const bonusAlreadyApplied = existingProvider.last_upgrade_bonus_key === bonusKey
+      const oldAllowance = monthlyJobAllowance(oldPlan)
+
+      if (isUpgrade && newPlan !== 'business' && oldAllowance !== null && !bonusAlreadyApplied) {
+        updatePayload.job_credit_balance = (existingProvider.job_credit_balance ?? 0) + oldAllowance
+        updatePayload.last_upgrade_bonus_key = bonusKey
+
+        logger.info({
+          event: 'subscription_upgrade_job_credits_applied',
+          provider_id: existingProvider.id,
+          stripe_subscription_id: sub.id,
+          old_plan: oldPlan,
+          new_plan: newPlan,
+          credit_added: oldAllowance,
+          job_credit_balance: updatePayload.job_credit_balance,
+          jobs_this_month: existingProvider.jobs_this_month ?? 0,
+        })
+      }
+
+      if (newPlan === 'business' || planTier(newPlan) < planTier(oldPlan)) {
+        updatePayload.job_credit_balance = 0
+      }
     }
 
     const { error } = await supabase

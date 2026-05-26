@@ -25,6 +25,7 @@ type ProviderDashboardRow = {
   status: ProviderStatus
   rating: number
   jobs_this_month: number
+  job_credit_balance: number | null
   verified_badge: boolean
   documents: {
     emirates_id_url?: string
@@ -114,7 +115,8 @@ export default async function ProviderDashboardPage() {
     .returns<RecentJobRow[]>()
 
   const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
-  const remaining = planLimit !== null ? Math.max(0, planLimit - provider.jobs_this_month) : null
+  const jobCreditBalance = provider.job_credit_balance ?? 0
+  const remaining = planLimit !== null ? Math.max(0, planLimit + jobCreditBalance - provider.jobs_this_month) : null
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests) ? openRequests : []
   const providerLocationUpdatedAt = providerLocation?.updated_at ?? null
   const providerIsOnline = isTimestampWithinMinutes(providerLocationUpdatedAt, PROVIDER_STALE_MINUTES)
@@ -189,6 +191,9 @@ export default async function ProviderDashboardPage() {
               <CardBody className="flex flex-col justify-center">
                 <div className="text-2xl font-bold text-slate-900">{remaining !== null ? remaining : '∞'}</div>
                 <div className="text-sm text-slate-500">Included jobs left</div>
+                {jobCreditBalance > 0 ? (
+                  <div className="text-xs text-green-600 mt-1">Includes preserved upgrade credits.</div>
+                ) : null}
               </CardBody>
             </Card>
             <Card className="col-span-2 min-h-[80px] sm:col-span-1">

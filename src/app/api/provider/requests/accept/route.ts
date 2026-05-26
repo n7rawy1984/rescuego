@@ -16,6 +16,7 @@ type ProviderRow = {
   status: ProviderStatus
   plan: ProviderPlan
   jobs_this_month: number
+  job_credit_balance: number | null
 }
 
 type RequestLockRow = {
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient()
   const { data: provider, error: providerError } = await admin
     .from('providers')
-    .select('id, status, plan, jobs_this_month')
+    .select('id, status, plan, jobs_this_month, job_credit_balance')
     .eq('id', user.id)
     .single<ProviderRow>()
 
@@ -83,7 +84,8 @@ export async function POST(req: NextRequest) {
   // Overage guard - subscribed providers only
   if (provider.plan !== 'pay_per_job') {
     const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
-    if (planLimit !== null && provider.jobs_this_month >= planLimit) {
+    const effectiveLimit = planLimit !== null ? planLimit + (provider.job_credit_balance ?? 0) : null
+    if (effectiveLimit !== null && provider.jobs_this_month >= effectiveLimit) {
       const { data: overageCleared } = await admin
         .from('requests')
         .select('overage_cleared')
@@ -97,12 +99,12 @@ export async function POST(req: NextRequest) {
           request_id: parsed.data.request_id,
           plan: provider.plan,
           jobs_this_month: provider.jobs_this_month,
-          plan_limit: planLimit,
+          plan_limit: effectiveLimit,
           overage_fee_aed: OVERAGE_FEE_AED,
         })
         return NextResponse.json(
           {
-            error: `You've used all ${planLimit} jobs this month. Accept this job for ${OVERAGE_FEE_AED} AED?`,
+            error: `You've used all ${effectiveLimit} jobs this month. Accept this job for ${OVERAGE_FEE_AED} AED?`,
             code: 'OVERAGE_REQUIRED',
             overage_fee_aed: OVERAGE_FEE_AED,
             request_id: parsed.data.request_id,

@@ -19,6 +19,7 @@ export interface Provider {
   status: ProviderStatus
   rating: number
   jobs_this_month: number
+  job_credit_balance: number
   verified_badge: boolean
   documents: {
     emirates_id_url?: string
@@ -30,6 +31,7 @@ export interface Provider {
   stripe_current_period_start: string | null
   stripe_current_period_end: string | null
   jobs_reset_at: string | null
+  last_upgrade_bonus_key: string | null
   created_at: string
 }
 
