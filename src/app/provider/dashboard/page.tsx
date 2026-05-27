@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { getPlanLabel, getProblemLabel } from '@/lib/utils'
 import { isTimestampWithinMinutes } from '@/lib/geo'
+import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
 import CompleteJobForm from '@/components/forms/CompleteJobForm'
 import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardingChecklist'
@@ -126,6 +127,23 @@ export default async function ProviderDashboardPage() {
 
   const statusVariant = provider.status === 'active' ? 'success' : provider.status === 'suspended' ? 'danger' : 'warning'
   const roundedRating = Math.round(provider.rating)
+  const onboarding = getProviderOnboardingState({
+    name: provider.users?.name ?? null,
+    email: provider.users?.email ?? null,
+    phone: provider.users?.phone ?? null,
+    plan: provider.plan,
+    status: provider.status,
+    documents: provider.documents,
+  })
+  const availabilityDisabledReason = provider.status === 'active'
+    ? undefined
+    : !onboarding.profileComplete
+      ? 'Complete your provider profile before going online for dispatch.'
+      : !onboarding.documentsComplete
+        ? `Upload required documents before going online. Missing: ${onboarding.missingDocuments.map(providerDocumentLabel).join(', ')}.`
+        : !onboarding.planComplete
+          ? 'Choose your access plan before going online for dispatch.'
+          : 'Your documents are under review. RescueGo will activate your account after verification.'
   const upgradePrompt = provider.plan === 'pay_per_job'
     ? {
         title: `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`,
@@ -190,6 +208,7 @@ export default async function ProviderDashboardPage() {
             providerStatus={provider.status}
             initialOnline={providerIsOnline}
             initialUpdatedAt={providerLocationUpdatedAt}
+            disabledReason={availabilityDisabledReason}
           />
 
           <ProviderOnboardingChecklist

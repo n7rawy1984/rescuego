@@ -2,13 +2,9 @@ import Link from 'next/link'
 import { CheckCircle2, Circle, ShieldCheck } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
+import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
+import type { ProviderDocuments } from '@/lib/provider-onboarding'
 import type { ProviderPlan, ProviderStatus } from '@/types'
-
-type ProviderDocuments = {
-  emirates_id_url?: string
-  license_url?: string
-  vehicle_photo_url?: string
-} | null
 
 type ProviderOnboardingChecklistProps = {
   name: string | null
@@ -37,41 +33,39 @@ export default function ProviderOnboardingChecklist({
   verifiedBadge,
   documents,
 }: ProviderOnboardingChecklistProps) {
-  const hasRequiredDocuments = Boolean(
-    documents?.emirates_id_url &&
-    documents?.license_url &&
-    documents?.vehicle_photo_url
-  )
+  const onboarding = getProviderOnboardingState({ name, email, phone, plan, status, documents })
+  const missingDocumentLabels = onboarding.missingDocuments.map(providerDocumentLabel)
 
   const items: ChecklistItem[] = [
     {
       label: 'Complete provider profile',
-      description: 'Name and email are saved on your provider account.',
-      complete: Boolean(name && email),
-    },
-    {
-      label: 'Add phone number',
-      description: 'Customers and admins need a reliable contact number.',
-      complete: Boolean(phone),
+      description: 'Add your name, email, and phone number for admin review.',
+      complete: onboarding.profileComplete,
+      actionHref: '/provider/register?step=profile',
+      actionLabel: 'Continue setup',
     },
     {
       label: 'Upload required documents',
-      description: 'Emirates ID, UAE driving license, and vehicle photo are required for review.',
-      complete: hasRequiredDocuments,
-      actionHref: '/provider/register',
+      description: missingDocumentLabels.length > 0
+        ? `Missing: ${missingDocumentLabels.join(', ')}.`
+        : 'Emirates ID, UAE driving license, and vehicle photo are ready for review.',
+      complete: onboarding.documentsComplete,
+      actionHref: '/provider/register?step=documents',
       actionLabel: 'Upload documents',
     },
     {
       label: 'Choose access plan',
       description: 'Use Pay Per Job or a subscription plan before taking requests.',
-      complete: Boolean(plan),
-      actionHref: '/provider/subscribe',
+      complete: onboarding.planComplete,
+      actionHref: '/provider/register?step=plan',
       actionLabel: 'Choose plan',
     },
     {
       label: 'Admin approval',
       description: 'RescueGo reviews accounts before providers can accept jobs.',
-      complete: status === 'active',
+      complete: onboarding.activeReady,
+      actionHref: onboarding.pendingApproval ? '/provider/dashboard' : undefined,
+      actionLabel: onboarding.pendingApproval ? 'View dashboard' : undefined,
     },
   ]
 
@@ -134,7 +128,10 @@ export default function ProviderOnboardingChecklist({
                   <p className="font-semibold text-slate-800">{item.label}</p>
                   <p className="mt-1 text-sm leading-6 text-slate-500">{item.description}</p>
                   {item.actionHref && item.actionLabel ? (
-                    <Link href={item.actionHref} className="mt-3 inline-flex text-sm font-semibold text-orange-600 hover:underline">
+                    <Link
+                      href={item.actionHref}
+                      className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 sm:w-auto"
+                    >
                       {item.actionLabel}
                     </Link>
                   ) : null}

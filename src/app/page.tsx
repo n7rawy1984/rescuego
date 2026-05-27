@@ -15,7 +15,8 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Accordion from '@/components/ui/Accordion'
 import { createClient } from '@/lib/supabase/server'
-import type { UserRole } from '@/types'
+import { getProviderOnboardingState } from '@/lib/provider-onboarding'
+import type { ProviderPlan, ProviderStatus, UserRole } from '@/types'
 
 export const metadata: Metadata = {
   title: 'RescueGo - Roadside Recovery UAE | Fast & Trusted',
@@ -143,6 +144,7 @@ type ViewerState = {
   role: UserRole | null
   providerStatus: string | null
   providerSubscriptionId: string | null
+  providerSetupState: 'incomplete' | 'pending' | 'active' | null
 }
 
 async function getViewerState(): Promise<ViewerState> {
@@ -150,7 +152,7 @@ async function getViewerState(): Promise<ViewerState> {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return { role: null, providerStatus: null, providerSubscriptionId: null }
+    return { role: null, providerStatus: null, providerSubscriptionId: null, providerSetupState: null }
   }
 
   const { data: profile } = await supabase
@@ -164,19 +166,40 @@ async function getViewerState(): Promise<ViewerState> {
       role: profile?.role ?? 'customer',
       providerStatus: null,
       providerSubscriptionId: null,
+      providerSetupState: null,
     }
   }
 
   const { data: provider } = await supabase
     .from('providers')
-    .select('status, stripe_subscription_id')
+    .select('status, plan, documents, stripe_subscription_id, users(name, email, phone)')
     .eq('id', user.id)
-    .maybeSingle<{ status: string | null; stripe_subscription_id: string | null }>()
+    .maybeSingle<{
+      status: ProviderStatus | null
+      plan: ProviderPlan | null
+      documents: {
+        emirates_id_url?: string
+        license_url?: string
+        vehicle_photo_url?: string
+      } | null
+      stripe_subscription_id: string | null
+      users: { name: string | null; email: string | null; phone: string | null } | null
+    }>()
+
+  const onboarding = getProviderOnboardingState({
+    name: provider?.users?.name ?? null,
+    email: provider?.users?.email ?? user.email ?? null,
+    phone: provider?.users?.phone ?? null,
+    plan: provider?.plan ?? null,
+    status: provider?.status ?? null,
+    documents: provider?.documents ?? null,
+  })
 
   return {
     role: 'provider',
     providerStatus: provider?.status ?? null,
     providerSubscriptionId: provider?.stripe_subscription_id ?? null,
+    providerSetupState: onboarding.activeReady ? 'active' : onboarding.pendingApproval ? 'pending' : 'incomplete',
   }
 }
 
@@ -193,17 +216,20 @@ function primaryCtasForViewer(viewer: ViewerState) {
   }
 
   if (viewer.role === 'provider') {
-    const providerHref = viewer.providerStatus === 'active' || viewer.providerSubscriptionId
-      ? '/provider/dashboard'
-      : '/provider/subscribe'
+    const providerHref = viewer.providerSetupState === 'incomplete'
+      ? '/provider/register'
+      : '/provider/dashboard'
+    const providerLabel = viewer.providerSetupState === 'incomplete'
+      ? 'Continue provider setup'
+      : 'Provider Dashboard'
 
     return {
       primaryHref: providerHref,
-      primaryLabel: providerHref === '/provider/dashboard' ? 'Provider Dashboard' : 'Choose Subscription',
+      primaryLabel: providerLabel,
       secondaryHref: null,
       secondaryLabel: null,
       providerHref,
-      providerLabel: providerHref === '/provider/dashboard' ? 'Provider Dashboard' : 'Choose Subscription',
+      providerLabel,
     }
   }
 

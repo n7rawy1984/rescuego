@@ -15,6 +15,7 @@ type Props = {
   providerStatus: ProviderStatus
   initialOnline: boolean
   initialUpdatedAt: string | null
+  disabledReason?: string
 }
 
 type LocationResponse = {
@@ -32,7 +33,7 @@ function formatUpdatedAt(updatedAt: string | null): string {
   return `Last shared ${date.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}`
 }
 
-export default function ProviderAvailabilityToggle({ providerStatus, initialOnline, initialUpdatedAt }: Props) {
+export default function ProviderAvailabilityToggle({ providerStatus, initialOnline, initialUpdatedAt, disabledReason }: Props) {
   const router = useRouter()
   const [online, setOnline] = useState(initialOnline)
   const [updatedAt, setUpdatedAt] = useState<string | null>(initialUpdatedAt)
@@ -199,7 +200,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
       </div>
       {disabled && (
         <p className="mt-3 rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
-          Your account must be active before you can go online for dispatch.
+          {disabledReason ?? 'Your account must be active before you can go online for dispatch.'}
         </p>
       )}
       {message && <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{message}</p>}
