@@ -47,7 +47,7 @@ export function getProviderOnboardingState(input: {
   const documentsComplete = missingDocuments.length === 0
   const planComplete = Boolean(input.plan)
   const activeReady = profileComplete && documentsComplete && planComplete && input.status === 'active'
-  const pendingApproval = profileComplete && documentsComplete && planComplete && input.status !== 'active'
+  const pendingApproval = profileComplete && documentsComplete && planComplete && input.status === 'pending'
 
   let firstIncompleteStep: ProviderOnboardingState['firstIncompleteStep'] = 'ready'
   if (!profileComplete) firstIncompleteStep = 'profile'

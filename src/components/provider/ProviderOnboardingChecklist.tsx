@@ -39,7 +39,7 @@ export default function ProviderOnboardingChecklist({
   const items: ChecklistItem[] = [
     {
       label: 'Complete provider profile',
-      description: 'Add your name, email, and phone number for admin review.',
+      description: 'Add your name, email, and phone number so RescueGo can review your account.',
       complete: onboarding.profileComplete,
       actionHref: '/provider/register?step=profile',
       actionLabel: 'Continue setup',
@@ -58,19 +58,20 @@ export default function ProviderOnboardingChecklist({
       description: 'Use Pay Per Job or a subscription plan before taking requests.',
       complete: onboarding.planComplete,
       actionHref: '/provider/register?step=plan',
-      actionLabel: 'Choose plan',
+      actionLabel: 'Choose access plan',
     },
     {
       label: 'Admin approval',
-      description: 'RescueGo reviews accounts before providers can accept jobs.',
+      description: status === 'suspended'
+        ? 'Your provider account is suspended. Contact support to resolve your account status.'
+        : 'Your documents are under review. RescueGo will activate your account after verification.',
       complete: onboarding.activeReady,
-      actionHref: onboarding.pendingApproval ? '/provider/dashboard' : undefined,
-      actionLabel: onboarding.pendingApproval ? 'View dashboard' : undefined,
     },
   ]
 
   const completedCount = items.filter((item) => item.complete).length
   const incompleteItems = items.filter((item) => !item.complete)
+  const primaryItem = incompleteItems[0]
   const progressPct = Math.round((completedCount / items.length) * 100)
 
   if (status === 'active' && incompleteItems.length === 0) {
@@ -99,9 +100,19 @@ export default function ProviderOnboardingChecklist({
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold text-slate-900">Provider onboarding</h2>
+            <h2 className="font-semibold text-slate-900">
+              {status === 'suspended'
+                ? 'Provider account suspended'
+                : onboarding.pendingApproval
+                  ? 'Your documents are under review'
+                  : 'Provider onboarding'}
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Complete these steps before your account is fully ready to receive requests.
+              {status === 'suspended'
+                ? 'Contact support before accepting requests or going online.'
+                : onboarding.pendingApproval
+                ? 'RescueGo will activate your account after verification. You cannot go online until approval is complete.'
+                : 'Complete the next step before your account is ready to receive requests.'}
             </p>
           </div>
           <Badge variant={status === 'active' ? 'success' : 'warning'}>
@@ -113,33 +124,33 @@ export default function ProviderOnboardingChecklist({
         </div>
       </CardHeader>
       <CardBody>
-        {completedCount > 0 ? (
+        {completedCount > 0 && !onboarding.pendingApproval ? (
           <p className="mb-4 text-xs font-medium text-slate-500">
             {completedCount} completed step{completedCount === 1 ? '' : 's'} hidden to keep your next actions clear.
           </p>
         ) : null}
 
-        <div className="space-y-3">
-          {incompleteItems.map((item) => (
-            <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        {primaryItem ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-start gap-3">
                 <Circle className="mt-0.5 h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-800">{item.label}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">{item.description}</p>
-                  {item.actionHref && item.actionLabel ? (
+                  <p className="font-semibold text-slate-800">{primaryItem.label}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">{primaryItem.description}</p>
+                  {primaryItem.actionHref && primaryItem.actionLabel ? (
                     <Link
-                      href={item.actionHref}
+                      href={primaryItem.actionHref}
                       className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 sm:w-auto"
                     >
-                      {item.actionLabel}
+                      {primaryItem.actionLabel}
                     </Link>
                   ) : null}
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ) : null}
 
         {verifiedBadge ? (
           <div className="mt-4 flex items-start gap-2 rounded-xl bg-green-50 p-3 text-sm text-green-700">

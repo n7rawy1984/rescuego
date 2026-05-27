@@ -137,7 +137,9 @@ export default async function ProviderDashboardPage() {
   })
   const availabilityDisabledReason = provider.status === 'active'
     ? undefined
-    : !onboarding.profileComplete
+    : provider.status === 'suspended'
+      ? 'Your account is suspended. Contact support to resolve your account status before going online.'
+      : !onboarding.profileComplete
       ? 'Complete your provider profile before going online for dispatch.'
       : !onboarding.documentsComplete
         ? `Upload required documents before going online. Missing: ${onboarding.missingDocuments.map(providerDocumentLabel).join(', ')}.`
@@ -204,13 +206,6 @@ export default async function ProviderDashboardPage() {
             </div>
           </div>
 
-          <ProviderAvailabilityToggle
-            providerStatus={provider.status}
-            initialOnline={providerIsOnline}
-            initialUpdatedAt={providerLocationUpdatedAt}
-            disabledReason={availabilityDisabledReason}
-          />
-
           <ProviderOnboardingChecklist
             name={provider.users?.name ?? null}
             email={provider.users?.email ?? null}
@@ -219,6 +214,13 @@ export default async function ProviderDashboardPage() {
             status={provider.status}
             verifiedBadge={provider.verified_badge}
             documents={provider.documents}
+          />
+
+          <ProviderAvailabilityToggle
+            providerStatus={provider.status}
+            initialOnline={providerIsOnline}
+            initialUpdatedAt={providerLocationUpdatedAt}
+            disabledReason={availabilityDisabledReason}
           />
 
           <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4 sm:gap-4">
@@ -277,13 +279,6 @@ export default async function ProviderDashboardPage() {
             <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
               <p className="font-semibold text-slate-800 text-sm">You are on the highest plan.</p>
               <p className="text-xs text-slate-500 mt-0.5">Business includes unlimited jobs, highest priority, and no premium commission.</p>
-            </div>
-          )}
-
-          {provider.status === 'pending' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-              <p className="text-yellow-800 font-semibold">Account Under Review</p>
-              <p className="text-yellow-700 text-sm mt-1">Our team is reviewing your documents. You&apos;ll be activated after verification is complete.</p>
             </div>
           )}
 
