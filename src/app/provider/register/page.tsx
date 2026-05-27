@@ -35,6 +35,26 @@ type ResumeProviderState = {
   documents: ProviderDocuments
 }
 
+type TransientSuccess = 'setup_submitted' | null
+
+const EMPTY_FORM = { name: '', phone: '', email: '', password: '' }
+
+const EMPTY_RESUME_PROVIDER: ResumeProviderState = {
+  isProvider: false,
+  activeReady: false,
+  reviewReady: false,
+  status: null,
+  documents: null,
+}
+
+const EMPTY_EXISTING_ACCOUNT: ExistingAccountState = {
+  checked: false,
+  role: null,
+  actionHref: null,
+  actionLabel: null,
+  message: null,
+}
+
 function getInitialSelectedPlan(): ProviderPlanId {
   if (typeof window === 'undefined') return 'pay_per_job'
   const plan = new URLSearchParams(window.location.search).get('plan')
@@ -67,121 +87,152 @@ export default function ProviderRegisterPage() {
   const [step, setStep] = useState(1)
   const [userId, setUserId] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<ProviderPlanId>(getInitialSelectedPlan)
-  const [form, setForm] = useState({ name: '', phone: '', email: '', password: '' })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [files, setFiles] = useState<{ emirates_id?: File; license?: File; vehicle?: File }>({})
   const [loading, setLoading] = useState(false)
   const [loadingLabel, setLoadingLabel] = useState('')
   const [error, setError] = useState('')
+  const [hydratingAccount, setHydratingAccount] = useState(true)
+  const [initialLoadError, setInitialLoadError] = useState('')
+  const [initialLoadAttempt, setInitialLoadAttempt] = useState(0)
+  const [transientSuccess, setTransientSuccess] = useState<TransientSuccess>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
-  const [resumeProvider, setResumeProvider] = useState<ResumeProviderState>({
-    isProvider: false,
-    activeReady: false,
-    reviewReady: false,
-    status: null,
-    documents: null,
-  })
-  const [existingAccount, setExistingAccount] = useState<ExistingAccountState>({
-    checked: false,
-    role: null,
-    actionHref: null,
-    actionLabel: null,
-    message: null,
-  })
+  const [resumeProvider, setResumeProvider] = useState<ResumeProviderState>(EMPTY_RESUME_PROVIDER)
+  const [existingAccount, setExistingAccount] = useState<ExistingAccountState>(EMPTY_EXISTING_ACCOUNT)
 
   useEffect(() => {
     let cancelled = false
 
     async function loadExistingAccount() {
-      const supabase = createClient()
-      const { data: sessionData } = await supabase.auth.getSession()
-      const user = sessionData.session?.user ?? null
-      const sessionToken = sessionData.session?.access_token ?? null
-
-      if (!user) {
-        if (!cancelled) setExistingAccount((current) => ({ ...current, checked: true }))
-        return
-      }
-
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role, name, phone, email')
-        .eq('id', user.id)
-        .maybeSingle<{ role: UserRole | null; name: string | null; phone: string | null; email: string | null }>()
-
-      if (profile?.role === 'admin') {
-        if (!cancelled) {
-          setExistingAccount({
-            checked: true,
-            role: 'admin',
-            actionHref: '/admin/dashboard',
-            actionLabel: 'Go to Admin Dashboard',
-            message: 'You are already signed in as an admin.',
-          })
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          throw new Error('offline')
         }
-        return
-      }
 
-      if (profile?.role === 'customer') {
         if (!cancelled) {
-          setExistingAccount({
-            checked: true,
-            role: 'customer',
-            actionHref: '/customer/request',
-            actionLabel: 'Request Help',
-            message: 'You are already signed in as a customer.',
-          })
+          setHydratingAccount(true)
+          setInitialLoadError('')
+          setError('')
+          setTransientSuccess(null)
+          setLoading(false)
+          setLoadingLabel('')
+          setExistingAccount(EMPTY_EXISTING_ACCOUNT)
+          setResumeProvider(EMPTY_RESUME_PROVIDER)
+          setAccessToken(null)
+          setUserId('')
+          setFiles({})
+          setStep(requestedStep() ?? 1)
         }
-        return
-      }
 
-      if (profile?.role === 'provider') {
-        const { data: provider } = await supabase
-          .from('providers')
-          .select('status, plan, documents, stripe_subscription_id')
+        const supabase = createClient()
+        const { data: sessionData } = await supabase.auth.getSession()
+        const user = sessionData.session?.user ?? null
+        const sessionToken = sessionData.session?.access_token ?? null
+
+        if (!user) {
+          if (!cancelled) {
+            setExistingAccount((current) => ({ ...current, checked: true }))
+            setHydratingAccount(false)
+          }
+          return
+        }
+
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role, name, phone, email')
           .eq('id', user.id)
-          .maybeSingle<{ status: ProviderStatus | null; plan: ProviderPlan | null; documents: ProviderDocuments; stripe_subscription_id: string | null }>()
+          .maybeSingle<{ role: UserRole | null; name: string | null; phone: string | null; email: string | null }>()
 
-        const onboarding = getProviderOnboardingState({
-          name: profile.name,
-          email: profile.email ?? user.email ?? null,
-          phone: profile.phone,
-          plan: provider?.plan ?? null,
-          status: provider?.status ?? null,
-          documents: provider?.documents ?? null,
-        })
-        const forcedStep = requestedStep()
-        const stateStep = stepNumber(onboarding.firstIncompleteStep)
-        const nextStep = forcedStep && forcedStep <= Math.max(stateStep, 3) ? forcedStep : stateStep
+        if (profile?.role === 'admin') {
+          if (!cancelled) {
+            setExistingAccount({
+              checked: true,
+              role: 'admin',
+              actionHref: '/admin/dashboard',
+              actionLabel: 'Go to Admin Dashboard',
+              message: 'You are already signed in as an admin.',
+            })
+            setHydratingAccount(false)
+          }
+          return
+        }
 
-        if (!cancelled) {
-          setUserId(user.id)
-          setAccessToken(sessionToken)
-          setForm({
-            name: profile.name ?? user.user_metadata?.name ?? '',
-            phone: profile.phone ?? user.user_metadata?.phone ?? '',
-            email: profile.email ?? user.email ?? '',
-            password: '',
-          })
-          setStep(Math.min(nextStep, 4))
-          setResumeProvider({
-            isProvider: true,
-            activeReady: onboarding.activeReady,
-            reviewReady: onboarding.pendingApproval,
+        if (profile?.role === 'customer') {
+          if (!cancelled) {
+            setExistingAccount({
+              checked: true,
+              role: 'customer',
+              actionHref: '/customer/request',
+              actionLabel: 'Request Help',
+              message: 'You are already signed in as a customer.',
+            })
+            setHydratingAccount(false)
+          }
+          return
+        }
+
+        if (profile?.role === 'provider') {
+          const { data: provider } = await supabase
+            .from('providers')
+            .select('status, plan, documents, stripe_subscription_id')
+            .eq('id', user.id)
+            .maybeSingle<{ status: ProviderStatus | null; plan: ProviderPlan | null; documents: ProviderDocuments; stripe_subscription_id: string | null }>()
+
+          const onboarding = getProviderOnboardingState({
+            name: profile.name,
+            email: profile.email ?? user.email ?? null,
+            phone: profile.phone,
+            plan: provider?.plan ?? null,
             status: provider?.status ?? null,
             documents: provider?.documents ?? null,
           })
-          setExistingAccount({
-            checked: true,
-            role: 'provider',
-            actionHref: null,
-            actionLabel: null,
-            message: null,
-          })
-        }
-        return
-      }
+          const forcedStep = requestedStep()
+          const stateStep = stepNumber(onboarding.firstIncompleteStep)
+          const nextStep = forcedStep && forcedStep <= Math.max(stateStep, 3) ? forcedStep : stateStep
 
-      if (!cancelled) setExistingAccount((current) => ({ ...current, checked: true }))
+          if (!cancelled) {
+            setUserId(user.id)
+            setAccessToken(sessionToken)
+            setForm({
+              name: profile.name ?? user.user_metadata?.name ?? '',
+              phone: profile.phone ?? user.user_metadata?.phone ?? '',
+              email: profile.email ?? user.email ?? '',
+              password: '',
+            })
+            setStep(Math.min(nextStep, 4))
+            setResumeProvider({
+              isProvider: true,
+              activeReady: onboarding.activeReady,
+              reviewReady: onboarding.pendingApproval,
+              status: provider?.status ?? null,
+              documents: provider?.documents ?? null,
+            })
+            setExistingAccount({
+              checked: true,
+              role: 'provider',
+              actionHref: null,
+              actionLabel: null,
+              message: null,
+            })
+            setHydratingAccount(false)
+          }
+          return
+        }
+
+        if (!cancelled) {
+          setExistingAccount((current) => ({ ...current, checked: true }))
+          setHydratingAccount(false)
+        }
+      } catch {
+        if (!cancelled) {
+          setExistingAccount(EMPTY_EXISTING_ACCOUNT)
+          setResumeProvider(EMPTY_RESUME_PROVIDER)
+          setAccessToken(null)
+          setUserId('')
+          setHydratingAccount(false)
+          setInitialLoadError('Connection lost. Please check your internet connection and try again.')
+        }
+      }
     }
 
     loadExistingAccount()
@@ -189,7 +240,20 @@ export default function ProviderRegisterPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialLoadAttempt])
+
+  function retryInitialLoad() {
+    setHydratingAccount(true)
+    setInitialLoadError('')
+    setError('')
+    setTransientSuccess(null)
+    setExistingAccount(EMPTY_EXISTING_ACCOUNT)
+    setResumeProvider(EMPTY_RESUME_PROVIDER)
+    setAccessToken(null)
+    setUserId('')
+    setFiles({})
+    setInitialLoadAttempt((current) => current + 1)
+  }
 
   function update(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -204,72 +268,88 @@ export default function ProviderRegisterPage() {
 
   async function handleAccountSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
     setLoading(true)
     setLoadingLabel(resumeProvider.isProvider ? 'Saving your provider profile...' : 'Creating your account...')
     setError('')
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    let sessionAccessToken = accessToken
+      let sessionAccessToken = accessToken
 
-    if (!resumeProvider.isProvider) {
-      const { data, error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: { data: { name: form.name, phone: form.phone } },
-      })
-      let signedUpUser = data.user
-      sessionAccessToken = data.session?.access_token ?? null
+      if (!resumeProvider.isProvider) {
+        const { data, error: authError } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: { data: { name: form.name, phone: form.phone } },
+        })
+        let signedUpUser = data.user
+        sessionAccessToken = data.session?.access_token ?? null
 
-      if (authError || !signedUpUser) {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const sessionUser = sessionData.session?.user ?? null
-        if (sessionUser?.email?.toLowerCase() === form.email.toLowerCase()) {
-          signedUpUser = sessionUser
-          sessionAccessToken = sessionData.session?.access_token ?? null
-        } else {
-          const loginRedirect = `/auth/login?redirect=${encodeURIComponent(currentRegisterPath())}`
-          setError(authError?.message
-            ? `${authError.message}. If you already registered, sign in to continue provider setup: ${loginRedirect}`
-            : `Registration failed. If you already registered, sign in to continue provider setup: ${loginRedirect}`)
-          setLoading(false)
-          setLoadingLabel('')
-          return
+        if (authError || !signedUpUser) {
+          const { data: sessionData } = await supabase.auth.getSession()
+          const sessionUser = sessionData.session?.user ?? null
+          if (sessionUser?.email?.toLowerCase() === form.email.toLowerCase()) {
+            signedUpUser = sessionUser
+            sessionAccessToken = sessionData.session?.access_token ?? null
+          } else {
+            const loginRedirect = `/auth/login?redirect=${encodeURIComponent(currentRegisterPath())}`
+            setError(authError?.message
+              ? `${authError.message}. If you already registered, sign in to continue provider setup: ${loginRedirect}`
+              : `Registration failed. If you already registered, sign in to continue provider setup: ${loginRedirect}`)
+            setLoading(false)
+            setLoadingLabel('')
+            return
+          }
         }
       }
-    }
 
-    setAccessToken(sessionAccessToken)
-    setLoadingLabel('Setting up your provider profile...')
-    const profileRes = await fetch('/api/providers/profile', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(sessionAccessToken ? { Authorization: `Bearer ${sessionAccessToken}` } : {}),
-      },
-      body: JSON.stringify({
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-      }),
-    })
-    const profile = await profileRes.json().catch(() => null) as { id?: string; error?: string } | null
+      setAccessToken(sessionAccessToken)
+      setLoadingLabel('Setting up your provider profile...')
+      const profileRes = await fetch('/api/providers/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionAccessToken ? { Authorization: `Bearer ${sessionAccessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+        }),
+      })
+      const profile = await profileRes.json().catch(() => null) as { id?: string; error?: string } | null
 
-    if (!profileRes.ok || !profile?.id) {
-      setError(profile?.error ?? 'Account created, but provider profile setup failed. Please sign in to continue setup.')
+      if (profileRes.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setLoading(false)
+        setLoadingLabel('')
+        return
+      }
+
+      if (!profileRes.ok || !profile?.id) {
+        setError(profile?.error ?? 'Account created, but provider profile setup failed. Please sign in to continue setup.')
+        setLoading(false)
+        setLoadingLabel('')
+        return
+      }
+
+      setUserId(profile.id)
       setLoading(false)
       setLoadingLabel('')
-      return
+      setTransientSuccess(null)
+      setResumeProvider((current) => ({ ...current, isProvider: true, activeReady: false }))
+      setStep(2)
+    } catch {
+      setError('Network connection lost. Please try again.')
+      setLoading(false)
+      setLoadingLabel('')
     }
-
-    setUserId(profile.id)
-    setLoading(false)
-    setLoadingLabel('')
-    setResumeProvider((current) => ({ ...current, isProvider: true, activeReady: false }))
-    setStep(2)
   }
 
   async function handleDocumentUpload(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
     if (!files.emirates_id || !files.license || !files.vehicle) {
       setError('Please upload all 3 required documents.')
       return
@@ -283,70 +363,123 @@ export default function ProviderRegisterPage() {
     formData.append('license', files.license)
     formData.append('vehicle', files.vehicle)
 
-    const res = await fetch('/api/providers/documents', {
-      method: 'POST',
-      headers: authHeaders(false),
-      body: formData,
-    })
-    const result = await res.json().catch(() => null) as { error?: string } | null
-
-    if (!res.ok) {
-      setError(result?.error ?? 'Failed to upload documents. Please try again.')
-      setLoading(false)
-      setLoadingLabel('')
-      return
-    }
-
-    setLoading(false)
-    setLoadingLabel('')
-    setResumeProvider((current) => ({
-      ...current,
-      documents: {
-        emirates_id_url: 'uploaded',
-        license_url: 'uploaded',
-        vehicle_photo_url: 'uploaded',
-      },
-    }))
-    setStep(3)
-  }
-
-  async function handlePlanSubmit() {
-    if (selectedPlan === 'pay_per_job') {
-      setLoading(true)
-      setLoadingLabel('Saving your plan...')
-      setError('')
-      const res = await fetch('/api/providers/plan', {
+    try {
+      const res = await fetch('/api/providers/documents', {
         method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ plan: 'pay_per_job' }),
+        headers: authHeaders(false),
+        body: formData,
       })
+      const result = await res.json().catch(() => null) as { error?: string } | null
 
-      if (!res.ok) {
-        const result = await res.json().catch(() => null) as { error?: string } | null
-        setError(result?.error ?? 'Failed to select plan')
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
         setLoading(false)
         setLoadingLabel('')
         return
       }
 
-      setResumeProvider((current) => ({ ...current, reviewReady: true, status: current.status ?? 'pending' }))
-      setStep(4)
+      if (!res.ok) {
+        setError(result?.error ?? 'Failed to upload documents. Please try again.')
+        setLoading(false)
+        setLoadingLabel('')
+        return
+      }
+
+      setLoading(false)
+      setLoadingLabel('')
+      setTransientSuccess(null)
+      setResumeProvider((current) => ({
+        ...current,
+        documents: {
+          emirates_id_url: 'uploaded',
+          license_url: 'uploaded',
+          vehicle_photo_url: 'uploaded',
+        },
+      }))
+      setStep(3)
+    } catch {
+      setError('Network connection lost. Please try again.')
+      setLoading(false)
+      setLoadingLabel('')
+    }
+  }
+
+  async function handlePlanSubmit() {
+    if (loading) return
+    if (selectedPlan === 'pay_per_job') {
+      setLoading(true)
+      setLoadingLabel('Saving your plan...')
+      setError('')
+      try {
+        const res = await fetch('/api/providers/plan', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ plan: 'pay_per_job' }),
+        })
+
+        if (res.status === 401) {
+          setError('Your session expired. Please sign in again.')
+          setLoading(false)
+          setLoadingLabel('')
+          return
+        }
+
+        if (!res.ok) {
+          const result = await res.json().catch(() => null) as { error?: string } | null
+          setError(result?.error ?? 'Failed to select plan')
+          setLoading(false)
+          setLoadingLabel('')
+          return
+        }
+
+        setResumeProvider((current) => ({ ...current, reviewReady: true, status: current.status ?? 'pending' }))
+        setTransientSuccess('setup_submitted')
+        setStep(4)
+      } catch {
+        setError('Network connection lost. Please try again.')
+        setLoading(false)
+        setLoadingLabel('')
+      }
       return
     }
     setLoading(true)
     setLoadingLabel('Opening secure checkout...')
-    const res = await fetch('/api/stripe/create-checkout', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ plan: selectedPlan, provider_id: userId }),
-    })
-    const { url, error: checkoutError } = await res.json()
-    if (url) window.location.href = url
-    else { setError(checkoutError ?? 'Failed to create checkout'); setLoading(false); setLoadingLabel('') }
+    try {
+      const res = await fetch('/api/stripe/create-checkout', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ plan: selectedPlan, provider_id: userId }),
+      })
+      const { url, error: checkoutError } = await res.json()
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setLoading(false)
+        setLoadingLabel('')
+        return
+      }
+      if (url) window.location.href = url
+      else { setError(checkoutError ?? 'Unable to start billing session right now.'); setLoading(false); setLoadingLabel('') }
+    } catch {
+      setError('Network connection lost. Please try again.')
+      setLoading(false)
+      setLoadingLabel('')
+    }
   }
 
   const isResumeFlow = resumeProvider.isProvider
   const loginHref = `/auth/login?redirect=${encodeURIComponent(currentRegisterPath())}`
+  const showProviderStatusCard = existingAccount.checked
+    && !existingAccount.actionHref
+    && !initialLoadError
+    && !hydratingAccount
+    && isResumeFlow
+    && step === 4
+    && (resumeProvider.activeReady || resumeProvider.reviewReady)
+  const showStepFlow = existingAccount.checked
+    && !existingAccount.actionHref
+    && !initialLoadError
+    && !hydratingAccount
+    && !showProviderStatusCard
 
   return (
     <>
@@ -358,7 +491,7 @@ export default function ProviderRegisterPage() {
           </div>
         )}
         <div className="max-w-2xl mx-auto">
-          {existingAccount.checked && existingAccount.actionHref && (
+          {existingAccount.checked && existingAccount.actionHref && !hydratingAccount && (
             <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h1 className="text-xl font-bold text-slate-900">Account already signed in</h1>
               <p className="mt-2 text-sm text-slate-600">{existingAccount.message}</p>
@@ -371,14 +504,47 @@ export default function ProviderRegisterPage() {
             </div>
           )}
 
-          {!existingAccount.checked && (
+          {initialLoadError && (
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-6 shadow-sm">
+              <h1 className="text-xl font-bold text-red-900">Connection issue</h1>
+              <p className="mt-2 text-sm text-red-700">{initialLoadError}</p>
+              <button
+                type="button"
+                onClick={retryInitialLoad}
+                className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-sm font-semibold text-red-700 ring-1 ring-red-200 transition-colors hover:bg-red-100"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {!initialLoadError && (hydratingAccount || !existingAccount.checked) && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="h-6 w-48 rounded bg-slate-100" />
               <div className="mt-3 h-4 w-64 rounded bg-slate-100" />
             </div>
           )}
 
-          {existingAccount.checked && !existingAccount.actionHref && (
+          {showProviderStatusCard && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              {resumeProvider.activeReady ? (
+                <>
+                  <h1 className="text-xl font-bold text-slate-900">Your provider account is ready</h1>
+                  <p className="mt-2 text-sm text-slate-500">You can manage requests, availability, and subscription settings from your dashboard.</p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-xl font-bold text-slate-900">Your documents are under review</h1>
+                  <p className="mt-2 text-sm text-slate-500">RescueGo will activate your account after verification.</p>
+                </>
+              )}
+              <Link href="/provider/dashboard" className="mt-6 inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
+                Go to Provider Dashboard
+              </Link>
+            </div>
+          )}
+
+          {showStepFlow && (
           <>
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-slate-900">
@@ -455,6 +621,7 @@ export default function ProviderRegisterPage() {
                   <button
                     key={plan.id}
                     onClick={() => setSelectedPlan(plan.id)}
+                    disabled={loading}
                     className={`p-5 rounded-xl border-2 text-left transition-all relative ${selectedPlan === plan.id ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
                   >
                     {plan.highlight && <span className="absolute top-3 right-3 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Popular</span>}
@@ -484,9 +651,15 @@ export default function ProviderRegisterPage() {
                 </>
               ) : (
                 <>
-                  <h2 className="text-xl font-bold text-slate-900">Your documents are under review</h2>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    {transientSuccess === 'setup_submitted'
+                      ? 'Your documents have been submitted for review'
+                      : 'Provider account under review'}
+                  </h2>
                   <p className="mt-2 text-sm text-slate-500">
-                    RescueGo is reviewing your provider account. You can check status and finish any remaining dashboard steps while approval is pending.
+                    {transientSuccess === 'setup_submitted'
+                      ? 'RescueGo will review your provider account and activate it after verification.'
+                      : 'RescueGo is reviewing your provider account. You can check status from your dashboard while approval is pending.'}
                   </p>
                   <Link href="/provider/dashboard" className="mt-6 inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
                     Check Dashboard

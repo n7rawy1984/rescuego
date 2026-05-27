@@ -73,6 +73,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
   }
 
   async function updateOnlineLocation() {
+    if (loading || disabled) return
     setLoading(true)
     setError('')
     setMessage('')
@@ -120,6 +121,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
   }
 
   async function goOffline() {
+    if (loading) return
     setLoading(true)
     setError('')
     setMessage('')
@@ -150,11 +152,11 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
   }
 
   return (
-    <section className={`mb-6 rounded-xl border bg-white p-4 shadow-sm ${online ? 'border-green-200 ring-1 ring-green-100' : 'border-orange-200 ring-1 ring-orange-100'}`}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <section className={`mb-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-6 ${online ? 'border-green-200 shadow-green-100/60 ring-1 ring-green-100' : 'border-orange-200 shadow-orange-100/50 ring-1 ring-orange-100'}`}>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-slate-950">
               {online ? 'You are online for dispatch' : 'You are offline'}
             </h2>
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${online ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
@@ -175,7 +177,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
             onClick={updateOnlineLocation}
             loading={loading}
             disabled={disabled}
-            className="w-full sm:w-auto"
+            className="h-11 w-full px-5 sm:w-auto"
           >
             {online ? (
               <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -190,7 +192,7 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
               variant="ghost"
               onClick={goOffline}
               loading={loading}
-              className="w-full sm:w-auto"
+              className="h-11 w-full px-5 sm:w-auto"
             >
               <Power className="mr-2 h-4 w-4" aria-hidden="true" />
               Go Offline
@@ -199,13 +201,13 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
         </div>
       </div>
       {disabled && (
-        <p className="mt-3 rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+        <p className="mt-4 rounded-xl bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
           {disabledReason ?? 'Your account must be active before you can go online for dispatch.'}
         </p>
       )}
-      {message && <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{message}</p>}
+      {message && <p className="mt-4 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">{message}</p>}
       {error && (
-        <div className="mt-3 rounded-lg bg-red-50 px-3 py-2">
+        <div className="mt-4 rounded-xl bg-red-50 px-3 py-2">
           <p className="text-sm text-red-600">{error}</p>
           {locationPermissionDenied && (
             <p className="mt-1 text-xs text-red-400">

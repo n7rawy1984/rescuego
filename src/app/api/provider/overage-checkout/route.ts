@@ -4,16 +4,19 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
+import { getProviderAllowance } from '@/lib/provider-allowance'
 import { OVERAGE_FEE_AED } from '@/types'
+import type { ProviderPlan, ProviderStatus } from '@/types'
 
 const schema = z.object({ request_id: z.string().uuid() })
 
 type ProviderBillingRow = {
   id: string
-  plan: string
-  status: string
+  plan: ProviderPlan
+  status: ProviderStatus
   stripe_customer_id: string | null
   jobs_this_month: number
+  job_credit_balance: number | null
 }
 
 type RequestRow = {
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const { data: provider } = await admin
     .from('providers')
-    .select('id, plan, status, stripe_customer_id, jobs_this_month')
+    .select('id, plan, status, stripe_customer_id, jobs_this_month, job_credit_balance')
     .eq('id', user.id)
     .single<ProviderBillingRow>()
 
@@ -50,6 +53,20 @@ export async function POST(req: NextRequest) {
   }
   if (provider.status !== 'active') {
     return NextResponse.json({ error: 'Account must be active' }, { status: 403 })
+  }
+
+  const allowance = getProviderAllowance({
+    plan: provider.plan,
+    jobsThisMonth: provider.jobs_this_month,
+    jobCreditBalance: provider.job_credit_balance,
+  })
+
+  if (!allowance.hasMonthlyAllowance || allowance.effectiveLimit === null) {
+    return NextResponse.json({ error: 'This plan does not require overage payments' }, { status: 403 })
+  }
+
+  if (provider.jobs_this_month < allowance.effectiveLimit) {
+    return NextResponse.json({ error: 'You still have included jobs available for this billing period' }, { status: 409 })
   }
 
   const { data: request } = await admin

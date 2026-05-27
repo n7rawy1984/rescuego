@@ -82,6 +82,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
   }, [refreshRequests])
 
   async function handleAccept(requestId: string) {
+    if (accepting || overageLoading) return
     if (providerStatus !== 'active') {
       setError('Your account must be active to accept requests.')
       return
@@ -90,65 +91,101 @@ export default function ProviderRequestList({ requests, providerStatus, provider
     setError('')
 
     if (providerPlan === 'pay_per_job') {
-      const res = await fetch('/api/provider/ppj-checkout', {
+      try {
+        const res = await fetch('/api/provider/ppj-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ request_id: requestId }),
+        })
+        const result = await res.json()
+
+        if (res.status === 401) {
+          setError('Your session expired. Please sign in again.')
+          setAccepting(null)
+          return
+        }
+
+        if (!res.ok) {
+          setError(result.error ?? 'Unable to start billing session right now.')
+          setAccepting(null)
+          return
+        }
+
+        router.push(`/provider/ppj-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
+      } catch {
+        setError('Network connection lost. Please try again.')
+        setAccepting(null)
+      }
+      return
+    }
+
+    try {
+      const res = await fetch('/api/provider/requests/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ request_id: requestId }),
       })
       const result = await res.json()
 
-      if (!res.ok) {
-        setError(result.error ?? 'Pay Per Job payment setup failed')
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
         setAccepting(null)
         return
       }
 
-      router.push(`/provider/ppj-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
-      return
-    }
+      if (res.status === 402 && result.code === 'OVERAGE_REQUIRED') {
+        setAccepting(null)
+        setShowOverageModal(requestId)
+        return
+      }
 
-    const res = await fetch('/api/provider/requests/accept', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: requestId }),
-    })
-    const result = await res.json()
-
-    if (res.status === 402 && result.code === 'OVERAGE_REQUIRED') {
+      if (!res.ok) {
+        setError(result.error ?? 'Failed to accept request')
+        setAccepting(null)
+        return
+      }
+      setRequestItems((current) => current.filter((request) => request.id !== requestId))
+      router.refresh()
       setAccepting(null)
-      setShowOverageModal(requestId)
-      return
-    }
-
-    if (!res.ok) {
-      setError(result.error ?? 'Failed to accept request')
+    } catch {
+      setError('Network connection lost. Please try again.')
       setAccepting(null)
-      return
     }
-    setRequestItems((current) => current.filter((request) => request.id !== requestId))
-    router.refresh()
-    setAccepting(null)
   }
 
   async function handleOverageConfirm(requestId: string) {
+    if (overageLoading || accepting) return
     setOverageLoading(true)
     setError('')
 
-    const res = await fetch('/api/provider/overage-checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: requestId }),
-    })
-    const result = await res.json()
+    try {
+      const res = await fetch('/api/provider/overage-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId }),
+      })
+      const result = await res.json()
 
-    if (!res.ok) {
-      setError(result.error ?? 'Overage payment setup failed')
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setOverageLoading(false)
+        setShowOverageModal(null)
+        return
+      }
+
+      if (!res.ok) {
+        setError(result.error ?? 'Unable to start billing session right now.')
+        setOverageLoading(false)
+        setShowOverageModal(null)
+        return
+      }
+
+      router.push(`/provider/overage-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
+    } catch {
+      setError('Network connection lost. Please try again.')
       setOverageLoading(false)
       setShowOverageModal(null)
-      return
     }
-
-    router.push(`/provider/overage-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
   }
 
   const problemIcons = {
@@ -159,28 +196,35 @@ export default function ProviderRequestList({ requests, providerStatus, provider
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-slate-800">Nearby Roadside Requests ({requestItems.length})</h2>
+    <Card className="overflow-hidden shadow-sm shadow-slate-200/70">
+      <CardHeader className="border-slate-100 bg-white">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-900">Nearby Roadside Requests</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {requestItems.length > 0
+                ? `${requestItems.length} open request${requestItems.length === 1 ? '' : 's'} near your dispatch area.`
+                : 'Open requests will appear here as customers submit them.'}
+            </p>
+          </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-            <span className="h-2 w-2 rounded-full bg-slate-400" />
+            <span className={`h-2 w-2 rounded-full ${providerOnline ? 'bg-green-500' : 'bg-slate-400'}`} />
             Auto updates
           </span>
         </div>
       </CardHeader>
       <CardBody className="p-0">
         {requestItems.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+          <div className="px-6 py-14 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <Search className="h-5 w-5" aria-hidden="true" />
             </div>
-            <p className="font-medium text-slate-700">
+            <p className="font-semibold text-slate-800">
               {providerOnline ? 'No nearby roadside requests right now.' : 'Go online to see nearby roadside requests.'}
             </p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
               {providerOnline
-                ? 'New customer requests near your dispatch location will appear here automatically.'
+                ? 'Your request list is live. New nearby customer requests will appear here automatically.'
                 : 'Share your dispatch location above when you are available for jobs.'}
             </p>
           </div>
@@ -189,15 +233,15 @@ export default function ProviderRequestList({ requests, providerStatus, provider
             {requestItems.map((req) => {
               const Icon = problemIcons[req.problem_type] ?? HelpCircle
               return (
-              <div key={req.id} className="px-6 py-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div key={req.id} className="px-5 py-5 flex flex-col gap-4 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-semibold text-slate-800">{getProblemLabel(req.problem_type)}</div>
-                    <div className="text-sm text-slate-500 mt-0.5 max-w-[300px] truncate">{req.location_address ?? 'Location not specified'}</div>
-                    {req.note && <div className="text-xs text-slate-400 mt-0.5 max-w-[300px] truncate">Note: {req.note}</div>}
+                    <div className="text-sm text-slate-500 mt-0.5 max-w-full truncate sm:max-w-[360px]">{req.location_address ?? 'Location not specified'}</div>
+                    {req.note && <div className="text-xs text-slate-400 mt-0.5 max-w-full truncate sm:max-w-[360px]">Note: {req.note}</div>}
                     <div className="text-xs text-slate-400 mt-0.5">
                       {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -218,7 +262,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
                   className="w-full sm:w-auto"
                   loading={accepting === req.id}
                   onClick={() => handleAccept(req.id)}
-                  disabled={providerStatus !== 'active'}
+                  disabled={providerStatus !== 'active' || accepting !== null || overageLoading}
                 >
                   {providerPlan === 'pay_per_job' ? 'Pay & Accept' : 'Accept'}
                 </Button>
@@ -226,7 +270,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
             )})}
           </div>
         )}
-        {error && <div className="px-6 pb-4 text-sm text-red-500">{error}</div>}
+        {error && <div className="px-6 pb-5 text-sm text-red-500">{error}</div>}
       </CardBody>
       {showOverageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -239,6 +283,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
             <div className="flex gap-3">
               <button
                 onClick={() => setShowOverageModal(null)}
+                disabled={overageLoading}
                 className="flex-1 h-10 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel

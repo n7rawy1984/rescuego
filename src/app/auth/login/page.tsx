@@ -15,27 +15,34 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
     setLoading(true)
     setError('')
-    const supabase = createClient()
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError || !data.user) {
-      setError(authError?.message ?? 'Login failed')
-      setLoading(false)
-      return
-    }
-    const { data: userData } = await supabase.from('users').select('role').eq('id', data.user.id).single()
-    const requestedRedirect = new URLSearchParams(window.location.search).get('redirect')
-    const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
-      ? requestedRedirect
-      : null
 
-    if (userData?.role === 'admin') {
-      router.push(safeRedirect?.startsWith('/admin') ? safeRedirect : '/admin/dashboard')
-    } else if (userData?.role === 'provider') {
-      router.push(safeRedirect?.startsWith('/provider') ? safeRedirect : '/provider/dashboard')
-    } else {
-      router.push(safeRedirect?.startsWith('/customer') ? safeRedirect : '/customer/request')
+    try {
+      const supabase = createClient()
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+      if (authError || !data.user) {
+        setError(authError?.message ?? 'Login failed')
+        setLoading(false)
+        return
+      }
+      const { data: userData } = await supabase.from('users').select('role').eq('id', data.user.id).single()
+      const requestedRedirect = new URLSearchParams(window.location.search).get('redirect')
+      const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
+        ? requestedRedirect
+        : null
+
+      if (userData?.role === 'admin') {
+        router.push(safeRedirect?.startsWith('/admin') ? safeRedirect : '/admin/dashboard')
+      } else if (userData?.role === 'provider') {
+        router.push(safeRedirect?.startsWith('/provider') ? safeRedirect : '/provider/dashboard')
+      } else {
+        router.push(safeRedirect?.startsWith('/customer') ? safeRedirect : '/customer/request')
+      }
+    } catch {
+      setError('Connection lost. Please check your internet connection and try again.')
+      setLoading(false)
     }
   }
 
@@ -62,7 +69,9 @@ export default function LoginPage() {
               </Link>
             </div>
             {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-            <Button type="submit" loading={loading} size="lg" className="w-full mt-2">Sign In</Button>
+            <Button type="submit" loading={loading} size="lg" className="w-full mt-2">
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Button>
           </form>
           <div className="mt-6 flex flex-col gap-2 text-center text-sm text-slate-500">
             <p>New customer? <Link href="/auth/register" className="text-orange-500 font-semibold hover:underline">Create account</Link></p>

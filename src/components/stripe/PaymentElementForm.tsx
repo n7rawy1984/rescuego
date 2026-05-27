@@ -13,6 +13,7 @@ export default function PaymentElementForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (processing || success) return
     setError('')
 
     if (!stripe || !elements) {
@@ -22,26 +23,31 @@ export default function PaymentElementForm() {
 
     setProcessing(true)
 
-    const result = await stripe.confirmPayment({
-      elements,
-      redirect: 'if_required',
-      confirmParams: {
-        return_url: `${window.location.origin}/provider/dashboard`,
-      },
-    })
+    try {
+      const result = await stripe.confirmPayment({
+        elements,
+        redirect: 'if_required',
+        confirmParams: {
+          return_url: `${window.location.origin}/provider/dashboard`,
+        },
+      })
 
-    if (result.error) {
+      if (result.error) {
+        setProcessing(false)
+        setError(result.error.message ?? 'Payment failed. Please check your card and try again.')
+        return
+      }
+
+      setSuccess(true)
       setProcessing(false)
-      setError(result.error.message ?? 'Payment failed. Please check your card and try again.')
-      return
+      window.setTimeout(() => {
+        router.push('/provider/dashboard')
+        router.refresh()
+      }, 1800)
+    } catch {
+      setProcessing(false)
+      setError('Network connection lost. Please try again.')
     }
-
-    setSuccess(true)
-    setProcessing(false)
-    window.setTimeout(() => {
-      router.push('/provider/dashboard')
-      router.refresh()
-    }, 1800)
   }
 
   if (success) {

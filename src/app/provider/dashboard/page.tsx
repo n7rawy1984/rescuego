@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation'
-import { ShieldCheck, Star } from 'lucide-react'
+import { BriefcaseBusiness, CreditCard, ShieldCheck, Star, TrendingUp, WalletCards } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/layout/Navbar'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { getPlanLabel, getProblemLabel } from '@/lib/utils'
 import { isTimestampWithinMinutes } from '@/lib/geo'
+import { getProviderAllowance } from '@/lib/provider-allowance'
 import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
 import CompleteJobForm from '@/components/forms/CompleteJobForm'
@@ -115,9 +116,11 @@ export default async function ProviderDashboardPage() {
     .limit(10)
     .returns<RecentJobRow[]>()
 
-  const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
-  const jobCreditBalance = provider.job_credit_balance ?? 0
-  const remaining = planLimit !== null ? Math.max(0, planLimit + jobCreditBalance - provider.jobs_this_month) : null
+  const allowance = getProviderAllowance({
+    plan: provider.plan,
+    jobsThisMonth: provider.jobs_this_month,
+    jobCreditBalance: provider.job_credit_balance,
+  })
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests) ? openRequests : []
   const providerLocationUpdatedAt = providerLocation?.updated_at ?? null
   const providerIsOnline = isTimestampWithinMinutes(providerLocationUpdatedAt, PROVIDER_STALE_MINUTES)
@@ -174,11 +177,13 @@ export default async function ProviderDashboardPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <Badge variant={statusVariant}>{provider.status}</Badge>
+              <p className="text-sm font-medium text-slate-500">Provider dashboard</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Badge variant={statusVariant} className="capitalize">{provider.status}</Badge>
                 <Badge variant="info">{getPlanLabel(provider.plan)}</Badge>
                 {provider.verified_badge && (
                   <Badge variant="success" className="gap-1">
@@ -188,8 +193,8 @@ export default async function ProviderDashboardPage() {
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <div className="flex items-center justify-end gap-1">
+            <div className="rounded-xl bg-slate-50 px-4 py-3 text-left sm:text-right">
+              <div className="flex items-center gap-1 sm:justify-end">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
@@ -199,12 +204,13 @@ export default async function ProviderDashboardPage() {
                 ))}
                 <span className="ml-2 text-3xl font-bold text-slate-900">{provider.rating.toFixed(1)}</span>
               </div>
-                <div className="text-sm text-slate-500">Your rating</div>
+                <div className="mt-1 text-sm text-slate-500">Your rating</div>
                 {!recentJobs?.length ? (
                   <div className="text-xs text-slate-400">Your first reviews will appear after completed jobs.</div>
                 ) : null}
             </div>
           </div>
+          </section>
 
           <ProviderOnboardingChecklist
             name={provider.users?.name ?? null}
@@ -223,30 +229,51 @@ export default async function ProviderDashboardPage() {
             disabledReason={availabilityDisabledReason}
           />
 
-          <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4 sm:gap-4">
-            <Card className="min-h-[80px]">
-              <CardBody className="flex flex-col justify-center">
-                <div className="text-2xl font-bold text-slate-900">{provider.jobs_this_month}</div>
-                <div className="text-sm text-slate-500">Monthly jobs used</div>
+          <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
+            <Card className="min-h-[112px] border-slate-200 shadow-sm shadow-slate-200/60">
+              <CardBody className="flex h-full flex-col justify-between gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                  <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="text-2xl font-bold text-slate-950">{provider.jobs_this_month}</div>
+                <div className="text-sm text-slate-500">
+                  {allowance.isPayPerJob ? 'Accepted jobs this month' : 'Monthly jobs used'}
+                </div>
               </CardBody>
             </Card>
-            <Card className="min-h-[80px]">
-              <CardBody className="flex flex-col justify-center">
-                <div className="text-2xl font-bold text-slate-900">{remaining !== null ? remaining : '∞'}</div>
-                <div className="text-sm text-slate-500">Included jobs left</div>
-                {jobCreditBalance > 0 ? (
+            <Card className="min-h-[112px] border-slate-200 shadow-sm shadow-slate-200/60">
+              <CardBody className="flex h-full flex-col justify-between gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                  <CreditCard className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="text-2xl font-bold text-slate-950">
+                  {allowance.isPayPerJob ? 'PPJ' : allowance.isUnlimited ? 'Unlimited' : allowance.remaining}
+                </div>
+                <div className="text-sm text-slate-500">
+                  {allowance.isPayPerJob ? 'No monthly allowance' : 'Included jobs left'}
+                </div>
+                {allowance.creditBalance > 0 && allowance.hasMonthlyAllowance ? (
                   <div className="text-xs text-green-600 mt-1">Includes preserved upgrade credits.</div>
+                ) : null}
+                {allowance.isPayPerJob ? (
+                  <div className="text-xs text-slate-400 mt-1">Pay only when you accept a request.</div>
                 ) : null}
               </CardBody>
             </Card>
-            <Card className="col-span-2 min-h-[80px] sm:col-span-1">
-              <CardBody className="flex flex-col justify-center">
+            <Card className="min-h-[112px] border-slate-200 shadow-sm shadow-slate-200/60">
+              <CardBody className="flex h-full flex-col justify-between gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                </div>
                 <div className="text-2xl font-bold text-orange-500">{getPlanLabel(provider.plan)}</div>
                 <div className="text-sm text-slate-500">Current access</div>
               </CardBody>
             </Card>
-            <Card className="min-h-[80px]">
-              <CardBody className="flex flex-col justify-center">
+            <Card className="min-h-[112px] border-slate-200 shadow-sm shadow-slate-200/60">
+              <CardBody className="flex h-full flex-col justify-between gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50 text-green-600">
+                  <WalletCards className="h-4 w-4" aria-hidden="true" />
+                </div>
                 <div className="text-2xl font-bold text-green-600">{totalEarnings > 0 ? `${totalEarnings} AED` : '-'}</div>
                 <div className="text-sm text-slate-500">Earnings from last 10 jobs</div>
                 {totalEarnings === 0 ? (
@@ -257,7 +284,7 @@ export default async function ProviderDashboardPage() {
           </div>
 
           {upgradePrompt && (
-            <div className="mb-6 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="mb-6 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <p className="font-semibold text-orange-900 text-sm">
                   {upgradePrompt.title}
@@ -276,7 +303,7 @@ export default async function ProviderDashboardPage() {
           )}
 
           {provider.plan === 'business' && (
-            <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="font-semibold text-slate-800 text-sm">You are on the highest plan.</p>
               <p className="text-xs text-slate-500 mt-0.5">Business includes unlimited jobs, highest priority, and no premium commission.</p>
             </div>
@@ -295,7 +322,7 @@ export default async function ProviderDashboardPage() {
           )}
 
           {activeRequest && (
-            <Card className="mb-6 border-orange-200 bg-orange-50">
+            <Card className="mb-6 overflow-hidden border-orange-200 bg-orange-50 shadow-sm shadow-orange-100/70">
               <CardHeader className="bg-orange-100 border-orange-200">
                 <h2 className="font-bold text-orange-900">Active Job</h2>
               </CardHeader>
@@ -320,20 +347,21 @@ export default async function ProviderDashboardPage() {
             providerOnline={providerIsOnline}
           />
 
-          <Card className="mt-6">
-            <CardHeader>
-              <h2 className="font-semibold text-slate-800">Recent Completed Jobs</h2>
+          <Card className="mt-6 overflow-hidden shadow-sm shadow-slate-200/70">
+            <CardHeader className="border-slate-100 bg-white">
+              <h2 className="font-semibold text-slate-900">Recent Completed Jobs</h2>
+              <p className="mt-1 text-sm text-slate-500">Your latest completed work and recent earnings history.</p>
             </CardHeader>
             <CardBody className="p-0">
               {recentJobs && recentJobs.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                   {recentJobs.map((job) => (
-                    <div key={job.id} className="px-6 py-4 flex justify-between items-center">
-                      <div>
+                    <div key={job.id} className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center sm:px-6">
+                      <div className="min-w-0">
                         <div className="font-medium text-slate-800">{job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Service'}</div>
-                        <div className="text-sm text-slate-500">{job.requests?.location_address}</div>
+                        <div className="text-sm text-slate-500 truncate">{job.requests?.location_address}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <div className="font-semibold text-slate-800">{job.requests?.final_price ? `${job.requests.final_price} AED` : '-'}</div>
                         <div className="text-xs text-slate-400">{job.completed_at ? new Date(job.completed_at).toLocaleDateString() : ''}</div>
                       </div>
@@ -341,10 +369,10 @@ export default async function ProviderDashboardPage() {
                   ))}
                 </div>
               ) : (
-                <div className="px-6 py-12 text-center">
+                <div className="px-6 py-14 text-center">
                   <div className="text-4xl mb-3">🚗</div>
-                  <p className="font-medium text-slate-700">No completed jobs yet</p>
-                  <p className="text-sm text-slate-500 mt-1">Your first completed jobs, prices, and earning history will appear here.</p>
+                  <p className="font-semibold text-slate-800">No completed jobs yet</p>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Your first completed jobs, prices, and earning history will appear here.</p>
                 </div>
               )}
             </CardBody>

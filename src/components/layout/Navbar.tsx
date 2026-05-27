@@ -15,36 +15,52 @@ export default function Navbar() {
   const [loading, setLoading] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
   const [role, setRole] = useState<UserRole | null>(null)
+  const [loadError, setLoadError] = useState('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
 
     async function loadUserRole() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          throw new Error('offline')
+        }
 
-      if (!user) {
+        setLoadError('')
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          if (!cancelled) {
+            setAuthenticated(false)
+            setRole(null)
+            setLoading(false)
+          }
+          return
+        }
+
+        if (!cancelled) {
+          setAuthenticated(true)
+        }
+
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle<{ role: UserRole | null }>()
+
+        if (!cancelled) {
+          setRole(profile?.role ?? 'customer')
+          setLoading(false)
+        }
+      } catch {
         if (!cancelled) {
           setAuthenticated(false)
           setRole(null)
           setLoading(false)
+          setLoadError('Connection lost. Please check your internet connection and try again.')
         }
-        return
-      }
-
-      if (!cancelled) {
-        setAuthenticated(true)
-      }
-
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle<{ role: UserRole | null }>()
-
-      if (!cancelled) {
-        setRole(profile?.role ?? 'customer')
-        setLoading(false)
       }
     }
 
@@ -53,9 +69,15 @@ export default function Navbar() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [loadAttempt])
 
   const dashboardHref = dashboardHrefForRole(role)
+
+  function retryLoadUserRole() {
+    setLoadError('')
+    setLoading(true)
+    setLoadAttempt((current) => current + 1)
+  }
 
   async function handleLogout() {
     const supabase = createClient()
@@ -79,7 +101,18 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-6">
           <Link href="/pricing" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">Pricing</Link>
           <Link href="/about" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">About</Link>
-          {loading ? (
+          {loadError ? (
+            <div className="flex items-center gap-3">
+              <span className="max-w-40 text-xs font-medium text-red-600">{loadError}</span>
+              <button
+                type="button"
+                onClick={retryLoadUserRole}
+                className="text-sm font-semibold text-orange-600 hover:text-orange-700"
+              >
+                Try again
+              </button>
+            </div>
+          ) : loading ? (
             <div className="flex items-center gap-4" aria-hidden="true">
               <div className="h-5 w-16 rounded bg-slate-100 animate-pulse" />
               <div className="h-10 w-28 rounded-lg bg-slate-100 animate-pulse" />
@@ -130,7 +163,18 @@ export default function Navbar() {
         <div id="mobile-nav" className="md:hidden bg-white border-t border-slate-200 px-4 py-4 flex flex-col gap-4">
           <Link href="/pricing" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Pricing</Link>
           <Link href="/about" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>About</Link>
-          {loading ? (
+          {loadError ? (
+            <div className="rounded-lg border border-red-100 bg-red-50 p-3">
+              <p className="text-sm font-medium text-red-700">{loadError}</p>
+              <button
+                type="button"
+                onClick={retryLoadUserRole}
+                className="mt-2 text-sm font-semibold text-orange-600"
+              >
+                Try again
+              </button>
+            </div>
+          ) : loading ? (
             <div className="space-y-2" aria-hidden="true">
               <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
               <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />

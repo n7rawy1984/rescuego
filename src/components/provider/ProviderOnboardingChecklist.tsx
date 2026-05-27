@@ -76,10 +76,10 @@ export default function ProviderOnboardingChecklist({
 
   if (status === 'active' && incompleteItems.length === 0) {
     return (
-      <Card className="mb-6 border-green-200 bg-green-50">
+      <Card className="mb-6 border-green-200 bg-green-50 shadow-sm shadow-green-100/70">
         <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-700">
               <ShieldCheck className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
@@ -96,11 +96,11 @@ export default function ProviderOnboardingChecklist({
   }
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
+    <Card className="mb-6 overflow-hidden shadow-sm shadow-slate-200/70">
+      <CardHeader className="border-slate-100 bg-white">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-slate-950">
               {status === 'suspended'
                 ? 'Provider account suspended'
                 : onboarding.pendingApproval
@@ -115,12 +115,18 @@ export default function ProviderOnboardingChecklist({
                 : 'Complete the next step before your account is ready to receive requests.'}
             </p>
           </div>
-          <Badge variant={status === 'active' ? 'success' : 'warning'}>
+          <Badge variant={status === 'active' ? 'success' : 'warning'} className="w-fit">
             {completedCount}/{items.length} complete
           </Badge>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-orange-500" style={{ width: `${progressPct}%` }} />
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-500">
+            <span>Setup progress</span>
+            <span>{progressPct}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
         </div>
       </CardHeader>
       <CardBody>
@@ -132,9 +138,11 @@ export default function ProviderOnboardingChecklist({
 
         {primaryItem ? (
           <div className="space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
               <div className="flex items-start gap-3">
-                <Circle className="mt-0.5 h-5 w-5 shrink-0 text-slate-300" aria-hidden="true" />
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-200">
+                  <Circle className="h-4 w-4" aria-hidden="true" />
+                </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-800">{primaryItem.label}</p>
                   <p className="mt-1 text-sm leading-6 text-slate-500">{primaryItem.description}</p>

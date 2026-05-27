@@ -81,23 +81,35 @@ export default function SubscribePlans({
   const [error, setError] = useState('')
 
   async function handleSubscribe(plan: ProviderPlan) {
+    if (loadingPlan !== null || currentPlan === plan) return
     setLoadingPlan(plan)
     setError('')
 
-    const res = await fetch('/api/stripe/create-checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan, provider_id: providerId }),
-    })
-    const result = await res.json().catch(() => null) as CheckoutResponse | null
+    try {
+      const res = await fetch('/api/stripe/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan, provider_id: providerId }),
+      })
+      const result = await res.json().catch(() => null) as CheckoutResponse | null
 
-    if (!res.ok || !result?.url) {
-      setError(result?.error ?? 'Failed to start Stripe Checkout. Please try again.')
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setLoadingPlan(null)
+        return
+      }
+
+      if (!res.ok || !result?.url) {
+        setError(result?.error ?? 'Unable to start billing session right now.')
+        setLoadingPlan(null)
+        return
+      }
+
+      window.location.assign(result.url)
+    } catch {
+      setError('Network connection lost. Please try again.')
       setLoadingPlan(null)
-      return
     }
-
-    window.location.assign(result.url)
   }
 
   return (

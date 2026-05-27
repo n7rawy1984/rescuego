@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { getProviderAllowance } from '@/lib/provider-allowance'
 import { OVERAGE_FEE_AED } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
 
@@ -82,10 +83,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Overage guard - subscribed providers only
-  if (provider.plan !== 'pay_per_job') {
-    const planLimit = provider.plan === 'starter' ? 15 : provider.plan === 'pro' ? 35 : null
-    const effectiveLimit = planLimit !== null ? planLimit + (provider.job_credit_balance ?? 0) : null
-    if (effectiveLimit !== null && provider.jobs_this_month >= effectiveLimit) {
+  const allowance = getProviderAllowance({
+    plan: provider.plan,
+    jobsThisMonth: provider.jobs_this_month,
+    jobCreditBalance: provider.job_credit_balance,
+  })
+  if (allowance.hasMonthlyAllowance) {
+    if (allowance.effectiveLimit !== null && provider.jobs_this_month >= allowance.effectiveLimit) {
       const { data: overageCleared } = await admin
         .from('requests')
         .select('overage_cleared')
@@ -99,12 +103,13 @@ export async function POST(req: NextRequest) {
           request_id: parsed.data.request_id,
           plan: provider.plan,
           jobs_this_month: provider.jobs_this_month,
-          plan_limit: effectiveLimit,
+          plan_limit: allowance.effectiveLimit,
+          job_credit_balance: allowance.creditBalance,
           overage_fee_aed: OVERAGE_FEE_AED,
         })
         return NextResponse.json(
           {
-            error: `You've used all ${effectiveLimit} jobs this month. Accept this job for ${OVERAGE_FEE_AED} AED?`,
+            error: `You've used all ${allowance.effectiveLimit} included jobs this month. Accept this job for ${OVERAGE_FEE_AED} AED?`,
             code: 'OVERAGE_REQUIRED',
             overage_fee_aed: OVERAGE_FEE_AED,
             request_id: parsed.data.request_id,
