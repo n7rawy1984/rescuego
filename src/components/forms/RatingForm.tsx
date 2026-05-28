@@ -18,6 +18,7 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
     if (!stars) {
       setError('Please select a star rating')
       return
@@ -25,27 +26,38 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
 
     setLoading(true)
     setError('')
-    const res = await fetch('/api/ratings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        job_id: jobId,
-        provider_id: providerId,
-        stars,
-        comment: comment || null,
-      }),
-    })
-    const result = await res.json().catch(() => null) as { error?: string } | null
+    try {
+      const res = await fetch('/api/ratings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_id: jobId,
+          provider_id: providerId,
+          stars,
+          comment: comment || null,
+        }),
+      })
+      const result = await res.json().catch(() => null) as { error?: string } | null
 
-    if (!res.ok) {
-      setError(result?.error ?? 'Failed to submit rating')
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setLoading(false)
+        return
+      }
+
+      if (!res.ok) {
+        setError(result?.error ?? 'Unable to submit rating right now.')
+        setLoading(false)
+        return
+      }
+
       setLoading(false)
-      return
+      setSubmitted(true)
+      onComplete?.()
+    } catch {
+      setError('Connection lost. Please check your internet connection and try again.')
+      setLoading(false)
     }
-
-    setLoading(false)
-    setSubmitted(true)
-    onComplete?.()
   }
 
   if (submitted) {
@@ -116,7 +128,9 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
           />
         </div>
         {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-        <Button type="submit" loading={loading} size="lg" className="w-full">Submit Rating</Button>
+        <Button type="submit" loading={loading} size="lg" className="w-full">
+          {loading ? 'Submitting...' : 'Submit Rating'}
+        </Button>
       </form>
     </div>
   )

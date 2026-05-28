@@ -101,6 +101,9 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-6">
           <Link href="/pricing" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">Pricing</Link>
           <Link href="/about" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">About</Link>
+          {role === 'admin' && !loadError && !loading && (
+            <Link href="/admin/providers" className="text-slate-600 hover:text-orange-500 font-medium transition-colors">Admin Tools</Link>
+          )}
           {loadError ? (
             <div className="flex items-center gap-3">
               <span className="max-w-40 text-xs font-medium text-red-600">{loadError}</span>
@@ -163,6 +166,9 @@ export default function Navbar() {
         <div id="mobile-nav" className="md:hidden bg-white border-t border-slate-200 px-4 py-4 flex flex-col gap-4">
           <Link href="/pricing" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Pricing</Link>
           <Link href="/about" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>About</Link>
+          {role === 'admin' && !loadError && !loading && (
+            <Link href="/admin/providers" className="text-slate-700 font-medium" onClick={() => setOpen(false)}>Admin Tools</Link>
+          )}
           {loadError ? (
             <div className="rounded-lg border border-red-100 bg-red-50 p-3">
               <p className="text-sm font-medium text-red-700">{loadError}</p>

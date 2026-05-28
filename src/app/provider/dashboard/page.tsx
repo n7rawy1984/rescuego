@@ -153,20 +153,27 @@ export default async function ProviderDashboardPage() {
     ? {
         title: `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`,
         subtitle: 'Upgrade to a monthly plan when you want predictable capacity and stronger queue priority.',
+        creditNote: null,
         href: '/provider/subscribe',
         label: 'Upgrade to a monthly plan',
       }
     : provider.plan === 'starter'
       ? {
-          title: 'You\'re on Starter - 15 jobs/month, normal queue priority',
-          subtitle: 'Upgrade to Pro for 35 jobs/month and high queue priority.',
+          title: 'Starter includes 15 monthly jobs.',
+          subtitle: 'Upgrade to Pro for 35 monthly jobs and high queue priority.',
+          creditNote: allowance.creditBalance > 0
+            ? `${allowance.creditBalance} preserved upgrade credits are available this billing cycle.`
+            : null,
           href: '/provider/subscribe?plan=pro',
           label: 'Increase monthly capacity',
         }
       : provider.plan === 'pro'
         ? {
-            title: 'You\'re on Pro - 35 jobs/month, high queue priority',
+            title: 'Pro includes 35 monthly jobs.',
             subtitle: 'Upgrade to Business for unlimited jobs and no premium commission.',
+            creditNote: allowance.creditBalance > 0
+              ? `${allowance.creditBalance} preserved upgrade credits are available this billing cycle.`
+              : null,
             href: '/provider/subscribe?plan=business',
             label: 'Upgrade to Business',
           }
@@ -250,7 +257,7 @@ export default async function ProviderDashboardPage() {
                   {allowance.isPayPerJob ? 'PPJ' : allowance.isUnlimited ? 'Unlimited' : allowance.remaining}
                 </div>
                 <div className="text-sm text-slate-500">
-                  {allowance.isPayPerJob ? 'No monthly allowance' : 'Included jobs left'}
+                  {allowance.isPayPerJob ? 'No monthly allowance' : 'Available jobs remaining'}
                 </div>
                 {allowance.creditBalance > 0 && allowance.hasMonthlyAllowance ? (
                   <div className="text-xs text-green-600 mt-1">Includes preserved upgrade credits.</div>
@@ -292,6 +299,11 @@ export default async function ProviderDashboardPage() {
                 <p className="text-xs text-orange-700 mt-0.5">
                   {upgradePrompt.subtitle}
                 </p>
+                {upgradePrompt.creditNote ? (
+                  <p className="mt-1 text-xs text-orange-700/80">
+                    {upgradePrompt.creditNote}
+                  </p>
+                ) : null}
               </div>
               <a
                 href={upgradePrompt.href}

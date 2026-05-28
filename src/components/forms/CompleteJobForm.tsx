@@ -16,6 +16,7 @@ export default function CompleteJobForm({ requestId }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
     const amount = Number(finalPrice)
 
     if (!Number.isInteger(amount) || amount <= 0) {
@@ -26,21 +27,32 @@ export default function CompleteJobForm({ requestId }: Props) {
     setLoading(true)
     setError('')
 
-    const res = await fetch('/api/provider/jobs/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: requestId, final_price: amount }),
-    })
-    const result = await res.json().catch(() => null) as { error?: string } | null
+    try {
+      const res = await fetch('/api/provider/jobs/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId, final_price: amount }),
+      })
+      const result = await res.json().catch(() => null) as { error?: string } | null
 
-    if (!res.ok) {
-      setError(result?.error ?? 'Failed to complete job')
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setLoading(false)
+        return
+      }
+
+      if (!res.ok) {
+        setError(result?.error ?? 'Unable to complete job right now.')
+        setLoading(false)
+        return
+      }
+
+      router.refresh()
       setLoading(false)
-      return
+    } catch {
+      setError('Connection lost. Please check your internet connection and try again.')
+      setLoading(false)
     }
-
-    router.refresh()
-    setLoading(false)
   }
 
   return (
@@ -56,7 +68,7 @@ export default function CompleteJobForm({ requestId }: Props) {
         placeholder="250"
       />
       <Button type="submit" loading={loading}>
-        Complete Job
+        {loading ? 'Completing...' : 'Complete Job'}
       </Button>
       {error && <p className="text-sm text-red-500 sm:pb-2">{error}</p>}
     </form>

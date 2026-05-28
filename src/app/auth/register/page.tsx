@@ -18,37 +18,50 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
     setLoading(true)
     setError('')
-    const supabase = createClient()
-    const { data, error: authError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: { data: { name: form.name, phone: form.phone } },
-    })
-    if (authError || !data.user) {
-      setError(authError?.message ?? 'Registration failed')
-      setLoading(false)
-      return
-    }
-    const profileRes = await fetch('/api/customers/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.name,
-        phone: form.phone,
+
+    try {
+      const supabase = createClient()
+      const { data, error: authError } = await supabase.auth.signUp({
         email: form.email,
-      }),
-    })
-    const profile = await profileRes.json().catch(() => null) as { id?: string; error?: string } | null
+        password: form.password,
+        options: { data: { name: form.name, phone: form.phone } },
+      })
+      if (authError || !data.user) {
+        setError(authError?.message ?? 'Registration failed')
+        setLoading(false)
+        return
+      }
+      const profileRes = await fetch('/api/customers/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+        }),
+      })
+      const profile = await profileRes.json().catch(() => null) as { id?: string; error?: string } | null
 
-    if (!profileRes.ok || !profile?.id) {
-      setError(profile?.error ?? 'Account created, but profile setup failed. Please sign in and try again.')
+      if (profileRes.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setLoading(false)
+        return
+      }
+
+      if (!profileRes.ok || !profile?.id) {
+        setError(profile?.error ?? 'Account created, but profile setup failed. Please sign in and try again.')
+        setLoading(false)
+        return
+      }
+
+      router.push('/customer/request')
+    } catch {
+      setError('Connection lost. Please check your internet connection and try again.')
       setLoading(false)
-      return
     }
-
-    router.push('/customer/request')
   }
 
   return (
@@ -71,7 +84,9 @@ export default function RegisterPage() {
             <Input id="email" type="email" label="Email" value={form.email} onChange={e => update('email', e.target.value)} required placeholder="you@example.com" />
             <Input id="password" type="password" label="Password" value={form.password} onChange={e => update('password', e.target.value)} required placeholder="Min 8 characters" minLength={8} />
             {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-            <Button type="submit" loading={loading} size="lg" className="w-full mt-2">Create Account</Button>
+            <Button type="submit" loading={loading} size="lg" className="w-full mt-2">
+              {loading ? 'Creating account...' : 'Create Account'}
+            </Button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-500">
             Already have an account? <Link href="/auth/login" className="text-orange-500 font-semibold hover:underline">Sign In</Link>

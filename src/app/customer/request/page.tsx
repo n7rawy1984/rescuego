@@ -40,11 +40,15 @@ export default function RequestPage() {
     let cancelled = false
 
     async function loadUnratedJobsCount() {
-      const res = await fetch('/api/customers/unrated-jobs')
-      if (!res.ok) return
+      try {
+        const res = await fetch('/api/customers/unrated-jobs')
+        if (!res.ok) return
 
-      const data = await res.json().catch(() => null) as { count?: number } | null
-      if (!cancelled) setUnratedJobsCount(data?.count ?? 0)
+        const data = await res.json().catch(() => null) as { count?: number } | null
+        if (!cancelled) setUnratedJobsCount(data?.count ?? 0)
+      } catch {
+        if (!cancelled) setUnratedJobsCount(0)
+      }
     }
 
     loadUnratedJobsCount()
@@ -109,6 +113,7 @@ export default function RequestPage() {
   }
 
   async function handleSubmit() {
+    if (loading) return
     if (!problemType || !address.trim()) {
       setError('Please select a problem type and provide your location.')
       return
@@ -117,27 +122,38 @@ export default function RequestPage() {
     setLoading(true)
     setError('')
 
-    const res = await fetch('/api/requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        problem_type: problemType,
-        location_address: address,
-        note,
-        coords,
-      }),
-    })
-    const data = await res.json().catch(() => null) as SubmitResponse | null
+    try {
+      const res = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          problem_type: problemType,
+          location_address: address,
+          note,
+          coords,
+        }),
+      })
+      const data = await res.json().catch(() => null) as SubmitResponse | null
 
-    if (!res.ok || !data?.id) {
-      setError(data?.error ?? 'Failed to submit request. Please try again.')
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setLoading(false)
+        return
+      }
+
+      if (!res.ok || !data?.id) {
+        setError(data?.error ?? 'Unable to submit request right now. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      setRequestId(data.id)
+      setSubmitted(true)
       setLoading(false)
-      return
+    } catch {
+      setError('Connection lost. Please check your internet connection and try again.')
+      setLoading(false)
     }
-
-    setRequestId(data.id)
-    setSubmitted(true)
-    setLoading(false)
   }
 
   if (submitted) {
@@ -342,7 +358,9 @@ export default function RequestPage() {
               {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={() => setStep(2)} className="flex-1">Back</Button>
-                <Button className="flex-1" loading={loading} onClick={handleSubmit}>Submit Request</Button>
+                <Button className="flex-1" loading={loading} onClick={handleSubmit}>
+                  {loading ? 'Submitting...' : 'Submit Request'}
+                </Button>
               </div>
             </div>
           )}

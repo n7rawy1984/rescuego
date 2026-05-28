@@ -16,23 +16,40 @@ export default function AdminProviderActions({ providerId, currentStatus, verifi
   const [error, setError] = useState('')
 
   async function updateProvider(payload: { status?: ProviderStatus; verified_badge?: boolean }) {
+    const actionLabel = payload.status === 'active'
+      ? currentStatus === 'suspended' ? 'reactivate this provider' : 'activate this provider'
+      : payload.status === 'suspended'
+        ? 'suspend this provider'
+        : payload.verified_badge === false
+          ? 'remove this provider verification badge'
+          : payload.verified_badge === true
+            ? 'mark this provider as verified'
+            : 'update this provider'
+
+    if (!window.confirm(`Are you sure you want to ${actionLabel}?`)) return
+
     setLoading(true)
     setError('')
-    const res = await fetch('/api/admin/providers/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider_id: providerId, ...payload }),
-    })
+    try {
+      const res = await fetch('/api/admin/providers/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider_id: providerId, ...payload }),
+      })
 
-    if (!res.ok) {
-      const result = await res.json().catch(() => null) as { error?: string } | null
-      setError(result?.error ?? 'Failed to update provider')
+      if (!res.ok) {
+        const result = await res.json().catch(() => null) as { error?: string } | null
+        setError(result?.error ?? 'Failed to update provider')
+        setLoading(false)
+        return
+      }
+
+      router.refresh()
       setLoading(false)
-      return
+    } catch {
+      setError('Network connection lost. Please try again.')
+      setLoading(false)
     }
-
-    router.refresh()
-    setLoading(false)
   }
 
   return (
