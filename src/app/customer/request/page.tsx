@@ -102,18 +102,20 @@ export default function RequestPage() {
     setInitialRequestError('')
   }, [])
 
+  const loadUnratedJobsCount = useCallback(async () => {
+    const unratedRes = await fetch('/api/customers/unrated-jobs')
+    if (!unratedRes.ok || !mountedRef.current) return
+
+    const unratedData = await unratedRes.json().catch(() => null) as { count?: number } | null
+    if (mountedRef.current) setUnratedJobsCount(unratedData?.count ?? 0)
+  }, [])
+
   useEffect(() => {
     let cancelled = false
 
     async function loadInitialState() {
       try {
         await loadRequestState()
-
-        const unratedRes = await fetch('/api/customers/unrated-jobs')
-        if (unratedRes.ok) {
-          const unratedData = await unratedRes.json().catch(() => null) as { count?: number } | null
-          if (!cancelled) setUnratedJobsCount(unratedData?.count ?? 0)
-        }
       } catch (caught) {
         if (!cancelled) {
           setUnratedJobsCount(0)
@@ -137,6 +139,12 @@ export default function RequestPage() {
       cancelled = true
     }
   }, [loadRequestState])
+
+  useEffect(() => {
+    if (activeRequestLoading || activeRequest || completedUnratedRequest) return
+
+    void loadUnratedJobsCount().catch(() => undefined)
+  }, [activeRequest, activeRequestLoading, completedUnratedRequest, loadUnratedJobsCount])
 
   useEffect(() => {
     if (!activeRequest || completedUnratedRequest) return

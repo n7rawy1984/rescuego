@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -11,12 +11,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    router.prefetch('/customer/request')
+    router.prefetch('/provider/dashboard')
+    router.prefetch('/admin/dashboard')
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (loading) return
     setLoading(true)
+    setLoadingMessage('Signing you in...')
     setError('')
 
     try {
@@ -25,8 +33,10 @@ export default function LoginPage() {
       if (authError || !data.user) {
         setError(authError?.message ?? 'Login failed')
         setLoading(false)
+        setLoadingMessage('')
         return
       }
+      setLoadingMessage('Loading your dashboard...')
       const { data: userData } = await supabase.from('users').select('role').eq('id', data.user.id).single()
       const requestedRedirect = new URLSearchParams(window.location.search).get('redirect')
       const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
@@ -34,15 +44,16 @@ export default function LoginPage() {
         : null
 
       if (userData?.role === 'admin') {
-        router.push(safeRedirect?.startsWith('/admin') ? safeRedirect : '/admin/dashboard')
+        router.replace(safeRedirect?.startsWith('/admin') ? safeRedirect : '/admin/dashboard')
       } else if (userData?.role === 'provider') {
-        router.push(safeRedirect?.startsWith('/provider') ? safeRedirect : '/provider/dashboard')
+        router.replace(safeRedirect?.startsWith('/provider') ? safeRedirect : '/provider/dashboard')
       } else {
-        router.push(safeRedirect?.startsWith('/customer') ? safeRedirect : '/customer/request')
+        router.replace(safeRedirect?.startsWith('/customer') ? safeRedirect : '/customer/request')
       }
     } catch {
       setError('Connection lost. Please check your internet connection and try again.')
       setLoading(false)
+      setLoadingMessage('')
     }
   }
 
@@ -61,16 +72,21 @@ export default function LoginPage() {
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input id="email" type="email" label="Email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" />
-            <Input id="password" type="password" label="Password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Password" />
+            <Input id="email" type="email" label="Email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" disabled={loading} />
+            <Input id="password" type="password" label="Password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Password" disabled={loading} />
             <div className="text-right -mt-2">
               <Link href="/auth/forgot-password" className="text-sm text-orange-500 hover:underline">
                 Forgot password?
               </Link>
             </div>
             {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+            {loadingMessage && (
+              <div className="rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800" role="status" aria-live="polite">
+                {loadingMessage}
+              </div>
+            )}
             <Button type="submit" loading={loading} size="lg" className="w-full mt-2">
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? loadingMessage : 'Sign In'}
             </Button>
           </form>
           <div className="mt-6 flex flex-col gap-2 text-center text-sm text-slate-500">

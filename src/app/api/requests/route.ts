@@ -58,7 +58,16 @@ export async function GET() {
   }
 
   const admin = createAdminClient()
-  const { data: completedJobs, error: completedJobsError } = await admin
+  const activeRequestPromise = supabase
+    .from('requests')
+    .select('id, problem_type, location_address, note, status, accepted_by, final_price, created_at')
+    .eq('customer_id', user.id)
+    .in('status', ['open', 'accepted', 'in_progress'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const completedJobsPromise = admin
     .from('jobs')
     .select('id, provider_id, completed_at, requests!inner(id, customer_id, problem_type, location_address, final_price, status, created_at), providers(users(name))')
     .eq('requests.customer_id', user.id)
@@ -68,6 +77,11 @@ export async function GET() {
     .limit(10)
     .returns<CompletedJobRow[]>()
 
+  const [{ data: activeRequest, error }, { data: completedJobs, error: completedJobsError }] = await Promise.all([
+    activeRequestPromise,
+    completedJobsPromise,
+  ])
+
   if (completedJobsError) {
     logger.error({
       event: 'unrated_completed_request_lookup_failed',
@@ -75,6 +89,15 @@ export async function GET() {
       error: completedJobsError.message,
     })
     return NextResponse.json({ error: 'Unable to load completed request' }, { status: 500 })
+  }
+
+  if (error) {
+    logger.error({
+      event: 'active_request_lookup_failed',
+      customer_id: user.id,
+      error: error.message,
+    })
+    return NextResponse.json({ error: 'Unable to load active request' }, { status: 500 })
   }
 
   const jobIds = (completedJobs ?? []).map((job) => job.id)
@@ -109,24 +132,6 @@ export async function GET() {
       },
       active_request: null,
     })
-  }
-
-  const { data: activeRequest, error } = await supabase
-    .from('requests')
-    .select('id, problem_type, location_address, note, status, accepted_by, final_price, created_at')
-    .eq('customer_id', user.id)
-    .in('status', ['open', 'accepted', 'in_progress'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    logger.error({
-      event: 'active_request_lookup_failed',
-      customer_id: user.id,
-      error: error.message,
-    })
-    return NextResponse.json({ error: 'Unable to load active request' }, { status: 500 })
   }
 
   return NextResponse.json({ active_request: activeRequest ?? null })
