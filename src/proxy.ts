@@ -22,19 +22,6 @@ function getSafeRedirectTarget(request: NextRequest): string {
   return `${pathname}${search}`
 }
 
-function redirectGuestToProviderRegister(request: NextRequest) {
-  const registerUrl = new URL('/provider/register', request.url)
-  const target = getSafeRedirectTarget(request)
-  const plan = request.nextUrl.searchParams.get('plan')
-
-  if (request.nextUrl.pathname === '/provider/subscribe' && plan) {
-    registerUrl.searchParams.set('plan', plan)
-  }
-
-  registerUrl.searchParams.set('redirect', target)
-  return NextResponse.redirect(registerUrl)
-}
-
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -63,13 +50,9 @@ export async function proxy(request: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
   if (isProtected && !user) {
-    if (pathname.startsWith('/admin') || !pathname.startsWith('/provider')) {
-      const loginUrl = new URL('/auth/login', request.url)
-      loginUrl.searchParams.set('redirect', getSafeRedirectTarget(request))
-      return NextResponse.redirect(loginUrl)
-    }
-
-    return redirectGuestToProviderRegister(request)
+    const loginUrl = new URL('/auth/login', request.url)
+    loginUrl.searchParams.set('redirect', getSafeRedirectTarget(request))
+    return NextResponse.redirect(loginUrl)
   }
 
   if (user && isProtected) {

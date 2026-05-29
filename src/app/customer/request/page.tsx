@@ -5,8 +5,10 @@ import { BatteryCharging, HelpCircle, LocateFixed, Truck, Wrench } from 'lucide-
 import Navbar from '@/components/layout/Navbar'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import RatingForm from '@/components/forms/RatingForm'
 import { roundDispatchCoordinate } from '@/lib/geo'
-import type { ProblemType } from '@/types'
+import { getProblemLabel } from '@/lib/utils'
+import type { ProblemType, RequestStatus } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
 const PROBLEM_OPTIONS: { type: ProblemType; label: string; Icon: LucideIcon }[] = [
@@ -18,7 +20,40 @@ const PROBLEM_OPTIONS: { type: ProblemType; label: string; Icon: LucideIcon }[] 
 
 type SubmitResponse = {
   id?: string
+  status?: RequestStatus
   error?: string
+}
+
+type ActiveRequest = {
+  id: string
+  problem_type: ProblemType
+  location_address: string | null
+  note: string | null
+  status: Extract<RequestStatus, 'open' | 'accepted' | 'in_progress'>
+  accepted_by: string | null
+  final_price: number | null
+  created_at: string
+}
+
+type ActiveRequestResponse = {
+  active_request?: ActiveRequest | null
+  completed_unrated_request?: CompletedUnratedRequest | null
+  error?: string
+}
+
+type CompletedUnratedRequest = {
+  job_id: string
+  provider_id: string
+  provider_name: string | null
+  completed_at: string | null
+  request: {
+    id: string
+    problem_type: ProblemType
+    location_address: string | null
+    final_price: number | null
+    status: 'completed'
+    created_at: string | null
+  }
 }
 
 export default function RequestPage() {
@@ -34,24 +69,45 @@ export default function RequestPage() {
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [requestId, setRequestId] = useState('')
+  const [activeRequest, setActiveRequest] = useState<ActiveRequest | null>(null)
+  const [completedUnratedRequest, setCompletedUnratedRequest] = useState<CompletedUnratedRequest | null>(null)
+  const [activeRequestLoading, setActiveRequestLoading] = useState(true)
   const [unratedJobsCount, setUnratedJobsCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
 
-    async function loadUnratedJobsCount() {
+    async function loadInitialState() {
       try {
-        const res = await fetch('/api/customers/unrated-jobs')
-        if (!res.ok) return
+        const [activeRes, unratedRes] = await Promise.all([
+          fetch('/api/requests'),
+          fetch('/api/customers/unrated-jobs'),
+        ])
 
-        const data = await res.json().catch(() => null) as { count?: number } | null
-        if (!cancelled) setUnratedJobsCount(data?.count ?? 0)
+        if (activeRes.ok) {
+          const activeData = await activeRes.json().catch(() => null) as ActiveRequestResponse | null
+          if (!cancelled) {
+            setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
+            setActiveRequest(activeData?.active_request ?? null)
+            setRequestId(activeData?.active_request?.id ?? '')
+          }
+        }
+
+        if (unratedRes.ok) {
+          const unratedData = await unratedRes.json().catch(() => null) as { count?: number } | null
+          if (!cancelled) setUnratedJobsCount(unratedData?.count ?? 0)
+        }
       } catch {
-        if (!cancelled) setUnratedJobsCount(0)
+        if (!cancelled) {
+          setUnratedJobsCount(0)
+          setError('Connection lost. Please check your internet connection and try again.')
+        }
+      } finally {
+        if (!cancelled) setActiveRequestLoading(false)
       }
     }
 
-    loadUnratedJobsCount()
+    loadInitialState()
 
     return () => {
       cancelled = true
@@ -60,6 +116,8 @@ export default function RequestPage() {
 
   function resetForm() {
     setSubmitted(false)
+    setActiveRequest(null)
+    setCompletedUnratedRequest(null)
     setStep(1)
     setProblemType(null)
     setAddress('')
@@ -142,12 +200,29 @@ export default function RequestPage() {
       }
 
       if (!res.ok || !data?.id) {
+        if (res.status === 409 && data?.id) {
+          setRequestId(data.id)
+          setSubmitted(true)
+          setLoading(false)
+          setError('')
+          return
+        }
         setError(data?.error ?? 'Unable to submit request right now. Please try again.')
         setLoading(false)
         return
       }
 
       setRequestId(data.id)
+      setActiveRequest({
+        id: data.id,
+        problem_type: problemType,
+        location_address: address,
+        note: note || null,
+        status: 'open',
+        accepted_by: null,
+        final_price: null,
+        created_at: new Date().toISOString(),
+      })
       setSubmitted(true)
       setLoading(false)
     } catch {
@@ -156,7 +231,80 @@ export default function RequestPage() {
     }
   }
 
-  if (submitted) {
+  if (activeRequestLoading) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-orange-500" aria-hidden="true" />
+            <p className="font-semibold text-slate-800">Checking your active request...</p>
+            <p className="mt-1 text-sm text-slate-500">This prevents duplicate roadside requests.</p>
+          </div>
+        </main>
+      </>
+    )
+  }
+
+  const visibleRequest = activeRequest ?? (submitted && requestId
+    ? {
+        id: requestId,
+        problem_type: problemType ?? 'other',
+        location_address: address || null,
+        note: note || null,
+        status: 'open' as const,
+        accepted_by: null,
+        final_price: null,
+        created_at: new Date().toISOString(),
+      }
+    : null)
+
+  if (completedUnratedRequest) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
+          <div className="mx-auto max-w-xl">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-slate-900">Rate Your Recovery Service</h1>
+              <p className="mt-1 text-slate-500">Please rate your completed job before submitting another request.</p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-5 rounded-xl bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">{getProblemLabel(completedUnratedRequest.request.problem_type)}</div>
+                <p className="mt-1 text-sm text-slate-500">
+                  Provider: {completedUnratedRequest.provider_name ?? 'Recovery provider'}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {completedUnratedRequest.request.location_address ?? 'Location unavailable'}
+                  {completedUnratedRequest.request.final_price ? ` - ${completedUnratedRequest.request.final_price} AED` : ''}
+                </p>
+              </div>
+              <RatingForm
+                jobId={completedUnratedRequest.job_id}
+                providerId={completedUnratedRequest.provider_id}
+              />
+            </div>
+          </div>
+        </main>
+      </>
+    )
+  }
+
+  if (visibleRequest) {
+    const isOpen = visibleRequest.status === 'open'
+    const title = isOpen
+      ? 'Request Sent!'
+      : visibleRequest.status === 'accepted'
+        ? 'Provider Accepted'
+        : 'Service In Progress'
+    const description = isOpen
+      ? 'Your request is live and visible to nearby providers.'
+      : visibleRequest.status === 'accepted'
+        ? 'A provider accepted your request and will contact you directly.'
+        : 'Your recovery service is currently in progress.'
+
     return (
       <>
         <Navbar />
@@ -168,9 +316,13 @@ export default function RequestPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">Request Sent!</h1>
-              <p className="text-slate-600 mb-1">Your request is live and visible to nearby providers.</p>
-              <p className="text-xs text-slate-400 mb-6 font-mono">ID: {requestId.slice(0, 8).toUpperCase()}</p>
+              <h1 className="text-2xl font-bold text-slate-900 mb-2">{title}</h1>
+              <p className="text-slate-600 mb-1">{description}</p>
+              <p className="text-xs text-slate-400 mb-4 font-mono">ID: {visibleRequest.id.slice(0, 8).toUpperCase()}</p>
+              <div className="mb-6 rounded-xl bg-slate-50 p-3 text-left">
+                <div className="text-sm font-semibold text-slate-800">{getProblemLabel(visibleRequest.problem_type)}</div>
+                <div className="mt-0.5 text-xs text-slate-500">{visibleRequest.location_address ?? 'Location not recorded'}</div>
+              </div>
 
               <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left space-y-3">
                 <div className="flex items-start gap-3">
@@ -181,14 +333,14 @@ export default function RequestPage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</div>
+                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'accepted' || visibleRequest.status === 'in_progress' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Provider accepts</p>
                     <p className="text-xs text-slate-500">You&apos;ll receive a call from the provider directly</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</div>
+                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'in_progress' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Pay provider directly</p>
                     <p className="text-xs text-slate-500">Cash or card - RescueGo never charges drivers</p>
@@ -204,9 +356,10 @@ export default function RequestPage() {
 
               <button
                 onClick={resetForm}
-                className="text-sm text-slate-500 hover:text-orange-500 underline underline-offset-2 transition-colors"
+                disabled
+                className="text-sm text-slate-400 cursor-not-allowed"
               >
-                Submit a new request
+                Complete this request before submitting another
               </button>
             </div>
           </div>

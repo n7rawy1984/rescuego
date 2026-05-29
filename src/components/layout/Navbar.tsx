@@ -1,6 +1,8 @@
 'use client'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types'
 
@@ -10,7 +12,17 @@ function dashboardHrefForRole(role: UserRole | null): string {
   return '/customer/request'
 }
 
+function isProtectedPath(pathname: string): boolean {
+  return pathname.startsWith('/provider')
+    || pathname.startsWith('/customer')
+    || pathname.startsWith('/admin')
+}
+
 export default function Navbar() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const pathnameRef = useRef(pathname)
+  const localLogoutRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
@@ -19,7 +31,18 @@ export default function Navbar() {
   const [loadAttempt, setLoadAttempt] = useState(0)
 
   useEffect(() => {
+    pathnameRef.current = pathname
+  }, [pathname])
+
+  useEffect(() => {
     let cancelled = false
+    const supabase = createClient()
+
+    function redirectToLogin() {
+      const targetPath = pathnameRef.current
+      if (!isProtectedPath(targetPath)) return
+      router.replace(`/auth/login?redirect=${encodeURIComponent(targetPath)}`)
+    }
 
     async function loadUserRole() {
       try {
@@ -28,7 +51,6 @@ export default function Navbar() {
         }
 
         setLoadError('')
-        const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
@@ -64,12 +86,26 @@ export default function Navbar() {
       }
     }
 
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (cancelled) return
+      if (event === 'SIGNED_OUT') {
+        setAuthenticated(false)
+        setRole(null)
+        setLoading(false)
+        setOpen(false)
+        if (!localLogoutRef.current) {
+          redirectToLogin()
+        }
+      }
+    })
+
     loadUserRole()
 
     return () => {
       cancelled = true
+      authListener.subscription.unsubscribe()
     }
-  }, [loadAttempt])
+  }, [loadAttempt, router])
 
   const dashboardHref = dashboardHrefForRole(role)
 
@@ -79,13 +115,22 @@ export default function Navbar() {
     setLoadAttempt((current) => current + 1)
   }
 
-  async function handleLogout() {
+  function handleLogout(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    localLogoutRef.current = true
     const supabase = createClient()
-    await supabase.auth.signOut()
+    setLoadError('')
+    setLoading(false)
     setAuthenticated(false)
     setRole(null)
     setOpen(false)
-    window.location.href = '/'
+    router.replace('/')
+    void supabase.auth
+      .signOut()
+      .catch(() => undefined)
+      .finally(() => {
+        localLogoutRef.current = false
+      })
   }
 
   return (
@@ -122,13 +167,17 @@ export default function Navbar() {
             </div>
           ) : authenticated ? (
             <>
-              <Link href={dashboardHref} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+              <Link
+                href={dashboardHref}
+                onClick={(event) => event.currentTarget.blur()}
+                className="bg-orange-500 hover:bg-orange-600 active:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+              >
                 Dashboard
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="text-slate-600 hover:text-orange-500 font-medium transition-colors"
+                className="rounded-md px-1 py-1 text-slate-600 hover:text-orange-500 active:text-orange-600 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
               >
                 Logout
               </button>
@@ -187,13 +236,20 @@ export default function Navbar() {
             </div>
           ) : authenticated ? (
             <>
-              <Link href={dashboardHref} className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-center" onClick={() => setOpen(false)}>
+              <Link
+                href={dashboardHref}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-center active:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                onClick={(event) => {
+                  event.currentTarget.blur()
+                  setOpen(false)
+                }}
+              >
                 Dashboard
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="text-left text-slate-700 font-medium"
+                className="rounded-md px-1 py-1 text-left text-slate-700 hover:text-orange-500 active:text-orange-600 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
               >
                 Logout
               </button>

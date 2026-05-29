@@ -26,7 +26,7 @@ type ProviderRequestCard = {
   accepted_by: string | null
   final_price: number | null
   created_at: string
-  distance_meters: number
+  distance_meters: number | null
 }
 
 interface Props {
@@ -34,14 +34,24 @@ interface Props {
   providerStatus: ProviderStatus
   providerPlan: ProviderPlan
   providerOnline: boolean
+  locationFallback?: boolean
+  requestFeedMode?: 'nearby' | 'fallback' | 'offline'
 }
 
-function formatDistance(meters: number): string {
+function formatDistance(meters: number | null): string {
+  if (meters === null) return 'Distance unavailable'
   if (meters < 1000) return `${Math.round(meters)} m away`
   return `${(meters / 1000).toFixed(1)} km away`
 }
 
-export default function ProviderRequestList({ requests, providerStatus, providerPlan, providerOnline }: Props) {
+export default function ProviderRequestList({
+  requests,
+  providerStatus,
+  providerPlan,
+  providerOnline,
+  locationFallback = false,
+  requestFeedMode = locationFallback ? 'fallback' : 'nearby',
+}: Props) {
   const router = useRouter()
   const [requestItems, setRequestItems] = useState<ProviderRequestCard[]>(requests)
   const [accepting, setAccepting] = useState<string | null>(null)
@@ -50,18 +60,8 @@ export default function ProviderRequestList({ requests, providerStatus, provider
   const [overageLoading, setOverageLoading] = useState(false)
 
   const refreshRequests = useCallback(async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .rpc('get_nearby_open_requests', {
-        p_radius: 5000,
-        p_limit: 20,
-      })
-      .returns<ProviderRequestCard[]>()
-
-    if (Array.isArray(data)) {
-      setRequestItems(data)
-    }
-  }, [])
+    router.refresh()
+  }, [router])
 
   useEffect(() => {
     const supabase = createClient()
@@ -85,6 +85,10 @@ export default function ProviderRequestList({ requests, providerStatus, provider
     if (accepting || overageLoading) return
     if (providerStatus !== 'active') {
       setError('Your account must be active to accept requests.')
+      return
+    }
+    if (!providerOnline) {
+      setError('Go online before accepting requests.')
       return
     }
     setAccepting(requestId)
@@ -203,7 +207,11 @@ export default function ProviderRequestList({ requests, providerStatus, provider
             <h2 className="font-semibold text-slate-900">Nearby Roadside Requests</h2>
             <p className="mt-1 text-sm text-slate-500">
               {requestItems.length > 0
-                ? `${requestItems.length} open request${requestItems.length === 1 ? '' : 's'} near your dispatch area.`
+                ? requestFeedMode === 'fallback'
+                  ? `Showing ${requestItems.length} available open request${requestItems.length === 1 ? '' : 's'} while nearby location matching refreshes.`
+                  : requestFeedMode === 'offline'
+                    ? `${requestItems.length} open request${requestItems.length === 1 ? '' : 's'} available. Go online to sort by distance.`
+                  : `${requestItems.length} open request${requestItems.length === 1 ? '' : 's'} near your dispatch area.`
                 : 'Open requests will appear here as customers submit them.'}
             </p>
           </div>
@@ -214,18 +222,25 @@ export default function ProviderRequestList({ requests, providerStatus, provider
         </div>
       </CardHeader>
       <CardBody className="p-0">
+        {!providerOnline && requestItems.length > 0 && (
+          <div className="border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800">
+            Go online to accept requests. Available requests are shown for awareness only while you are offline.
+          </div>
+        )}
         {requestItems.length === 0 ? (
           <div className="px-6 py-14 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <Search className="h-5 w-5" aria-hidden="true" />
             </div>
             <p className="font-semibold text-slate-800">
-              {providerOnline ? 'No nearby roadside requests right now.' : 'Go online to see nearby roadside requests.'}
+              {requestFeedMode === 'nearby' ? 'No nearby roadside requests right now.' : 'No open requests right now.'}
             </p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              {providerOnline
+              {requestFeedMode === 'nearby'
                 ? 'Your request list is live. New nearby customer requests will appear here automatically.'
-                : 'Share your dispatch location above when you are available for jobs.'}
+                : requestFeedMode === 'fallback'
+                  ? 'Nearby matching refreshed, and no open requests are currently available.'
+                : 'Go online to share your dispatch location and sort new requests by distance.'}
             </p>
           </div>
         ) : (
@@ -249,7 +264,7 @@ export default function ProviderRequestList({ requests, providerStatus, provider
                       <div className="mt-1 inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
                         {LAUNCH_PROMO
                           ? `${PAY_PER_JOB_PROMO_FEE_AED} AED to accept (promo)`
-                          : req.distance_meters >= PAY_PER_JOB_DISTANCE_THRESHOLD_M
+                          : req.distance_meters !== null && req.distance_meters >= PAY_PER_JOB_DISTANCE_THRESHOLD_M
                             ? `${PAY_PER_JOB_FEE_FAR_AED} AED to accept`
                             : `${PAY_PER_JOB_FEE_NEAR_AED} AED to accept`
                         }
@@ -262,9 +277,9 @@ export default function ProviderRequestList({ requests, providerStatus, provider
                   className="w-full sm:w-auto"
                   loading={accepting === req.id}
                   onClick={() => handleAccept(req.id)}
-                  disabled={providerStatus !== 'active' || accepting !== null || overageLoading}
+                  disabled={providerStatus !== 'active' || !providerOnline || accepting !== null || overageLoading}
                 >
-                  {providerPlan === 'pay_per_job' ? 'Pay & Accept' : 'Accept'}
+                  {!providerOnline ? 'Go online first' : providerPlan === 'pay_per_job' ? 'Pay & Accept' : 'Accept'}
                 </Button>
               </div>
             )})}

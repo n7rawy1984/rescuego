@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { getProviderAllowance } from '@/lib/provider-allowance'
-import { OVERAGE_FEE_AED } from '@/types'
+import { OVERAGE_FEE_AED, PROVIDER_STALE_MINUTES } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
 
 const acceptSchema = z.object({
@@ -68,6 +68,18 @@ export async function POST(req: NextRequest) {
 
   if (provider.status !== 'active') {
     return NextResponse.json({ error: 'Your provider account must be active before accepting requests' }, { status: 403 })
+  }
+
+  const onlineSince = new Date(Date.now() - PROVIDER_STALE_MINUTES * 60 * 1000).toISOString()
+  const { data: providerLocation } = await admin
+    .from('provider_locations')
+    .select('provider_id')
+    .eq('provider_id', user.id)
+    .gte('updated_at', onlineSince)
+    .maybeSingle()
+
+  if (!providerLocation) {
+    return NextResponse.json({ error: 'Go online before accepting requests.' }, { status: 403 })
   }
 
   const { data: activeJob } = await admin

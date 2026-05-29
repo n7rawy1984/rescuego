@@ -13,7 +13,7 @@ import CompleteJobForm from '@/components/forms/CompleteJobForm'
 import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardingChecklist'
 import ProviderAvailabilityToggle from '@/components/provider/ProviderAvailabilityToggle'
 import type { Metadata } from 'next'
-import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_STALE_MINUTES } from '@/types'
+import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_RADIUS_METERS, PROVIDER_STALE_MINUTES } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
 export const metadata: Metadata = {
@@ -58,7 +58,7 @@ type DashboardRequestRow = {
 }
 
 type NearbyOpenRequestRow = Omit<DashboardRequestRow, 'location'> & {
-  distance_meters: number
+  distance_meters: number | null
 }
 
 type RecentJobRow = {
@@ -75,6 +75,9 @@ type ProviderLocationRow = {
   updated_at: string | null
 }
 
+type FallbackOpenRequestRow = Omit<DashboardRequestRow, 'location' | 'price_estimate_min' | 'price_estimate_max'>
+type RequestFeedMode = 'nearby' | 'fallback' | 'offline'
+
 export default async function ProviderDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -88,46 +91,6 @@ export default async function ProviderDashboardPage() {
 
   if (!provider) redirect('/provider/register')
 
-  const { data: openRequests } = await supabase
-    .rpc('get_nearby_open_requests', {
-      p_radius: 5000,
-      p_limit: 20,
-    })
-    .returns<NearbyOpenRequestRow[]>()
-
-  const { data: activeRequest } = await supabase
-    .from('requests')
-    .select('*')
-    .eq('accepted_by', user.id)
-    .in('status', ['accepted', 'in_progress'])
-    .maybeSingle<DashboardRequestRow>()
-
-  const { data: providerLocation } = await supabase
-    .from('provider_locations')
-    .select('updated_at')
-    .eq('provider_id', user.id)
-    .maybeSingle<ProviderLocationRow>()
-
-  const { data: recentJobs } = await supabase
-    .from('jobs')
-    .select('*, requests(problem_type, location_address, final_price)')
-    .eq('provider_id', user.id)
-    .order('completed_at', { ascending: false })
-    .limit(10)
-    .returns<RecentJobRow[]>()
-
-  const allowance = getProviderAllowance({
-    plan: provider.plan,
-    jobsThisMonth: provider.jobs_this_month,
-    jobCreditBalance: provider.job_credit_balance,
-  })
-  const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests) ? openRequests : []
-  const providerLocationUpdatedAt = providerLocation?.updated_at ?? null
-  const providerIsOnline = isTimestampWithinMinutes(providerLocationUpdatedAt, PROVIDER_STALE_MINUTES)
-  const totalEarnings = (recentJobs ?? []).reduce((sum, job) => {
-    return sum + (job.requests?.final_price ?? 0)
-  }, 0)
-
   const statusVariant = provider.status === 'active' ? 'success' : provider.status === 'suspended' ? 'danger' : 'warning'
   const roundedRating = Math.round(provider.rating)
   const onboarding = getProviderOnboardingState({
@@ -138,6 +101,7 @@ export default async function ProviderDashboardPage() {
     status: provider.status,
     documents: provider.documents,
   })
+  const operationalReady = onboarding.activeReady
   const availabilityDisabledReason = provider.status === 'active'
     ? undefined
     : provider.status === 'suspended'
@@ -149,6 +113,81 @@ export default async function ProviderDashboardPage() {
         : !onboarding.planComplete
           ? 'Choose your access plan before going online for dispatch.'
           : 'Your documents are under review. RescueGo will activate your account after verification.'
+  const { data: activeRequest } = operationalReady
+    ? await supabase
+      .from('requests')
+      .select('*')
+      .eq('accepted_by', user.id)
+      .in('status', ['accepted', 'in_progress'])
+      .maybeSingle<DashboardRequestRow>()
+    : { data: null }
+
+  const { data: providerLocation } = operationalReady
+    ? await supabase
+      .from('provider_locations')
+      .select('updated_at')
+      .eq('provider_id', user.id)
+      .maybeSingle<ProviderLocationRow>()
+    : { data: null }
+
+  const providerLocationUpdatedAt = providerLocation?.updated_at ?? null
+  const providerIsOnline = operationalReady && isTimestampWithinMinutes(providerLocationUpdatedAt, PROVIDER_STALE_MINUTES)
+  let requestFeedMode: RequestFeedMode = providerIsOnline ? 'nearby' : 'offline'
+  let openRequests: NearbyOpenRequestRow[] | FallbackOpenRequestRow[] | null = null
+
+  if (operationalReady && providerIsOnline) {
+    const { data: nearbyRequests } = await supabase
+      .rpc('get_nearby_open_requests', {
+        p_radius: PROVIDER_RADIUS_METERS,
+        p_limit: 20,
+      })
+      .returns<NearbyOpenRequestRow[]>()
+
+    if (Array.isArray(nearbyRequests) && nearbyRequests.length > 0) {
+      openRequests = nearbyRequests
+    }
+  }
+
+  if (operationalReady && (!openRequests || openRequests.length === 0)) {
+    const { data: fallbackRequests } = await supabase
+      .from('requests')
+      .select('id, customer_id, location_address, problem_type, note, status, accepted_by, final_price, created_at')
+      .eq('status', 'open')
+      .is('accepted_by', null)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .returns<FallbackOpenRequestRow[]>()
+
+    openRequests = Array.isArray(fallbackRequests) ? fallbackRequests : []
+    requestFeedMode = providerIsOnline ? 'fallback' : 'offline'
+  }
+
+  const { data: recentJobs } = operationalReady
+    ? await supabase
+      .from('jobs')
+      .select('*, requests(problem_type, location_address, final_price)')
+      .eq('provider_id', user.id)
+      .order('completed_at', { ascending: false })
+      .limit(10)
+      .returns<RecentJobRow[]>()
+    : { data: null }
+
+  const allowance = getProviderAllowance({
+    plan: provider.plan,
+    jobsThisMonth: provider.jobs_this_month,
+    jobCreditBalance: provider.job_credit_balance,
+  })
+  const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests)
+    ? openRequests.map((request) => ({
+        ...request,
+        price_estimate_min: 'price_estimate_min' in request ? request.price_estimate_min : null,
+        price_estimate_max: 'price_estimate_max' in request ? request.price_estimate_max : null,
+        distance_meters: 'distance_meters' in request ? request.distance_meters : null,
+      }))
+    : []
+  const totalEarnings = (recentJobs ?? []).reduce((sum, job) => {
+    return sum + (job.requests?.final_price ?? 0)
+  }, 0)
   const upgradePrompt = provider.plan === 'pay_per_job'
     ? {
         title: `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`,
@@ -229,6 +268,34 @@ export default async function ProviderDashboardPage() {
             documents={provider.documents}
           />
 
+          {!operationalReady && (
+            <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+              <CardBody>
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold text-slate-900">Operations unlock after onboarding is complete</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Finish the required provider setup and admin approval before accessing dispatch tools, request queues,
+                    earnings, and live availability controls.
+                  </p>
+                  {provider.status === 'suspended' ? (
+                    <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+                      Your account is suspended. Contact support to resolve your account status.{' '}
+                      <a href="mailto:n7rawy19840@gmail.com" className="font-semibold underline hover:text-red-900">
+                        Email support
+                      </a>
+                    </p>
+                  ) : (
+                    <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      Your operational dashboard will appear here automatically once your account is active.
+                    </p>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
+          {operationalReady && (
+          <>
           <ProviderAvailabilityToggle
             providerStatus={provider.status}
             initialOnline={providerIsOnline}
@@ -353,10 +420,13 @@ export default async function ProviderDashboardPage() {
           )}
 
           <ProviderRequestList
+            key={`${providerIsOnline ? 'nearby' : 'fallback'}-${nearbyOpenRequests.map((request) => request.id).join('-')}`}
             requests={nearbyOpenRequests}
             providerStatus={provider.status}
             providerPlan={provider.plan}
             providerOnline={providerIsOnline}
+            locationFallback={requestFeedMode !== 'nearby'}
+            requestFeedMode={requestFeedMode}
           />
 
           <Card className="mt-6 overflow-hidden shadow-sm shadow-slate-200/70">
@@ -389,6 +459,8 @@ export default async function ProviderDashboardPage() {
               )}
             </CardBody>
           </Card>
+          </>
+          )}
         </div>
       </main>
     </>
