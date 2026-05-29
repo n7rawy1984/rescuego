@@ -87,7 +87,6 @@ export async function POST(req: NextRequest) {
     admin
       .from('jobs')
       .update({
-        provider_id: null,
         commission_rate: null,
         commission_amount: null,
         stripe_payment_intent_id: null,

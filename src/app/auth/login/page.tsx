@@ -1,24 +1,126 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
+type UserRole = 'admin' | 'provider' | 'customer'
+
+function getSafeRedirect(): string | null {
+  if (typeof window === 'undefined') return null
+  const requestedRedirect = new URLSearchParams(window.location.search).get('redirect')
+  return requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
+    ? requestedRedirect
+    : null
+}
+
+function getDestinationForRole(role: string | null | undefined, safeRedirect: string | null): string {
+  if (role === 'admin') {
+    return safeRedirect?.startsWith('/admin') ? safeRedirect : '/admin/dashboard'
+  }
+
+  if (role === 'provider') {
+    return safeRedirect?.startsWith('/provider') ? safeRedirect : '/provider/dashboard'
+  }
+
+  return safeRedirect?.startsWith('/customer') ? safeRedirect : '/customer/request'
+}
+
 export default function LoginPage() {
   const router = useRouter()
+  const fallbackTimerRef = useRef<number | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
   const [error, setError] = useState('')
 
+  const clearFallbackTimer = useCallback(() => {
+    if (fallbackTimerRef.current !== null) {
+      window.clearTimeout(fallbackTimerRef.current)
+      fallbackTimerRef.current = null
+    }
+  }, [])
+
+  const navigateAfterAuthenticatedLogin = useCallback((destination: string) => {
+    clearFallbackTimer()
+    setLoading(true)
+    setLoadingMessage('Opening your dashboard...')
+    setError('')
+
+    router.replace(destination)
+    router.refresh()
+
+    fallbackTimerRef.current = window.setTimeout(() => {
+      if (window.location.pathname === '/auth/login') {
+        window.location.assign(destination)
+      }
+    }, 1200)
+  }, [clearFallbackTimer, router])
+
+  const redirectAuthenticatedUser = useCallback(async () => {
+    const supabase = createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) return
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    navigateAfterAuthenticatedLogin(getDestinationForRole(userData?.role as UserRole | undefined, getSafeRedirect()))
+  }, [navigateAfterAuthenticatedLogin])
+
   useEffect(() => {
     router.prefetch('/customer/request')
     router.prefetch('/provider/dashboard')
     router.prefetch('/admin/dashboard')
-  }, [router])
+
+    let cancelled = false
+    async function redirectIfAlreadyAuthenticated() {
+      try {
+        const supabase = createClient()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (cancelled || userError || !user) return
+
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (!cancelled) {
+          navigateAfterAuthenticatedLogin(getDestinationForRole(userData?.role as UserRole | undefined, getSafeRedirect()))
+        }
+      } catch {
+        if (!cancelled) {
+          setLoading(false)
+          setLoadingMessage('')
+        }
+      }
+    }
+
+    void redirectIfAlreadyAuthenticated()
+
+    return () => {
+      cancelled = true
+      clearFallbackTimer()
+    }
+  }, [clearFallbackTimer, navigateAfterAuthenticatedLogin, router])
+
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) {
+        void redirectAuthenticatedUser()
+      }
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
+  }, [redirectAuthenticatedUser])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,20 +138,23 @@ export default function LoginPage() {
         setLoadingMessage('')
         return
       }
-      setLoadingMessage('Loading your dashboard...')
-      const { data: userData } = await supabase.from('users').select('role').eq('id', data.user.id).single()
-      const requestedRedirect = new URLSearchParams(window.location.search).get('redirect')
-      const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
-        ? requestedRedirect
-        : null
 
-      if (userData?.role === 'admin') {
-        router.replace(safeRedirect?.startsWith('/admin') ? safeRedirect : '/admin/dashboard')
-      } else if (userData?.role === 'provider') {
-        router.replace(safeRedirect?.startsWith('/provider') ? safeRedirect : '/provider/dashboard')
-      } else {
-        router.replace(safeRedirect?.startsWith('/customer') ? safeRedirect : '/customer/request')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setError('We could not confirm your session. Please try signing in again.')
+        setLoading(false)
+        setLoadingMessage('')
+        return
       }
+
+      setLoadingMessage('Loading your dashboard...')
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', data.user.id)
+        .maybeSingle()
+
+      navigateAfterAuthenticatedLogin(getDestinationForRole(userData?.role as UserRole | undefined, getSafeRedirect()))
     } catch {
       setError('Connection lost. Please check your internet connection and try again.')
       setLoading(false)

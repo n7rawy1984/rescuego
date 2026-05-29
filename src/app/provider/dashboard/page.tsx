@@ -78,7 +78,12 @@ type RecentJobRow = {
   requests: {
     problem_type: ProblemType | null
     location_address: string | null
+    status: RequestStatus | null
+    accepted_by: string | null
     final_price: number | null
+    cancellation_actor: 'customer' | 'provider' | 'admin' | null
+    cancelled_at: string | null
+    created_at: string | null
   } | null
 }
 
@@ -116,6 +121,57 @@ function isRecentPaymentAttempt(createdAt: string | null | undefined): boolean {
 function isRecentOperationalNotice(createdAt: string | null | undefined): boolean {
   if (!createdAt) return false
   return Date.now() - new Date(createdAt).getTime() < 24 * 60 * 60 * 1000
+}
+
+function recentActivityStatus(job: RecentJobRow): {
+  label: string
+  badge: 'success' | 'warning' | 'danger' | 'info' | 'default'
+  detail: string
+  date: string | null
+} {
+  const request = job.requests
+
+  if (job.completed_at || request?.status === 'completed') {
+    return {
+      label: 'Completed',
+      badge: 'success',
+      detail: request?.final_price ? `${request.final_price} AED` : 'Completed service',
+      date: job.completed_at ?? request?.created_at ?? null,
+    }
+  }
+
+  if (request?.status === 'cancelled') {
+    const customerCancelled = request.cancellation_actor === 'customer'
+    return {
+      label: customerCancelled ? 'Customer cancelled' : 'Cancelled',
+      badge: 'default',
+      detail: customerCancelled ? 'Customer cancelled this request' : 'Request was cancelled',
+      date: request.cancelled_at ?? request.created_at,
+    }
+  }
+
+  if (request?.status === 'open' && !request.accepted_by) {
+    return {
+      label: 'Released by you',
+      badge: 'warning',
+      detail: 'You released this request',
+      date: request.created_at,
+    }
+  }
+
+  return {
+    label: 'Activity',
+    badge: 'info',
+    detail: 'Request activity',
+    date: request?.created_at ?? null,
+  }
+}
+
+function safeActivityLocation(address: string | null | undefined): string {
+  const display = getProviderLocationDisplay({ location_address: address ?? null })
+  if (display.label === 'Location details unavailable') return 'Location unavailable'
+  if (display.label === 'GPS location') return 'GPS location'
+  return display.label
 }
 
 export default async function ProviderDashboardPage({
@@ -291,9 +347,9 @@ export default async function ProviderDashboardPage({
   const { data: recentJobs } = operationalReady
     ? await supabase
       .from('jobs')
-      .select('*, requests(problem_type, location_address, final_price)')
+      .select('id, completed_at, requests(problem_type, location_address, status, accepted_by, final_price, cancellation_actor, cancelled_at, created_at)')
       .eq('provider_id', user.id)
-      .order('completed_at', { ascending: false })
+      .order('completed_at', { ascending: false, nullsFirst: false })
       .limit(10)
       .returns<RecentJobRow[]>()
     : { data: null }
@@ -317,7 +373,7 @@ export default async function ProviderDashboardPage({
     : []
   const activeLocation = activeRequest ? getProviderLocationDisplay(activeRequest) : null
   const totalEarnings = (recentJobs ?? []).reduce((sum, job) => {
-    return sum + (job.requests?.final_price ?? 0)
+    return sum + (job.completed_at || job.requests?.status === 'completed' ? job.requests?.final_price ?? 0 : 0)
   }, 0)
   const upgradePrompt = provider.plan === 'pay_per_job'
     ? {
@@ -676,30 +732,47 @@ export default async function ProviderDashboardPage({
 
           <Card className="mt-6 overflow-hidden shadow-sm shadow-slate-200/70">
             <CardHeader className="border-slate-100 bg-white">
-              <h2 className="font-semibold text-slate-900">Recent Completed Jobs</h2>
-              <p className="mt-1 text-sm text-slate-500">Your latest completed work and recent earnings history.</p>
+              <h2 className="font-semibold text-slate-900">Recent Activity</h2>
+              <p className="mt-1 text-sm text-slate-500">Completed jobs, customer cancellations, and released requests.</p>
             </CardHeader>
             <CardBody className="p-0">
               {recentJobs && recentJobs.length > 0 ? (
                 <div className="divide-y divide-slate-100">
-                  {recentJobs.map((job) => (
-                    <div key={job.id} className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center sm:px-6">
-                      <div className="min-w-0">
-                        <div className="font-medium text-slate-800">{job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Service'}</div>
-                        <div className="text-sm text-slate-500 truncate">{job.requests?.location_address}</div>
+                  {recentJobs.map((job) => {
+                    const activity = recentActivityStatus(job)
+                    const location = safeActivityLocation(job.requests?.location_address)
+
+                    return (
+                      <div key={job.id} className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start sm:px-6">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-medium text-slate-800">
+                              {job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Service'}
+                            </div>
+                            <Badge variant={activity.badge}>{activity.label}</Badge>
+                          </div>
+                          <div className="mt-1 text-sm text-slate-500 break-words">{location}</div>
+                          <div className="mt-1 text-xs text-slate-400">{activity.detail}</div>
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <div className="font-semibold text-slate-800">
+                            {job.completed_at || job.requests?.status === 'completed'
+                              ? job.requests?.final_price ? `${job.requests.final_price} AED` : 'Completed'
+                              : '-'}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {activity.date ? new Date(activity.date).toLocaleDateString('en-AE') : 'Date unavailable'}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-left sm:text-right">
-                        <div className="font-semibold text-slate-800">{job.requests?.final_price ? `${job.requests.final_price} AED` : '-'}</div>
-                        <div className="text-xs text-slate-400">{job.completed_at ? new Date(job.completed_at).toLocaleDateString() : ''}</div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="px-6 py-14 text-center">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><BriefcaseBusiness className="h-5 w-5" aria-hidden="true" /></div>
-                  <p className="font-semibold text-slate-800">No completed jobs yet</p>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Your first completed jobs, prices, and earning history will appear here.</p>
+                  <p className="font-semibold text-slate-800">No recent activity yet</p>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Completed jobs, customer cancellations, and releases will appear here.</p>
                 </div>
               )}
             </CardBody>
