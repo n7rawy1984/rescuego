@@ -6,7 +6,7 @@ import Badge from '@/components/ui/Badge'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Admin Dashboard — RescueGo',
+  title: 'Admin Dashboard - RescueGo',
   robots: { index: false, follow: false },
 }
 
@@ -54,7 +54,41 @@ export default async function AdminDashboardPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold text-slate-900 mb-8">Admin Dashboard</h1>
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Marketplace operations</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">Admin Dashboard</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Monitor provider readiness, request flow, billing events, and operational exceptions.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a href="/admin/providers?filter=pending" className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
+                Review pending
+              </a>
+              <a href="/admin/requests" className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+                View requests
+              </a>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 mb-8 md:grid-cols-3">
+            <a href="/admin/providers?filter=pending" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100">
+              <div className="text-2xl font-bold text-amber-700">{pendingProviders}</div>
+              <div className="mt-1 text-sm font-semibold text-amber-900">Pending provider approvals</div>
+              <div className="mt-1 text-xs text-amber-800">Review documents and activate eligible providers.</div>
+            </a>
+            <a href="/admin/providers?filter=missing-documents" className="rounded-2xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50">
+              <div className="text-2xl font-bold text-slate-800">{totalProviders ?? 0}</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">Provider moderation</div>
+              <div className="mt-1 text-xs text-slate-500">Check missing documents, status, and trust badges.</div>
+            </a>
+            <a href="/admin/revenue" className="rounded-2xl border border-red-200 bg-red-50 p-4 transition-colors hover:bg-red-100">
+              <div className="text-2xl font-bold text-red-700">{(failedStripeEvents ?? 0) + (failedOveragePayments ?? 0)}</div>
+              <div className="mt-1 text-sm font-semibold text-red-900">Payment exceptions</div>
+              <div className="mt-1 text-xs text-red-800">Watch failed Stripe events and overage payments.</div>
+            </a>
+          </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
@@ -120,7 +154,10 @@ export default async function AdminDashboardPage() {
               <CardHeader><h2 className="font-semibold text-slate-800">Recent Stripe Events</h2></CardHeader>
               <CardBody className="p-0">
                 {!recentEvents?.length ? (
-                  <div className="px-6 py-8 text-center text-slate-500 text-sm">No events yet</div>
+                  <div className="px-6 py-8 text-center">
+                    <p className="text-sm font-semibold text-slate-700">No Stripe events yet</p>
+                    <p className="mt-1 text-xs text-slate-500">Webhook activity will appear here after billing events are received.</p>
+                  </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {recentEvents.map(event => (
@@ -145,7 +182,10 @@ export default async function AdminDashboardPage() {
               <CardHeader><h2 className="font-semibold text-slate-800">Recent Payouts</h2></CardHeader>
               <CardBody className="p-0">
                 {!recentPayouts?.length ? (
-                  <div className="px-6 py-8 text-center text-slate-500 text-sm">No payouts yet</div>
+                  <div className="px-6 py-8 text-center">
+                    <p className="text-sm font-semibold text-slate-700">No payouts yet</p>
+                    <p className="mt-1 text-xs text-slate-500">Provider payout records will appear after completed payout activity.</p>
+                  </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {recentPayouts.map(payout => (

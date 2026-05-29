@@ -239,7 +239,12 @@ export default async function AdminProvidersPage({
                     ))}
                     {filteredProviders.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="px-4 py-10 text-center text-slate-500">No providers match this filter.</td>
+                        <td colSpan={9} className="px-4 py-12 text-center">
+                          <p className="font-semibold text-slate-700">No providers match this filter.</p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            Try another moderation filter, or check back after new provider registrations.
+                          </p>
+                        </td>
                       </tr>
                     )}
                   </tbody>

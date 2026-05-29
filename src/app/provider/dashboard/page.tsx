@@ -436,7 +436,12 @@ export default async function ProviderDashboardPage() {
           {activeRequest && (
             <Card className="mb-6 overflow-hidden border-orange-200 bg-orange-50 shadow-sm shadow-orange-100/70">
               <CardHeader className="bg-orange-100 border-orange-200">
-                <h2 className="font-bold text-orange-900">Active Job</h2>
+                <div>
+                  <h2 className="font-bold text-orange-900">Active Job</h2>
+                  <p className="mt-1 text-sm text-orange-800">
+                    Customer contact and exact location are visible because this job is assigned to you.
+                  </p>
+                </div>
               </CardHeader>
               <CardBody>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

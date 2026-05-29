@@ -136,7 +136,36 @@ export async function GET() {
     })
   }
 
-  return NextResponse.json({ active_request: activeRequest ?? null, customer_phone: profile.phone ?? null })
+  let activeRequestWithProvider: (NonNullable<typeof activeRequest> & {
+    provider_name?: string | null
+    provider_phone?: string | null
+  }) | null = activeRequest ?? null
+
+  if (activeRequest?.accepted_by) {
+    const { data: assignedProvider, error: assignedProviderError } = await admin
+      .from('providers')
+      .select('users(name, phone)')
+      .eq('id', activeRequest.accepted_by)
+      .maybeSingle<{ users: { name: string | null; phone: string | null } | null }>()
+
+    if (assignedProviderError) {
+      logger.warn({
+        event: 'customer_assigned_provider_lookup_failed',
+        customer_id: user.id,
+        request_id: activeRequest.id,
+        provider_id: activeRequest.accepted_by,
+        error: assignedProviderError.message,
+      })
+    }
+
+    activeRequestWithProvider = {
+      ...activeRequest,
+      provider_name: assignedProvider?.users?.name ?? null,
+      provider_phone: assignedProvider?.users?.phone ?? null,
+    }
+  }
+
+  return NextResponse.json({ active_request: activeRequestWithProvider ?? null, customer_phone: profile.phone ?? null })
 }
 
 export async function POST(req: NextRequest) {

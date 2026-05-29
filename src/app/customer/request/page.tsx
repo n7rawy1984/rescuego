@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BatteryCharging, HelpCircle, LocateFixed, Truck, Wrench } from 'lucide-react'
+import { BatteryCharging, HelpCircle, History, LocateFixed, PhoneCall, Truck, Wrench } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -31,6 +31,8 @@ type ActiveRequest = {
   note: string | null
   status: Extract<RequestStatus, 'open' | 'accepted' | 'in_progress'>
   accepted_by: string | null
+  provider_name?: string | null
+  provider_phone?: string | null
   final_price: number | null
   created_at: string
 }
@@ -422,6 +424,26 @@ export default function RequestPage() {
                 <div className="mt-0.5 text-xs text-slate-500">{visibleRequest.location_address ?? 'Location not recorded'}</div>
               </div>
 
+              {!isOpen && (
+                <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 p-4 text-left">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-orange-700">Assigned provider</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">
+                    {visibleRequest.provider_name ?? 'Recovery provider assigned'}
+                  </div>
+                  {visibleRequest.provider_phone ? (
+                    <a
+                      href={`tel:${visibleRequest.provider_phone}`}
+                      className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 sm:w-auto"
+                    >
+                      <PhoneCall className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Call provider
+                    </a>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-600">Your provider will call you directly using the phone number on this request.</p>
+                  )}
+                </div>
+              )}
+
               <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
@@ -491,8 +513,25 @@ export default function RequestPage() {
           )}
 
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">Request Roadside Help</h1>
-            <p className="text-slate-500 mt-1">Free for drivers - pay the provider directly</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Request Roadside Help</h1>
+                <p className="text-slate-500 mt-1">No active request right now. Start a new request or review past jobs.</p>
+              </div>
+              <Link
+                href="/customer/history"
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+              >
+                <History className="mr-2 h-4 w-4" aria-hidden="true" />
+                Request history
+              </Link>
+            </div>
+            <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-800">Ready when you need help</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Tell us what happened, share your location, and nearby verified providers can accept your request.
+              </p>
+            </div>
             <div className="flex gap-2 mt-4">
               {[1, 2, 3].map((s) => (
                 <div key={s} className={`flex-1 h-1.5 rounded-full ${step >= s ? 'bg-orange-500' : 'bg-slate-200'}`} />
