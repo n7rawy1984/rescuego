@@ -82,6 +82,7 @@ export default function ResetPasswordPage() {
                 minLength={8}
                 placeholder="Min 8 characters"
               />
+              <p className="-mt-2 text-xs text-slate-500">Use at least 8 characters. A longer password with a mix of words and numbers is stronger.</p>
               <Input
                 id="confirm-password"
                 type="password"

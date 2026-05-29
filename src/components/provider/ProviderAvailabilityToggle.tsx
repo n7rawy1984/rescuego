@@ -6,7 +6,8 @@ import { LocateFixed, Power, RefreshCw } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { distanceMeters, roundDispatchCoordinate } from '@/lib/geo'
 import type { Coordinates } from '@/lib/geo'
-import type { ProviderStatus } from '@/types'
+import { PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
+import type { ProviderPlan, ProviderStatus } from '@/types'
 
 const MIN_UPDATE_INTERVAL_MS = 2 * 60 * 1000
 const MIN_MOVEMENT_METERS = 250
@@ -16,11 +17,19 @@ type Props = {
   initialOnline: boolean
   initialUpdatedAt: string | null
   disabledReason?: string
+  hasActiveJob?: boolean
+  activeRequestId?: string | null
+  providerPlan?: ProviderPlan
 }
 
 type LocationResponse = {
   online?: boolean
   updated_at?: string
+  error?: string
+}
+
+type ReleaseResponse = {
+  success?: boolean
   error?: string
 }
 
@@ -33,7 +42,15 @@ function formatUpdatedAt(updatedAt: string | null): string {
   return `Last shared ${date.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}`
 }
 
-export default function ProviderAvailabilityToggle({ providerStatus, initialOnline, initialUpdatedAt, disabledReason }: Props) {
+export default function ProviderAvailabilityToggle({
+  providerStatus,
+  initialOnline,
+  initialUpdatedAt,
+  disabledReason,
+  hasActiveJob = false,
+  activeRequestId = null,
+  providerPlan,
+}: Props) {
   const router = useRouter()
   const [online, setOnline] = useState(initialOnline)
   const [updatedAt, setUpdatedAt] = useState<string | null>(initialUpdatedAt)
@@ -43,6 +60,8 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false)
+  const [showReleaseDialog, setShowReleaseDialog] = useState(false)
+  const [releaseLoading, setReleaseLoading] = useState(false)
 
   const disabled = providerStatus !== 'active'
 
@@ -122,6 +141,10 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
 
   async function goOffline() {
     if (loading) return
+    if (hasActiveJob) {
+      setShowReleaseDialog(true)
+      return
+    }
     setLoading(true)
     setError('')
     setMessage('')
@@ -148,6 +171,37 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
       setError(caught instanceof Error ? caught.message : 'Failed to update dispatch availability.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function releaseJobAndGoOffline() {
+    if (releaseLoading || !activeRequestId) return
+    setReleaseLoading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const res = await fetch('/api/provider/jobs/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: activeRequestId }),
+      })
+      const data = await res.json().catch(() => null) as ReleaseResponse | null
+
+      if (!res.ok) {
+        throw new Error(data?.error ?? 'Unable to release this job right now.')
+      }
+
+      setOnline(false)
+      setUpdatedAt(null)
+      setLastCoords(null)
+      setShowReleaseDialog(false)
+      setMessage('Job released. You are offline, and the request is available for another provider.')
+      router.refresh()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to release this job right now.')
+    } finally {
+      setReleaseLoading(false)
     }
   }
 
@@ -214,6 +268,36 @@ export default function ProviderAvailabilityToggle({ providerStatus, initialOnli
               Click the location icon in your browser address bar to allow location access.
             </p>
           )}
+        </div>
+      )}
+      {showReleaseDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="release-job-title">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 id="release-job-title" className="text-lg font-bold text-slate-900">Active job in progress</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {providerPlan === 'pay_per_job'
+                ? `Your ${PAY_PER_JOB_PROMO_FEE_AED} AED acceptance fee is non-refundable. Releasing this job will make it available to other providers and you will lose access to the exact customer location.`
+                : 'Releasing this job will make it available to other providers. You will lose access to the exact customer location.'}
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowReleaseDialog(false)}
+                disabled={releaseLoading}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Stay online
+              </button>
+              <button
+                type="button"
+                onClick={releaseJobAndGoOffline}
+                disabled={releaseLoading || !activeRequestId}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {releaseLoading ? 'Releasing...' : 'Release job and go offline'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

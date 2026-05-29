@@ -73,7 +73,8 @@ function OveragePayContent() {
           Pay <strong className="text-orange-600">{fee} AED</strong> to accept this extra job.
         </p>
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800 text-left">
-          <strong>What happens next:</strong> Once payment is confirmed, the request will be automatically accepted and appear as your active job.
+          <strong>What happens next:</strong> Once payment is confirmed, the request will be automatically accepted
+          and appear as your active job. Exact customer location is shown after assignment.
         </div>
         <StripeElementsProvider clientSecret={clientSecret}>
           <PaymentElementForm />

@@ -74,6 +74,7 @@ function PpjPayContent() {
         </p>
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800 text-left">
           Once payment is confirmed, the request will be automatically assigned to you and appear as your active job.
+          Exact customer location is shown only after payment and assignment.
         </div>
         <StripeElementsProvider clientSecret={clientSecret}>
           <PaymentElementForm />

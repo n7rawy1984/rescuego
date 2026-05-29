@@ -61,7 +61,14 @@ export default function PaymentElementForm() {
 
   return (
     <form onSubmit={handleSubmit} className="text-left">
-      <PaymentElement />
+      <PaymentElement
+        options={{
+          paymentMethodOrder: ['card'],
+          wallets: {
+            link: 'never',
+          },
+        }}
+      />
 
       {error && (
         <div className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert" aria-live="polite">
@@ -69,7 +76,12 @@ export default function PaymentElementForm() {
         </div>
       )}
 
-      <p className="mt-4 text-xs text-slate-500">Secure payment powered by Stripe</p>
+      <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2">
+        <p className="text-xs font-medium text-slate-600">Secure payment powered by Stripe.</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Your card details are encrypted and never stored by RescueGo.
+        </p>
+      </div>
 
       <button
         type="submit"

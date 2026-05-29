@@ -13,20 +13,28 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (loading) return
     setLoading(true)
     setError('')
-    const supabase = createClient()
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/auth/reset-password`,
-    })
-    if (resetError) {
-      setError(resetError.message)
+
+    try {
+      const supabase = createClient()
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${siteUrl}/auth/reset-password`,
+      })
+      if (resetError) {
+        setError('Unable to send a reset link right now. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      setSent(true)
       setLoading(false)
-      return
+    } catch {
+      setError('Network connection lost. Please try again.')
+      setLoading(false)
     }
-    setSent(true)
-    setLoading(false)
   }
 
   return (
@@ -46,11 +54,13 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">✉️</span>
+                <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
               </div>
               <h2 className="text-lg font-bold text-slate-900 mb-2">Check your email</h2>
               <p className="text-sm text-slate-500 mb-6">
-                A reset link has been sent to <strong>{email}</strong>. Check your spam folder if you don&apos;t see it.
+                If an account exists for this email, a reset link has been sent. Check your spam folder if you don&apos;t see it.
               </p>
               <Link href="/auth/login" className="text-orange-500 font-semibold hover:underline text-sm">
                 Back to Sign In
@@ -69,7 +79,7 @@ export default function ForgotPasswordPage() {
               />
               {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               <Button type="submit" loading={loading} size="lg" className="w-full mt-2">
-                Send Reset Link
+                {loading ? 'Sending reset link...' : 'Send Reset Link'}
               </Button>
               <p className="text-center text-sm text-slate-500">
                 Remember it? <Link href="/auth/login" className="text-orange-500 font-semibold hover:underline">Sign In</Link>

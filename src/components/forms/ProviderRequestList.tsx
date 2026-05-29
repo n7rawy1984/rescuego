@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BatteryCharging, HelpCircle, Search, Truck, Wrench } from 'lucide-react'
+import { BatteryCharging, HelpCircle, MapPin, Search, Truck, Wrench } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { getProblemLabel } from '@/lib/utils'
@@ -9,16 +9,17 @@ import { createClient } from '@/lib/supabase/client'
 import {
   LAUNCH_PROMO,
   OVERAGE_FEE_AED,
+  PAY_PER_JOB_PROMO_FEE_AED,
   PAY_PER_JOB_DISTANCE_THRESHOLD_M,
   PAY_PER_JOB_FEE_FAR_AED,
   PAY_PER_JOB_FEE_NEAR_AED,
-  PAY_PER_JOB_PROMO_FEE_AED,
 } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
 type ProviderRequestCard = {
   id: string
   customer_id: string
+  location?: unknown
   location_address: string | null
   problem_type: ProblemType
   note: string | null
@@ -70,6 +71,7 @@ export default function ProviderRequestList({
   const [error, setError] = useState('')
   const [showOverageModal, setShowOverageModal] = useState<string | null>(null)
   const [overageLoading, setOverageLoading] = useState(false)
+  const [confirmRequestId, setConfirmRequestId] = useState<string | null>(null)
 
   const refreshRequests = useCallback(async () => {
     router.refresh()
@@ -93,6 +95,20 @@ export default function ProviderRequestList({
     }
   }, [refreshRequests])
 
+  function requestAcceptConfirmation(requestId: string) {
+    if (accepting || overageLoading) return
+    if (providerStatus !== 'active') {
+      setError('Your account must be active to accept requests.')
+      return
+    }
+    if (!providerOnline) {
+      setError('Go online before accepting requests.')
+      return
+    }
+    setError('')
+    setConfirmRequestId(requestId)
+  }
+
   async function handleAccept(requestId: string) {
     if (accepting || overageLoading) return
     if (providerStatus !== 'active') {
@@ -103,6 +119,13 @@ export default function ProviderRequestList({
       setError('Go online before accepting requests.')
       return
     }
+    const selectedRequest = requestItems.find((request) => request.id === requestId)
+    if (!selectedRequest) {
+      setError('This request is no longer available.')
+      setConfirmRequestId(null)
+      return
+    }
+
     setAccepting(requestId)
     setError('')
 
@@ -115,28 +138,32 @@ export default function ProviderRequestList({
         })
         const result = await res.json()
 
-        if (res.status === 401) {
-          setError('Your session expired. Please sign in again.')
-          setAccepting(null)
-          return
-        }
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setAccepting(null)
+        setConfirmRequestId(null)
+        return
+      }
 
-        if (!res.ok) {
-          setError(result.error ?? 'Unable to start billing session right now.')
-          setAccepting(null)
-          return
-        }
+      if (!res.ok) {
+        setError(result.error ?? 'Unable to start billing session right now.')
+        setAccepting(null)
+        setConfirmRequestId(null)
+        return
+      }
 
-        if (!result.client_secret || !storePaymentHandoff('ppj', requestId, result.client_secret, result.fee_aed)) {
-          setError('Unable to open payment securely. Please try again.')
-          setAccepting(null)
-          return
-        }
+      if (!result.client_secret || !storePaymentHandoff('ppj', requestId, result.client_secret, result.fee_aed)) {
+        setError('Unable to open payment securely. Please try again.')
+        setAccepting(null)
+        setConfirmRequestId(null)
+        return
+      }
 
         router.push(`/provider/ppj-pay?request_id=${requestId}&fee=${result.fee_aed}`)
       } catch {
         setError('Network connection lost. Please try again.')
         setAccepting(null)
+        setConfirmRequestId(null)
       }
       return
     }
@@ -152,26 +179,31 @@ export default function ProviderRequestList({
       if (res.status === 401) {
         setError('Your session expired. Please sign in again.')
         setAccepting(null)
+        setConfirmRequestId(null)
         return
       }
 
       if (res.status === 402 && result.code === 'OVERAGE_REQUIRED') {
         setAccepting(null)
         setShowOverageModal(requestId)
+        setConfirmRequestId(null)
         return
       }
 
       if (!res.ok) {
         setError(result.error ?? 'Failed to accept request')
         setAccepting(null)
+        setConfirmRequestId(null)
         return
       }
       setRequestItems((current) => current.filter((request) => request.id !== requestId))
       router.refresh()
       setAccepting(null)
+      setConfirmRequestId(null)
     } catch {
       setError('Network connection lost. Please try again.')
       setAccepting(null)
+      setConfirmRequestId(null)
     }
   }
 
@@ -223,6 +255,13 @@ export default function ProviderRequestList({
     tow: Truck,
     other: HelpCircle,
   }
+  const confirmRequest = requestItems.find((request) => request.id === confirmRequestId)
+  const confirmPpjFee = LAUNCH_PROMO
+    ? PAY_PER_JOB_PROMO_FEE_AED
+    : confirmRequest?.distance_meters !== null
+      && (confirmRequest?.distance_meters ?? 0) >= PAY_PER_JOB_DISTANCE_THRESHOLD_M
+        ? PAY_PER_JOB_FEE_FAR_AED
+        : PAY_PER_JOB_FEE_NEAR_AED
 
   return (
     <Card className="overflow-hidden shadow-sm shadow-slate-200/70">
@@ -280,7 +319,13 @@ export default function ProviderRequestList({
                   </div>
                   <div className="min-w-0">
                     <div className="font-semibold text-slate-800">{getProblemLabel(req.problem_type)}</div>
-                    <div className="text-sm text-slate-500 mt-0.5 max-w-full truncate sm:max-w-[360px]">{req.location_address ?? 'Location not specified'}</div>
+                    <div className="mt-1 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <div className="break-words">Location hidden until accepted</div>
+                        <div className="text-xs text-slate-400">Exact customer location is shared after assignment.</div>
+                      </div>
+                    </div>
                     {req.note && <div className="text-xs text-slate-400 mt-0.5 max-w-full truncate sm:max-w-[360px]">Note: {req.note}</div>}
                     <div className="text-xs text-slate-400 mt-0.5">
                       {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
@@ -301,7 +346,7 @@ export default function ProviderRequestList({
                   size="sm"
                   className="w-full sm:w-auto"
                   loading={accepting === req.id}
-                  onClick={() => handleAccept(req.id)}
+                  onClick={() => requestAcceptConfirmation(req.id)}
                   disabled={providerStatus !== 'active' || !providerOnline || accepting !== null || overageLoading}
                 >
                   {!providerOnline ? 'Go online first' : providerPlan === 'pay_per_job' ? 'Pay & Accept' : 'Accept'}
@@ -312,6 +357,40 @@ export default function ProviderRequestList({
         )}
         {error && <div className="px-6 pb-5 text-sm text-red-500">{error}</div>}
       </CardBody>
+      {confirmRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="accept-request-title">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 id="accept-request-title" className="text-lg font-bold text-slate-900">Accept this recovery request?</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {providerPlan === 'pay_per_job'
+                ? `You will be charged the ${confirmPpjFee} AED Pay Per Job acceptance fee before this request is assigned to you. This fee is non-refundable if you release or abandon the job. Exact customer location is shown only after payment and assignment.`
+                : 'You are about to accept this customer request and become responsible for completing it. Exact customer location is shown after you accept.'}
+            </p>
+            <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+              <div className="font-semibold text-slate-800">{getProblemLabel(confirmRequest.problem_type)}</div>
+              <div className="mt-0.5 break-words text-xs text-slate-500">Location hidden until accepted</div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmRequestId(null)}
+                disabled={accepting !== null}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAccept(confirmRequest.id)}
+                disabled={accepting !== null}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {accepting === confirmRequest.id ? 'Accepting...' : 'Accept request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showOverageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">

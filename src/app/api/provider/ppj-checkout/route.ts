@@ -94,10 +94,6 @@ export async function POST(req: NextRequest) {
     .eq('provider_id', user.id)
     .maybeSingle<PpjPaymentRow>()
 
-  if (existing?.status === 'paid') {
-    return NextResponse.json({ error: 'Already paid for this request' }, { status: 409 })
-  }
-
   const distanceMeters = existing?.distance_meters ?? 0
   const feeAed = getPayPerJobFee(distanceMeters)
   const stripe = getStripe()
@@ -128,6 +124,7 @@ export async function POST(req: NextRequest) {
   const paymentIntent = await stripe.paymentIntents.create({
     amount: feeAed * 100,
     currency: 'aed',
+    payment_method_types: ['card'],
     customer: provider.stripe_customer_id ?? undefined,
     metadata: {
       provider_id: user.id,

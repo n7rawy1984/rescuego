@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
   const paymentIntent = await stripe.paymentIntents.create({
     amount: OVERAGE_FEE_AED * 100,
     currency: 'aed',
+    payment_method_types: ['card'],
     customer: provider.stripe_customer_id ?? undefined,
     metadata: {
       provider_id: user.id,

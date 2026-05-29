@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -71,6 +72,13 @@ function requestedStep(): number | null {
   return null
 }
 
+function requestedStepParam(): 'profile' | 'documents' | 'plan' | null {
+  if (typeof window === 'undefined') return null
+  const step = new URLSearchParams(window.location.search).get('step')
+  if (step === 'profile' || step === 'documents' || step === 'plan') return step
+  return null
+}
+
 function currentRegisterPath(): string {
   if (typeof window === 'undefined') return '/provider/register'
   return `${window.location.pathname}${window.location.search}`
@@ -84,6 +92,7 @@ function stepNumber(step: 'profile' | 'documents' | 'plan' | 'review' | 'ready')
 }
 
 export default function ProviderRegisterPage() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [userId, setUserId] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<ProviderPlanId>(getInitialSelectedPlan)
@@ -187,8 +196,19 @@ export default function ProviderRegisterPage() {
             documents: provider?.documents ?? null,
           })
           const forcedStep = requestedStep()
+          const forcedStepParam = requestedStepParam()
           const stateStep = stepNumber(onboarding.firstIncompleteStep)
           const nextStep = forcedStep && forcedStep <= Math.max(stateStep, 3) ? forcedStep : stateStep
+
+          if (onboarding.activeReady || onboarding.pendingApproval) {
+            router.replace('/provider/dashboard')
+            return
+          }
+
+          if (!forcedStepParam && onboarding.firstIncompleteStep !== 'review' && onboarding.firstIncompleteStep !== 'ready') {
+            router.replace(`/provider/register?step=${onboarding.firstIncompleteStep}`)
+            return
+          }
 
           if (!cancelled) {
             setUserId(user.id)
@@ -240,7 +260,7 @@ export default function ProviderRegisterPage() {
     return () => {
       cancelled = true
     }
-  }, [initialLoadAttempt])
+  }, [initialLoadAttempt, router])
 
   function retryInitialLoad() {
     setHydratingAccount(true)
@@ -569,7 +589,10 @@ export default function ProviderRegisterPage() {
                 <Input id="phone" type="tel" label="Phone Number" value={form.phone} onChange={e => update('phone', e.target.value)} required placeholder="+971 50 000 0000" />
                 <Input id="email" type="email" label="Email" value={form.email} onChange={e => update('email', e.target.value)} required placeholder="you@example.com" disabled={isResumeFlow} />
                 {!isResumeFlow && (
-                  <Input id="password" type="password" label="Password" value={form.password} onChange={e => update('password', e.target.value)} required placeholder="Min 8 characters" minLength={8} />
+                  <>
+                    <Input id="password" type="password" label="Password" value={form.password} onChange={e => update('password', e.target.value)} required placeholder="Min 8 characters" minLength={8} />
+                    <p className="-mt-2 text-xs text-slate-500">Use at least 8 characters. A longer password with a mix of words and numbers is stronger.</p>
+                  </>
                 )}
                 {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
                 <Button type="submit" loading={loading} size="lg" className="w-full">

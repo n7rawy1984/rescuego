@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { BriefcaseBusiness, CreditCard, ShieldCheck, Star, TrendingUp, WalletCards } from 'lucide-react'
+import { BriefcaseBusiness, CreditCard, MapPin, ShieldCheck, Star, TrendingUp, WalletCards } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/layout/Navbar'
 import Badge from '@/components/ui/Badge'
@@ -12,6 +12,8 @@ import ProviderRequestList from '@/components/forms/ProviderRequestList'
 import CompleteJobForm from '@/components/forms/CompleteJobForm'
 import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardingChecklist'
 import ProviderAvailabilityToggle from '@/components/provider/ProviderAvailabilityToggle'
+import LocationActions from '@/components/provider/LocationActions'
+import { getProviderLocationDisplay } from '@/lib/location-display'
 import type { Metadata } from 'next'
 import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_RADIUS_METERS, PROVIDER_STALE_MINUTES } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
@@ -45,7 +47,7 @@ type ProviderDashboardRow = {
 type DashboardRequestRow = {
   id: string
   customer_id: string
-  location: { type: 'Point'; coordinates: [number, number] }
+  location: unknown
   location_address: string | null
   problem_type: ProblemType
   note: string | null
@@ -55,9 +57,10 @@ type DashboardRequestRow = {
   price_estimate_max: number | null
   final_price: number | null
   created_at: string
+  distance_to_provider_m: number | null
 }
 
-type NearbyOpenRequestRow = Omit<DashboardRequestRow, 'location'> & {
+type NearbyOpenRequestRow = DashboardRequestRow & {
   distance_meters: number | null
 }
 
@@ -75,8 +78,14 @@ type ProviderLocationRow = {
   updated_at: string | null
 }
 
-type FallbackOpenRequestRow = Omit<DashboardRequestRow, 'location' | 'price_estimate_min' | 'price_estimate_max'>
+type FallbackOpenRequestRow = Omit<DashboardRequestRow, 'location' | 'location_address' | 'price_estimate_min' | 'price_estimate_max'>
 type RequestFeedMode = 'nearby' | 'fallback' | 'offline'
+
+function formatApproxDistance(meters: number | null | undefined): string {
+  if (meters === null || meters === undefined) return 'Distance unavailable'
+  if (meters < 1000) return `Approx. ${Math.round(meters)} m away`
+  return `Approx. ${(meters / 1000).toFixed(1)} km away`
+}
 
 export default async function ProviderDashboardPage() {
   const supabase = await createClient()
@@ -151,7 +160,7 @@ export default async function ProviderDashboardPage() {
   if (operationalReady && (!openRequests || openRequests.length === 0)) {
     const { data: fallbackRequests } = await supabase
       .from('requests')
-      .select('id, customer_id, location_address, problem_type, note, status, accepted_by, final_price, created_at')
+      .select('id, customer_id, problem_type, note, status, accepted_by, final_price, created_at, distance_to_provider_m')
       .eq('status', 'open')
       .is('accepted_by', null)
       .order('created_at', { ascending: false })
@@ -180,11 +189,15 @@ export default async function ProviderDashboardPage() {
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests)
     ? openRequests.map((request) => ({
         ...request,
+        location: null,
+        location_address: null,
         price_estimate_min: 'price_estimate_min' in request ? request.price_estimate_min : null,
         price_estimate_max: 'price_estimate_max' in request ? request.price_estimate_max : null,
         distance_meters: 'distance_meters' in request ? request.distance_meters : null,
+        distance_to_provider_m: 'distance_to_provider_m' in request ? request.distance_to_provider_m : null,
       }))
     : []
+  const activeLocation = activeRequest ? getProviderLocationDisplay(activeRequest) : null
   const totalEarnings = (recentJobs ?? []).reduce((sum, job) => {
     return sum + (job.requests?.final_price ?? 0)
   }, 0)
@@ -301,6 +314,9 @@ export default async function ProviderDashboardPage() {
             initialOnline={providerIsOnline}
             initialUpdatedAt={providerLocationUpdatedAt}
             disabledReason={availabilityDisabledReason}
+            hasActiveJob={Boolean(activeRequest)}
+            activeRequestId={activeRequest?.id ?? null}
+            providerPlan={provider.plan}
           />
 
           <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
@@ -406,13 +422,29 @@ export default async function ProviderDashboardPage() {
                 <h2 className="font-bold text-orange-900">Active Job</h2>
               </CardHeader>
               <CardBody>
-                <div className="flex justify-between items-start">
-                  <div>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <div className="font-semibold text-slate-800">{getProblemLabel(activeRequest.problem_type)}</div>
-                    <div className="text-sm text-slate-600 mt-1">{activeRequest.location_address}</div>
+                    <div className="mt-3 rounded-xl border border-orange-100 bg-white/80 p-4">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" aria-hidden="true" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-800">
+                            {activeLocation?.label ?? 'Location details unavailable'}
+                          </div>
+                          {activeLocation?.detail ? (
+                            <div className="mt-0.5 text-xs text-slate-500">{activeLocation.detail}</div>
+                          ) : null}
+                          <div className="mt-1 text-xs text-slate-500">
+                            {formatApproxDistance(activeRequest.distance_to_provider_m)}
+                          </div>
+                        </div>
+                      </div>
+                      <LocationActions coordinates={activeLocation?.coordinates ?? null} />
+                    </div>
                     {activeRequest.note && <div className="text-sm text-slate-500 mt-1">Note: {activeRequest.note}</div>}
                   </div>
-                  <Badge variant="warning">{activeRequest.status}</Badge>
+                  <Badge variant="warning" className="w-fit capitalize">{activeRequest.status}</Badge>
                 </div>
                 <CompleteJobForm requestId={activeRequest.id} />
               </CardBody>
