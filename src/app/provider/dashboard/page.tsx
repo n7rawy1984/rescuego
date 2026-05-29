@@ -15,6 +15,7 @@ import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardin
 import ProviderAvailabilityToggle from '@/components/provider/ProviderAvailabilityToggle'
 import LocationActions from '@/components/provider/LocationActions'
 import { getProviderLocationDisplay } from '@/lib/location-display'
+import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
 import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_RADIUS_METERS, PROVIDER_STALE_MINUTES } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
@@ -86,13 +87,33 @@ type ProviderLocationRow = {
 type FallbackOpenRequestRow = Omit<DashboardRequestRow, 'location' | 'location_address' | 'price_estimate_min' | 'price_estimate_max'>
 type RequestFeedMode = 'nearby' | 'fallback' | 'offline'
 
+type PaymentProcessingRow = {
+  id: string
+  request_id: string
+  status: string
+  created_at: string
+}
+
 function formatApproxDistance(meters: number | null | undefined): string {
   if (meters === null || meters === undefined) return 'Distance unavailable'
   if (meters < 1000) return `Approx. ${Math.round(meters)} m away`
   return `Approx. ${(meters / 1000).toFixed(1)} km away`
 }
 
-export default async function ProviderDashboardPage() {
+function isRecentPaymentAttempt(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false
+  return Date.now() - new Date(createdAt).getTime() < 15 * 60 * 1000
+}
+
+export default async function ProviderDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ payment?: string; payment_intent?: string; redirect_status?: string }>
+}) {
+  const params = await searchParams
+  const returnedFromPayment = params?.payment === 'processing'
+    || params?.redirect_status === 'succeeded'
+    || Boolean(params?.payment_intent)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/provider/dashboard')
@@ -128,24 +149,79 @@ export default async function ProviderDashboardPage() {
           ? 'Choose your access plan before going online for dispatch.'
           : 'Your documents are under review. RescueGo will activate your account after verification.'
   const admin = createAdminClient()
-  const { data: activeRequestData } = operationalReady
+  const { data: activeRequestData, error: activeRequestError } = operationalReady
     ? await admin
       .from('requests')
       .select('*')
       .eq('accepted_by', user.id)
       .in('status', ['accepted', 'in_progress'])
       .maybeSingle<DashboardRequestRow>()
-    : { data: null }
-  const { data: activeCustomer } = activeRequestData
+    : { data: null, error: null }
+
+  if (activeRequestError) {
+    logger.error({
+      event: 'provider_dashboard_active_request_load_failed',
+      provider_id: user.id,
+      error: activeRequestError.message,
+    })
+  }
+
+  const { data: activeCustomer, error: activeCustomerError } = activeRequestData?.customer_id
     ? await admin
       .from('users')
       .select('name, phone')
       .eq('id', activeRequestData.customer_id)
       .maybeSingle<{ name: string | null; phone: string | null }>()
-    : { data: null }
+    : { data: null, error: null }
+
+  if (activeCustomerError) {
+    logger.warn({
+      event: 'provider_dashboard_active_customer_load_failed',
+      provider_id: user.id,
+      request_id: activeRequestData?.id ?? null,
+      has_customer_id: Boolean(activeRequestData?.customer_id),
+      error: activeCustomerError.message,
+    })
+  }
+
   const activeRequest = activeRequestData
     ? { ...activeRequestData, users: activeCustomer ?? null }
     : null
+
+  const { data: recentPpjPayment, error: recentPpjPaymentError } = operationalReady && returnedFromPayment && !activeRequest
+    ? await admin
+      .from('ppj_payments')
+      .select('id, request_id, status, created_at')
+      .eq('provider_id', user.id)
+      .in('status', ['pending', 'paid'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle<PaymentProcessingRow>()
+    : { data: null, error: null }
+
+  if (recentPpjPaymentError) {
+    logger.warn({
+      event: 'provider_dashboard_payment_processing_lookup_failed',
+      provider_id: user.id,
+      error: recentPpjPaymentError.message,
+    })
+  }
+
+  const paymentFinalizing = Boolean(
+    returnedFromPayment
+      && !activeRequest
+      && recentPpjPayment
+      && isRecentPaymentAttempt(recentPpjPayment.created_at)
+  )
+
+  if (paymentFinalizing) {
+    logger.info({
+      event: 'provider_dashboard_payment_finalizing_state',
+      provider_id: user.id,
+      request_id: recentPpjPayment?.request_id,
+      payment_status: recentPpjPayment?.status,
+    })
+  }
 
   const { data: providerLocation } = operationalReady
     ? await supabase
@@ -431,6 +507,28 @@ export default async function ProviderDashboardPage() {
                 </a>
               </p>
             </div>
+          )}
+
+          {paymentFinalizing && (
+            <Card className="mb-6 border-amber-200 bg-amber-50 shadow-sm">
+              <CardBody>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold text-amber-900">Payment received. Finalizing job assignment...</h2>
+                    <p className="mt-1 text-sm text-amber-800">
+                      Stripe confirmed your payment and RescueGo is waiting for the secure webhook to assign the request.
+                      Exact customer location and contact details will appear only after assignment is complete.
+                    </p>
+                  </div>
+                  <a
+                    href="/provider/dashboard"
+                    className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+                  >
+                    Refresh status
+                  </a>
+                </div>
+              </CardBody>
+            </Card>
           )}
 
           {activeRequest && (

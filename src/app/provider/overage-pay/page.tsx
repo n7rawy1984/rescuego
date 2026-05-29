@@ -77,7 +77,7 @@ function OveragePayContent() {
           and appear as your active job. Exact customer location is shown after assignment.
         </div>
         <StripeElementsProvider clientSecret={clientSecret}>
-          <PaymentElementForm />
+          <PaymentElementForm returnPath="/provider/dashboard?payment=processing" />
         </StripeElementsProvider>
         <a
           href="/provider/dashboard"

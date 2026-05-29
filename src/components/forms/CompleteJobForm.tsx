@@ -12,11 +12,12 @@ export default function CompleteJobForm({ requestId }: Props) {
   const router = useRouter()
   const [finalPrice, setFinalPrice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [completed, setCompleted] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (loading) return
+    if (loading || completed) return
     const amount = Number(finalPrice)
 
     if (!Number.isInteger(amount) || amount <= 0) {
@@ -47,12 +48,23 @@ export default function CompleteJobForm({ requestId }: Props) {
         return
       }
 
+      setCompleted(true)
       router.refresh()
-      setLoading(false)
     } catch {
       setError('Connection lost. Please check your internet connection and try again.')
       setLoading(false)
     }
+  }
+
+  if (completed) {
+    return (
+      <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4" role="status" aria-live="polite">
+        <p className="text-sm font-semibold text-green-800">Job completed. Refreshing dashboard...</p>
+        <p className="mt-1 text-xs text-green-700">
+          This job will move from Active Job to Recent Completed Jobs once the dashboard refresh finishes.
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -66,9 +78,10 @@ export default function CompleteJobForm({ requestId }: Props) {
         value={finalPrice}
         onChange={(event) => setFinalPrice(event.target.value)}
         placeholder="250"
+        disabled={loading}
       />
       <Button type="submit" loading={loading}>
-        {loading ? 'Completing...' : 'Complete Job'}
+        {loading ? 'Completing job...' : 'Complete Job'}
       </Button>
       {error && <p className="text-sm text-red-500 sm:pb-2">{error}</p>}
     </form>

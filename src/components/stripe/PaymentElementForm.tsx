@@ -3,7 +3,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
 
-export default function PaymentElementForm() {
+interface PaymentElementFormProps {
+  returnPath?: string
+}
+
+export default function PaymentElementForm({ returnPath = '/provider/dashboard' }: PaymentElementFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const router = useRouter()
@@ -23,12 +27,14 @@ export default function PaymentElementForm() {
 
     setProcessing(true)
 
+    const absoluteReturnUrl = `${window.location.origin}${returnPath}`
+
     try {
       const result = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
         confirmParams: {
-          return_url: `${window.location.origin}/provider/dashboard`,
+          return_url: absoluteReturnUrl,
         },
       })
 
@@ -41,7 +47,7 @@ export default function PaymentElementForm() {
       setSuccess(true)
       setProcessing(false)
       window.setTimeout(() => {
-        router.push('/provider/dashboard')
+        router.push(returnPath)
         router.refresh()
       }, 1800)
     } catch {

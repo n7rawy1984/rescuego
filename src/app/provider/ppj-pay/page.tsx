@@ -77,7 +77,7 @@ function PpjPayContent() {
           Exact customer location is shown only after payment and assignment.
         </div>
         <StripeElementsProvider clientSecret={clientSecret}>
-          <PaymentElementForm />
+          <PaymentElementForm returnPath="/provider/dashboard?payment=processing" />
         </StripeElementsProvider>
         <a
           href="/provider/dashboard"
