@@ -44,6 +44,18 @@ function formatDistance(meters: number | null): string {
   return `${(meters / 1000).toFixed(1)} km away`
 }
 
+function storePaymentHandoff(kind: 'ppj' | 'overage', requestId: string, clientSecret: string, feeAed: number): boolean {
+  try {
+    window.sessionStorage.setItem(
+      `rescuego:${kind}-payment:${requestId}`,
+      JSON.stringify({ client_secret: clientSecret, fee_aed: feeAed })
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
 export default function ProviderRequestList({
   requests,
   providerStatus,
@@ -115,7 +127,13 @@ export default function ProviderRequestList({
           return
         }
 
-        router.push(`/provider/ppj-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
+        if (!result.client_secret || !storePaymentHandoff('ppj', requestId, result.client_secret, result.fee_aed)) {
+          setError('Unable to open payment securely. Please try again.')
+          setAccepting(null)
+          return
+        }
+
+        router.push(`/provider/ppj-pay?request_id=${requestId}&fee=${result.fee_aed}`)
       } catch {
         setError('Network connection lost. Please try again.')
         setAccepting(null)
@@ -184,7 +202,14 @@ export default function ProviderRequestList({
         return
       }
 
-      router.push(`/provider/overage-pay?client_secret=${result.client_secret}&request_id=${requestId}&fee=${result.fee_aed}`)
+      if (!result.client_secret || !storePaymentHandoff('overage', requestId, result.client_secret, result.fee_aed)) {
+        setError('Unable to open payment securely. Please try again.')
+        setOverageLoading(false)
+        setShowOverageModal(null)
+        return
+      }
+
+      router.push(`/provider/overage-pay?request_id=${requestId}&fee=${result.fee_aed}`)
     } catch {
       setError('Network connection lost. Please try again.')
       setOverageLoading(false)

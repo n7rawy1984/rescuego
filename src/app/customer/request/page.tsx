@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { BatteryCharging, HelpCircle, LocateFixed, Truck, Wrench } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
@@ -72,47 +72,104 @@ export default function RequestPage() {
   const [activeRequest, setActiveRequest] = useState<ActiveRequest | null>(null)
   const [completedUnratedRequest, setCompletedUnratedRequest] = useState<CompletedUnratedRequest | null>(null)
   const [activeRequestLoading, setActiveRequestLoading] = useState(true)
+  const [initialRequestError, setInitialRequestError] = useState('')
   const [unratedJobsCount, setUnratedJobsCount] = useState(0)
+  const addressInputRef = useRef<HTMLInputElement>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const loadRequestState = useCallback(async () => {
+    const activeRes = await fetch('/api/requests')
+
+    if (activeRes.status === 401) {
+      throw new Error('Your session expired. Please sign in again.')
+    }
+
+    if (!activeRes.ok) {
+      throw new Error('We couldn\'t load your current request. Please try again.')
+    }
+
+    const activeData = await activeRes.json().catch(() => null) as ActiveRequestResponse | null
+    if (!mountedRef.current) return
+    setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
+    setActiveRequest(activeData?.active_request ?? null)
+    setRequestId(activeData?.active_request?.id ?? '')
+    setInitialRequestError('')
+  }, [])
 
   useEffect(() => {
     let cancelled = false
 
     async function loadInitialState() {
       try {
-        const [activeRes, unratedRes] = await Promise.all([
-          fetch('/api/requests'),
-          fetch('/api/customers/unrated-jobs'),
-        ])
+        await loadRequestState()
 
-        if (activeRes.ok) {
-          const activeData = await activeRes.json().catch(() => null) as ActiveRequestResponse | null
-          if (!cancelled) {
-            setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
-            setActiveRequest(activeData?.active_request ?? null)
-            setRequestId(activeData?.active_request?.id ?? '')
-          }
-        }
-
+        const unratedRes = await fetch('/api/customers/unrated-jobs')
         if (unratedRes.ok) {
           const unratedData = await unratedRes.json().catch(() => null) as { count?: number } | null
           if (!cancelled) setUnratedJobsCount(unratedData?.count ?? 0)
         }
-      } catch {
+      } catch (caught) {
         if (!cancelled) {
           setUnratedJobsCount(0)
-          setError('Connection lost. Please check your internet connection and try again.')
+          const message = caught instanceof Error
+            ? caught.message
+            : 'We couldn\'t load your current request. Please try again.'
+          setInitialRequestError(
+            typeof navigator !== 'undefined' && !navigator.onLine
+              ? 'Connection lost. Please check your internet connection and try again.'
+              : message
+          )
         }
       } finally {
         if (!cancelled) setActiveRequestLoading(false)
       }
     }
 
-    loadInitialState()
+    void loadInitialState()
 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [loadRequestState])
+
+  useEffect(() => {
+    if (!activeRequest || completedUnratedRequest) return
+
+    const interval = window.setInterval(() => {
+      void loadRequestState().catch(() => undefined)
+    }, 12000)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [activeRequest, completedUnratedRequest, loadRequestState])
+
+  async function retryInitialRequestLoad() {
+    setActiveRequestLoading(true)
+    setInitialRequestError('')
+    setError('')
+
+    try {
+      await loadRequestState()
+    } catch (caught) {
+      const message = caught instanceof Error
+        ? caught.message
+        : 'We couldn\'t load your current request. Please try again.'
+      setInitialRequestError(
+        typeof navigator !== 'undefined' && !navigator.onLine
+          ? 'Connection lost. Please check your internet connection and try again.'
+          : message
+      )
+    } finally {
+      setActiveRequestLoading(false)
+    }
+  }
 
   function resetForm() {
     setSubmitted(false)
@@ -152,11 +209,14 @@ export default function RequestPage() {
       (locationError) => {
         const denied = locationError.code === locationError.PERMISSION_DENIED
         const message = denied
-          ? 'Location permission was denied. You can still enter your location manually.'
+          ? 'We couldn\'t access your location. You can enter your address manually and still request help.'
           : 'Could not get your location. Please enter your address manually.'
         setError(message)
         setLocationPermissionDenied(denied)
         setLocationLoading(false)
+        if (denied) {
+          window.setTimeout(() => addressInputRef.current?.focus(), 0)
+        }
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     )
@@ -246,6 +306,23 @@ export default function RequestPage() {
     )
   }
 
+  if (initialRequestError) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <h1 className="text-xl font-bold text-slate-900">We couldn&apos;t load your current request</h1>
+            <p className="mt-2 text-sm text-slate-500">{initialRequestError}</p>
+            <Button className="mt-6" onClick={retryInitialRequestLoad}>
+              Try again
+            </Button>
+          </div>
+        </main>
+      </>
+    )
+  }
+
   const visibleRequest = activeRequest ?? (submitted && requestId
     ? {
         id: requestId,
@@ -284,6 +361,10 @@ export default function RequestPage() {
               <RatingForm
                 jobId={completedUnratedRequest.job_id}
                 providerId={completedUnratedRequest.provider_id}
+                onComplete={() => {
+                  setCompletedUnratedRequest(null)
+                  setUnratedJobsCount((current) => Math.max(0, current - 1))
+                }}
               />
             </div>
           </div>
@@ -445,6 +526,7 @@ export default function RequestPage() {
                 RescueGo requests your location once and only uses it to find nearby providers for this recovery request.
               </p>
               <Input
+                ref={addressInputRef}
                 id="address"
                 label="Or enter your location"
                 value={address}

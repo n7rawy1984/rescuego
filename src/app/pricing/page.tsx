@@ -138,7 +138,7 @@ export default async function PricingPage() {
       <main className="pt-16">
         {LAUNCH_PROMO && (
           <div className="bg-orange-500 text-white text-center py-3 px-4 text-sm font-semibold">
-            🎉 Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat - Limited time only!
+            Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat - Limited time only!
           </div>
         )}
         <section className="bg-slate-950 text-white px-4 py-16 text-center">

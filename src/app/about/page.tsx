@@ -28,11 +28,11 @@ export default function AboutPage() {
                 <p className="text-slate-600 leading-relaxed">Existing solutions are fragmented: phone calls, WhatsApp groups, or apps tied to a single company. No open marketplace exists. Until now.</p>
               </div>
               <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200">
-                <div className="text-4xl mb-4">🚗</div>
+                <div className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Before</div>
                 <h3 className="font-bold text-slate-900 text-lg mb-2">Before RescueGo</h3>
                 <ul className="flex flex-col gap-2 text-slate-600 text-sm">
                   {['Call 10 numbers to find someone available', 'No idea if provider is legitimate', 'No tracking — just wait and hope', 'Price negotiated on the spot', 'No way to rate or review'].map(p => (
-                    <li key={p} className="flex items-center gap-2"><span className="text-red-400">✗</span>{p}</li>
+                    <li key={p} className="flex items-center gap-2"><span className="text-red-400">x</span>{p}</li>
                   ))}
                 </ul>
               </div>
@@ -40,7 +40,7 @@ export default function AboutPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-16">
               <div className="bg-orange-50 rounded-2xl p-8 border border-orange-200 order-2 md:order-1">
-                <div className="text-4xl mb-4">✅</div>
+                <div className="mb-4 text-sm font-semibold uppercase tracking-wide text-orange-500">After</div>
                 <h3 className="font-bold text-slate-900 text-lg mb-2">With RescueGo</h3>
                 <ul className="flex flex-col gap-2 text-slate-600 text-sm">
                   {['One tap — providers notified instantly', 'Emirates ID verified providers only', 'Live GPS tracking on map', 'Price range shown before you request', 'Mandatory ratings after every job'].map(p => (

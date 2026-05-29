@@ -394,7 +394,7 @@ export default async function ProviderDashboardPage() {
               <p className="text-red-700 text-sm mt-1">
                 Contact support to resolve your account status.{' '}
                 <a href="mailto:n7rawy19840@gmail.com" className="underline font-semibold hover:text-red-900">
-                  Email support →
+                  Email support
                 </a>
               </p>
             </div>
@@ -452,7 +452,7 @@ export default async function ProviderDashboardPage() {
                 </div>
               ) : (
                 <div className="px-6 py-14 text-center">
-                  <div className="text-4xl mb-3">🚗</div>
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><BriefcaseBusiness className="h-5 w-5" aria-hidden="true" /></div>
                   <p className="font-semibold text-slate-800">No completed jobs yet</p>
                   <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Your first completed jobs, prices, and earning history will appear here.</p>
                 </div>
@@ -466,3 +466,4 @@ export default async function ProviderDashboardPage() {
     </>
   )
 }
+

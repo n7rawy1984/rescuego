@@ -59,7 +59,7 @@ export default async function CustomerHistoryPage() {
             <Card>
               <CardBody>
                 <div className="py-12 text-center">
-                  <div className="text-4xl mb-3">🚗</div>
+                  <div className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">History</div>
                   <p className="font-medium text-slate-700">No requests yet</p>
                   <p className="text-sm text-slate-500 mt-1">Your roadside requests will appear here.</p>
                   <a
