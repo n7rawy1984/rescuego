@@ -196,6 +196,13 @@ export default function RequestPage() {
     setError('')
   }
 
+  function resetAfterRating() {
+    const currentPhone = phone
+    resetForm()
+    setPhone(currentPhone)
+    setUnratedJobsCount((current) => Math.max(0, current - 1))
+  }
+
   function useMyLocation() {
     setLocationLoading(true)
     setError('')
@@ -374,10 +381,7 @@ export default function RequestPage() {
               <RatingForm
                 jobId={completedUnratedRequest.job_id}
                 providerId={completedUnratedRequest.provider_id}
-                onComplete={() => {
-                  setCompletedUnratedRequest(null)
-                  setUnratedJobsCount((current) => Math.max(0, current - 1))
-                }}
+                onComplete={resetAfterRating}
               />
             </div>
           </div>
