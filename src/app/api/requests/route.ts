@@ -8,6 +8,7 @@ import { roundDispatchCoordinate, UAE_BOUNDS } from '@/lib/geo'
 
 const requestSchema = z.object({
   problem_type: z.enum(['flat_tire', 'battery', 'tow', 'other']),
+  phone: z.string().trim().min(8).max(30).regex(/^[+\d\s().-]+$/),
   location_address: z.string().trim().min(3).max(300),
   note: z.string().trim().max(500).optional().nullable(),
   coords: z
@@ -49,7 +50,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('role')
+    .select('role, phone')
     .eq('id', user.id)
     .single()
 
@@ -131,10 +132,11 @@ export async function GET() {
         },
       },
       active_request: null,
+      customer_phone: profile.phone ?? null,
     })
   }
 
-  return NextResponse.json({ active_request: activeRequest ?? null })
+  return NextResponse.json({ active_request: activeRequest ?? null, customer_phone: profile.phone ?? null })
 }
 
 export async function POST(req: NextRequest) {
@@ -165,7 +167,7 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('role')
+    .select('role, phone')
     .eq('id', user.id)
     .single()
 
@@ -202,10 +204,26 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { problem_type, location_address, note, coords } = parsed.data
+  const { problem_type, phone, location_address, note, coords } = parsed.data
   const point = coords
     ? `POINT(${roundDispatchCoordinate(coords.lng)} ${roundDispatchCoordinate(coords.lat)})`
     : 'POINT(55.2708 25.2048)'
+
+  if (profile.phone !== phone) {
+    const { error: phoneError } = await supabase
+      .from('users')
+      .update({ phone })
+      .eq('id', user.id)
+
+    if (phoneError) {
+      logger.error({
+        event: 'request_customer_phone_update_failed',
+        customer_id: user.id,
+        error: phoneError.message,
+      })
+      return NextResponse.json({ error: 'Failed to update customer contact number' }, { status: 500 })
+    }
+  }
 
   const { data, error } = await supabase
     .from('requests')

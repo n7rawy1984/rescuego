@@ -38,6 +38,7 @@ type ActiveRequest = {
 type ActiveRequestResponse = {
   active_request?: ActiveRequest | null
   completed_unrated_request?: CompletedUnratedRequest | null
+  customer_phone?: string | null
   error?: string
 }
 
@@ -59,6 +60,7 @@ type CompletedUnratedRequest = {
 export default function RequestPage() {
   const [step, setStep] = useState(1)
   const [problemType, setProblemType] = useState<ProblemType | null>(null)
+  const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [note, setNote] = useState('')
   const [coords, setCoords] = useState<{ lng: number; lat: number } | null>(null)
@@ -99,6 +101,7 @@ export default function RequestPage() {
     setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
     setActiveRequest(activeData?.active_request ?? null)
     setRequestId(activeData?.active_request?.id ?? '')
+    if (activeData?.customer_phone) setPhone(activeData.customer_phone)
     setInitialRequestError('')
   }, [])
 
@@ -185,6 +188,7 @@ export default function RequestPage() {
     setCompletedUnratedRequest(null)
     setStep(1)
     setProblemType(null)
+    setPhone('')
     setAddress('')
     setNote('')
     setCoords(null)
@@ -240,8 +244,8 @@ export default function RequestPage() {
 
   async function handleSubmit() {
     if (loading) return
-    if (!problemType || !address.trim()) {
-      setError('Please select a problem type and provide your location.')
+    if (!problemType || !phone.trim() || !address.trim()) {
+      setError('Please select a problem type, phone number, and location details.')
       return
     }
 
@@ -254,6 +258,7 @@ export default function RequestPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           problem_type: problemType,
+          phone,
           location_address: address,
           note,
           coords,
@@ -525,7 +530,19 @@ export default function RequestPage() {
 
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h2 className="text-lg font-semibold text-slate-800">Where are you?</h2>
+              <h2 className="text-lg font-semibold text-slate-800">Contact and location details</h2>
+              <Input
+                id="phone"
+                type="tel"
+                label="Phone number"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+971 50 000 0000"
+                required
+              />
+              <p className="-mt-2 text-xs text-slate-500">
+                Your assigned provider will use this number to call you after accepting the request.
+              </p>
               <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="w-full">
                 <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
                 Use my current location
@@ -536,24 +553,27 @@ export default function RequestPage() {
               <Input
                 ref={addressInputRef}
                 id="address"
-                label="Or enter your location"
+                label="Emirate, area, or landmark"
                 value={address}
                 onChange={e => handleAddressChange(e.target.value)}
-                placeholder="e.g. Dubai Mall, Al Wasl Road, Dubai"
+                placeholder="e.g. Dubai Mall parking, Al Wasl Road, Dubai"
               />
               {locationMessage && (
                 <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{locationMessage}</p>
               )}
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="note" className="text-sm font-medium text-slate-700">Additional Note (optional)</label>
+                <label htmlFor="note" className="text-sm font-medium text-slate-700">Operational notes (optional)</label>
                 <textarea
                   id="note"
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[100px] resize-none"
-                  placeholder="e.g. I am on the highway near exit 43, white Toyota Camry"
+                  placeholder="Building name, parking level, gate/security instructions, or nearby landmark"
                   maxLength={500}
                 />
+                <p className="text-xs text-slate-500">
+                  These details are shown only to the provider assigned to your request.
+                </p>
               </div>
               {error && (
                 <div className="rounded-lg bg-red-50 px-3 py-2">
@@ -567,7 +587,7 @@ export default function RequestPage() {
               )}
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={() => setStep(1)} className="flex-1">Back</Button>
-                <Button className="flex-1" disabled={!address.trim()} onClick={() => setStep(3)}>Continue</Button>
+                <Button className="flex-1" disabled={!phone.trim() || !address.trim()} onClick={() => setStep(3)}>Continue</Button>
               </div>
             </div>
           )}
@@ -583,6 +603,10 @@ export default function RequestPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 text-sm">Location</span>
                   <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{address}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 text-sm">Phone</span>
+                  <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{phone}</span>
                 </div>
                 <div className="flex justify-between items-start gap-2">
                   <span className="text-slate-500 text-sm">Payment</span>

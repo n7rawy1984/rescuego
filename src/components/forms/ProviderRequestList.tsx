@@ -326,7 +326,6 @@ export default function ProviderRequestList({
                         <div className="text-xs text-slate-400">Exact customer location is shared after assignment.</div>
                       </div>
                     </div>
-                    {req.note && <div className="text-xs text-slate-400 mt-0.5 max-w-full truncate sm:max-w-[360px]">Note: {req.note}</div>}
                     <div className="text-xs text-slate-400 mt-0.5">
                       {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
                     </div>

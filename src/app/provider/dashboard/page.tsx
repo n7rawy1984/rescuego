@@ -58,6 +58,10 @@ type DashboardRequestRow = {
   final_price: number | null
   created_at: string
   distance_to_provider_m: number | null
+  users?: {
+    name: string | null
+    phone: string | null
+  } | null
 }
 
 type NearbyOpenRequestRow = DashboardRequestRow & {
@@ -125,7 +129,7 @@ export default async function ProviderDashboardPage() {
   const { data: activeRequest } = operationalReady
     ? await supabase
       .from('requests')
-      .select('*')
+      .select('*, users(name, phone)')
       .eq('accepted_by', user.id)
       .in('status', ['accepted', 'in_progress'])
       .maybeSingle<DashboardRequestRow>()
@@ -191,6 +195,7 @@ export default async function ProviderDashboardPage() {
         ...request,
         location: null,
         location_address: null,
+        note: null,
         price_estimate_min: 'price_estimate_min' in request ? request.price_estimate_min : null,
         price_estimate_max: 'price_estimate_max' in request ? request.price_estimate_max : null,
         distance_meters: 'distance_meters' in request ? request.distance_meters : null,
@@ -442,7 +447,28 @@ export default async function ProviderDashboardPage() {
                       </div>
                       <LocationActions coordinates={activeLocation?.coordinates ?? null} />
                     </div>
-                    {activeRequest.note && <div className="text-sm text-slate-500 mt-1">Note: {activeRequest.note}</div>}
+                    <div className="mt-3 rounded-xl border border-orange-100 bg-white/80 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Customer contact</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-800">
+                        {activeRequest.users?.name ?? 'Customer'}
+                      </div>
+                      {activeRequest.users?.phone ? (
+                        <a
+                          href={`tel:${activeRequest.users.phone}`}
+                          className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
+                        >
+                          Call customer
+                        </a>
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-500">Customer phone unavailable. Contact support.</p>
+                      )}
+                    </div>
+                    {activeRequest.note && (
+                      <div className="mt-3 rounded-xl border border-orange-100 bg-white/80 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Location notes</div>
+                        <p className="mt-1 text-sm text-slate-600">{activeRequest.note}</p>
+                      </div>
+                    )}
                   </div>
                   <Badge variant="warning" className="w-fit capitalize">{activeRequest.status}</Badge>
                 </div>
