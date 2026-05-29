@@ -32,6 +32,7 @@ type AdminProviderRow = {
     name: string | null
     email: string | null
     phone: string | null
+    role: string | null
   } | null
 }
 
@@ -110,12 +111,15 @@ export default async function AdminProvidersPage({
 
   const { data: providers } = await supabase
     .from('providers')
-    .select('*, users(name, email, phone)')
+    .select('*, users(name, email, phone, role)')
     .order('created_at', { ascending: false })
     .returns<AdminProviderRow[]>()
 
+  const legitimateProviders = (providers ?? []).filter((provider) => provider.users?.role === 'provider')
+  const invalidProviderRows = (providers ?? []).filter((provider) => provider.users?.role !== 'provider')
+
   const providersWithLinks: AdminProviderWithLinks[] = await Promise.all(
-    (providers ?? []).map(async (provider) => {
+    legitimateProviders.map(async (provider) => {
       const missingDocumentLabels = missingProviderDocuments(provider.documents).map(providerDocumentLabel)
       return {
         ...provider,
@@ -154,8 +158,16 @@ export default async function AdminProvidersPage({
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="font-semibold text-slate-900">Providers ({filteredProviders.length})</h2>
-                  <p className="text-sm text-slate-500">{providersWithLinks.length} total provider accounts</p>
+                  <p className="text-sm text-slate-500">{providersWithLinks.length} legitimate provider accounts</p>
                 </div>
+                {invalidProviderRows.length > 0 && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    <p className="font-semibold">Data integrity warning</p>
+                    <p className="mt-1">
+                      {invalidProviderRows.length} provider table row{invalidProviderRows.length === 1 ? '' : 's'} belong to non-provider user accounts and are hidden from moderation. Review these rows manually in Supabase before taking action.
+                    </p>
+                  </div>
+                )}
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {FILTERS.map((filter) => (
                     <a

@@ -40,6 +40,10 @@ type CompletedJobRow = {
   } | null
 }
 
+type LateCancellationRow = {
+  id: string
+}
+
 export async function GET() {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -78,10 +82,34 @@ export async function GET() {
     .limit(10)
     .returns<CompletedJobRow[]>()
 
-  const [{ data: activeRequest, error }, { data: completedJobs, error: completedJobsError }] = await Promise.all([
+  const lateCancellationWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const lateCancellationsPromise = admin
+    .from('requests')
+    .select('id')
+    .eq('customer_id', user.id)
+    .eq('status', 'cancelled')
+    .eq('cancellation_actor', 'customer')
+    .not('accepted_by', 'is', null)
+    .gte('cancelled_at', lateCancellationWindowStart)
+    .returns<LateCancellationRow[]>()
+
+  const [
+    { data: activeRequest, error },
+    { data: completedJobs, error: completedJobsError },
+    { data: lateCancellations, error: lateCancellationsError },
+  ] = await Promise.all([
     activeRequestPromise,
     completedJobsPromise,
+    lateCancellationsPromise,
   ])
+
+  if (lateCancellationsError) {
+    logger.warn({
+      event: 'customer_late_cancellation_count_failed',
+      customer_id: user.id,
+      error: lateCancellationsError.message,
+    })
+  }
 
   if (completedJobsError) {
     logger.error({
@@ -133,6 +161,7 @@ export async function GET() {
       },
       active_request: null,
       customer_phone: profile.phone ?? null,
+      late_cancellations_24h: lateCancellations?.length ?? 0,
     })
   }
 
@@ -165,7 +194,11 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ active_request: activeRequestWithProvider ?? null, customer_phone: profile.phone ?? null })
+  return NextResponse.json({
+    active_request: activeRequestWithProvider ?? null,
+    customer_phone: profile.phone ?? null,
+    late_cancellations_24h: lateCancellations?.length ?? 0,
+  })
 }
 
 export async function POST(req: NextRequest) {

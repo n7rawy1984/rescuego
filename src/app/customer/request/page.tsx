@@ -41,6 +41,7 @@ type ActiveRequestResponse = {
   active_request?: ActiveRequest | null
   completed_unrated_request?: CompletedUnratedRequest | null
   customer_phone?: string | null
+  late_cancellations_24h?: number
   error?: string
 }
 
@@ -81,6 +82,7 @@ export default function RequestPage() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
+  const [lateCancellations24h, setLateCancellations24h] = useState(0)
   const addressInputRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(true)
   const assignedRequestRef = useRef<string | null>(null)
@@ -117,6 +119,7 @@ export default function RequestPage() {
     setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
     setActiveRequest(nextActiveRequest)
     setRequestId(nextActiveRequest?.id ?? '')
+    setLateCancellations24h(activeData?.late_cancellations_24h ?? 0)
     if (activeData?.customer_phone) setPhone(activeData.customer_phone)
     setInitialRequestError('')
   }, [])
@@ -450,6 +453,7 @@ export default function RequestPage() {
 
   if (visibleRequest) {
     const isOpen = visibleRequest.status === 'open'
+    const showCancellationAbuseWarning = !isOpen && lateCancellations24h >= 2
     const title = isOpen
       ? 'Request Sent!'
       : visibleRequest.status === 'accepted'
@@ -553,8 +557,16 @@ export default function RequestPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {isOpen
                     ? 'Your request has not been assigned yet, so you can cancel it freely.'
-                    : 'Your provider is already assigned and may be traveling to your location. RescueGo will handle provider compensation automatically.'}
+                    : 'Your provider may already be traveling to your location. RescueGo will handle provider compensation automatically.'}
                 </p>
+                {showCancellationAbuseWarning && (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left">
+                    <p className="text-sm font-semibold text-amber-900">Please cancel only when necessary.</p>
+                    <p className="mt-1 text-xs leading-5 text-amber-800">
+                      Repeated cancellations after provider assignment may temporarily restrict your account in the future.
+                    </p>
+                  </div>
+                )}
                 <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <button
                     type="button"

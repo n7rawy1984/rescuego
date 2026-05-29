@@ -524,6 +524,31 @@ export default async function ProviderDashboardPage({
             </div>
           )}
 
+          {provider.plan === 'pay_per_job' && (provider.ppj_recovery_credits ?? 0) > 0 && (
+            <Card className="mb-6 border-green-200 bg-green-50 shadow-sm">
+              <CardBody>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold text-green-900">
+                      {provider.ppj_recovery_credits === 1
+                        ? 'You have 1 recovery credit from a customer cancellation.'
+                        : `You have ${provider.ppj_recovery_credits} recovery credits available.`}
+                    </h2>
+                    <p className="mt-1 text-sm text-green-800">
+                      These credits automatically replace future PPJ acceptance payments.
+                    </p>
+                    <p className="mt-1 text-xs text-green-700">
+                      Your next PPJ acceptance will use an available credit automatically.
+                    </p>
+                  </div>
+                  <Badge variant="success" className="w-fit">
+                    {provider.ppj_recovery_credits} credit{provider.ppj_recovery_credits === 1 ? '' : 's'}
+                  </Badge>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
           {provider.status === 'suspended' && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
               <p className="text-red-800 font-semibold">Account Suspended</p>

@@ -36,6 +36,20 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+  const { data: existingUser, error: existingUserError } = await admin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle<{ role: string | null }>()
+
+  if (existingUserError) {
+    return NextResponse.json({ error: 'Failed to check account status' }, { status: 500 })
+  }
+
+  if (existingUser?.role && existingUser.role !== 'customer') {
+    return NextResponse.json({ error: 'This account is already registered with a different role.' }, { status: 409 })
+  }
+
   const { error } = await admin
     .from('users')
     .upsert({
