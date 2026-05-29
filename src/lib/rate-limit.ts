@@ -10,6 +10,9 @@ type RateLimitResult = {
 
 const buckets = new Map<string, RateLimitEntry>()
 
+// TODO(Phase 1): replace this in-memory limiter with Redis/Upstash or another
+// shared store before multi-instance production scaling. Current buckets are
+// process-local and reset on deploy/serverless cold starts.
 export function checkRateLimit(
   key: string,
   limit: number,

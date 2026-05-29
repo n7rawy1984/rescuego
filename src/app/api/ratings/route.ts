@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 const ratingSchema = z.object({
   job_id: z.string().uuid(),
@@ -77,8 +78,23 @@ export async function POST(req: NextRequest) {
     })
 
   if (error) {
+    logger.error({
+      event: 'rating_submit_failed',
+      customer_id: user.id,
+      provider_id: parsed.data.provider_id,
+      job_id: parsed.data.job_id,
+      error: error.message,
+    })
     return NextResponse.json({ error: 'Failed to submit rating' }, { status: 500 })
   }
+
+  logger.info({
+    event: 'rating_submitted',
+    customer_id: user.id,
+    provider_id: parsed.data.provider_id,
+    job_id: parsed.data.job_id,
+    stars: parsed.data.stars,
+  })
 
   return NextResponse.json({ success: true })
 }

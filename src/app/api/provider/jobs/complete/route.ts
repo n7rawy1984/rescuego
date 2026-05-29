@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { logger } from '@/lib/logger'
 
 const completeJobSchema = z.object({
   request_id: z.string().uuid(),
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   const completedAt = new Date().toISOString()
 
-  await Promise.all([
+  const [{ error: requestUpdateError }, { error: jobUpdateError }] = await Promise.all([
     admin
       .from('requests')
       .update({ status: 'completed', final_price: parsed.data.final_price })
@@ -72,6 +73,26 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', job.id),
   ])
+
+  if (requestUpdateError || jobUpdateError) {
+    logger.error({
+      event: 'complete_job_failed',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      job_id: job.id,
+      request_error: requestUpdateError?.message,
+      job_error: jobUpdateError?.message,
+    })
+    return NextResponse.json({ error: 'Failed to complete job' }, { status: 500 })
+  }
+
+  logger.info({
+    event: 'complete_job_success',
+    provider_id: user.id,
+    request_id: parsed.data.request_id,
+    job_id: job.id,
+    final_price_aed: parsed.data.final_price,
+  })
 
   return NextResponse.json({ success: true, job_id: job.id })
 }
