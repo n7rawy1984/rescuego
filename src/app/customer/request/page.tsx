@@ -83,6 +83,7 @@ export default function RequestPage() {
   const [statusMessage, setStatusMessage] = useState('')
   const addressInputRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(true)
+  const assignedRequestRef = useRef<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -103,9 +104,19 @@ export default function RequestPage() {
 
     const activeData = await activeRes.json().catch(() => null) as ActiveRequestResponse | null
     if (!mountedRef.current) return
+    const nextActiveRequest = activeData?.active_request ?? null
+    if (
+      assignedRequestRef.current
+      && nextActiveRequest?.id === assignedRequestRef.current
+      && nextActiveRequest.status === 'open'
+      && !nextActiveRequest.accepted_by
+    ) {
+      setStatusMessage('Your provider is no longer assigned. We are searching for another provider.')
+    }
+    assignedRequestRef.current = nextActiveRequest?.accepted_by ? nextActiveRequest.id : null
     setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
-    setActiveRequest(activeData?.active_request ?? null)
-    setRequestId(activeData?.active_request?.id ?? '')
+    setActiveRequest(nextActiveRequest)
+    setRequestId(nextActiveRequest?.id ?? '')
     if (activeData?.customer_phone) setPhone(activeData.customer_phone)
     setInitialRequestError('')
   }, [])
@@ -200,6 +211,7 @@ export default function RequestPage() {
     setLocationMessage('')
     setError('')
     setCancelConfirmOpen(false)
+    assignedRequestRef.current = null
   }
 
   function resetAfterRating() {

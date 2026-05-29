@@ -11,6 +11,7 @@ import { getProviderAllowance } from '@/lib/provider-allowance'
 import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
 import CompleteJobForm from '@/components/forms/CompleteJobForm'
+import ReleaseJobButton from '@/components/forms/ReleaseJobButton'
 import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardingChecklist'
 import ProviderAvailabilityToggle from '@/components/provider/ProviderAvailabilityToggle'
 import LocationActions from '@/components/provider/LocationActions'
@@ -629,7 +630,10 @@ export default async function ProviderDashboardPage({
                   </div>
                   <Badge variant="warning" className="w-fit capitalize">{activeRequest.status}</Badge>
                 </div>
-                <CompleteJobForm requestId={activeRequest.id} />
+                <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+                  <CompleteJobForm requestId={activeRequest.id} />
+                  <ReleaseJobButton requestId={activeRequest.id} providerPlan={provider.plan} />
+                </div>
               </CardBody>
             </Card>
           )}

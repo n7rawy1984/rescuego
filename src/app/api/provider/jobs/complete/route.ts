@@ -59,28 +59,43 @@ export async function POST(req: NextRequest) {
 
   const completedAt = new Date().toISOString()
 
-  const [{ error: requestUpdateError }, { error: jobUpdateError }] = await Promise.all([
-    admin
-      .from('requests')
-      .update({ status: 'completed', final_price: parsed.data.final_price })
-      .eq('id', parsed.data.request_id),
-    admin
-      .from('jobs')
-      .update({
-        commission_rate: 0,
-        commission_amount: 0,
-        completed_at: completedAt,
-      })
-      .eq('id', job.id),
-  ])
+  const { data: completedRequest, error: requestUpdateError } = await admin
+    .from('requests')
+    .update({ status: 'completed', final_price: parsed.data.final_price })
+    .eq('id', parsed.data.request_id)
+    .eq('accepted_by', user.id)
+    .in('status', ['accepted', 'in_progress'])
+    .select('id')
+    .maybeSingle<{ id: string }>()
 
-  if (requestUpdateError || jobUpdateError) {
+  if (requestUpdateError || !completedRequest) {
+    logger.warn({
+      event: 'complete_job_rejected',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      job_id: job.id,
+      error: requestUpdateError?.message ?? 'Request was cancelled, released, or already completed',
+    })
+    return NextResponse.json({ error: 'Job is not available for completion' }, { status: 409 })
+  }
+
+  const { error: jobUpdateError } = await admin
+    .from('jobs')
+    .update({
+      commission_rate: 0,
+      commission_amount: 0,
+      completed_at: completedAt,
+    })
+    .eq('id', job.id)
+    .eq('provider_id', user.id)
+    .is('completed_at', null)
+
+  if (jobUpdateError) {
     logger.error({
       event: 'complete_job_failed',
       provider_id: user.id,
       request_id: parsed.data.request_id,
       job_id: job.id,
-      request_error: requestUpdateError?.message,
       job_error: jobUpdateError?.message,
     })
     return NextResponse.json({ error: 'Failed to complete job' }, { status: 500 })

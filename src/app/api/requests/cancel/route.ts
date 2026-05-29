@@ -182,6 +182,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  await admin
+    .from('request_locks')
+    .delete()
+    .eq('request_id', request.id)
+
   if (!retryingCompensation) {
     await admin
       .from('users')
