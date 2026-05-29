@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
@@ -8,82 +9,202 @@ import type { Metadata } from 'next'
 import type { ProblemType, RequestStatus } from '@/types'
 
 export const metadata: Metadata = {
-  title: 'All Requests — Admin',
+  title: 'All Requests - Admin',
   robots: { index: false, follow: false },
 }
 
 type AdminRequestRow = {
   id: string
+  customer_id: string | null
+  accepted_by: string | null
   problem_type: ProblemType
   location_address: string | null
+  note: string | null
   status: RequestStatus
   price_estimate_min: number | null
   price_estimate_max: number | null
+  final_price: number | null
+  cancelled_at: string | null
+  cancellation_actor: 'customer' | 'provider' | 'admin' | null
+  cancellation_compensation_type: 'ppj_recovery_credit' | 'subscription_usage_restore' | 'none' | null
   created_at: string
+}
+
+type UserLookupRow = {
+  id: string
+  name: string | null
+  phone: string | null
+}
+
+type ProviderLookupRow = {
+  id: string
   users: {
     name: string | null
     phone: string | null
   } | null
-  providers: {
-    users: {
-      name: string | null
-    } | null
-  } | null
+}
+
+type JobLookupRow = {
+  request_id: string
+  completed_at: string | null
+}
+
+function requestBadgeVariant(status: RequestStatus): 'success' | 'warning' | 'danger' | 'info' | 'default' {
+  if (status === 'completed') return 'success'
+  if (status === 'open') return 'info'
+  if (status === 'cancelled' || status === 'expired') return 'default'
+  return 'warning'
+}
+
+function lifecycleLabel(request: AdminRequestRow, completedAt: string | null | undefined): string {
+  if (request.status === 'cancelled') {
+    return request.cancellation_actor
+      ? `Cancelled by ${request.cancellation_actor}`
+      : 'Cancelled'
+  }
+  if (request.status === 'completed') {
+    return completedAt ? `Completed ${new Date(completedAt).toLocaleDateString('en-AE')}` : 'Completed'
+  }
+  if (request.status === 'open' && !request.accepted_by) return 'Waiting for provider'
+  if (request.accepted_by) return 'Provider assigned'
+  return 'Unassigned'
 }
 
 export default async function AdminRequestsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (userData?.role !== 'admin') redirect('/')
 
-  const { data: requests } = await supabase
+  const admin = createAdminClient()
+  const { data: requests, error: requestsError } = await admin
     .from('requests')
-    .select('*, users(name, phone), providers(users(name))')
+    .select('id, customer_id, accepted_by, problem_type, location_address, note, status, price_estimate_min, price_estimate_max, final_price, cancelled_at, cancellation_actor, cancellation_compensation_type, created_at')
     .order('created_at', { ascending: false })
     .limit(100)
     .returns<AdminRequestRow[]>()
+
+  const requestRows = requests ?? []
+  const customerIds = [...new Set(requestRows.map((request) => request.customer_id).filter((id): id is string => Boolean(id)))]
+  const providerIds = [...new Set(requestRows.map((request) => request.accepted_by).filter((id): id is string => Boolean(id)))]
+  const requestIds = requestRows.map((request) => request.id)
+
+  const [{ data: customers }, { data: providers }, { data: jobs }] = await Promise.all([
+    customerIds.length
+      ? admin.from('users').select('id, name, phone').in('id', customerIds).returns<UserLookupRow[]>()
+      : { data: [] as UserLookupRow[] },
+    providerIds.length
+      ? admin.from('providers').select('id, users(name, phone)').in('id', providerIds).returns<ProviderLookupRow[]>()
+      : { data: [] as ProviderLookupRow[] },
+    requestIds.length
+      ? admin.from('jobs').select('request_id, completed_at').in('request_id', requestIds).returns<JobLookupRow[]>()
+      : { data: [] as JobLookupRow[] },
+  ])
+
+  const customerById = new Map((customers ?? []).map((customer) => [customer.id, customer]))
+  const providerById = new Map((providers ?? []).map((provider) => [provider.id, provider]))
+  const jobByRequestId = new Map((jobs ?? []).map((job) => [job.request_id, job]))
 
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">All Requests</h1>
-            <a href="/admin/dashboard" className="text-sm text-orange-500 hover:underline">← Back to Dashboard</a>
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Operational requests</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">All Requests</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Monitor customer roadside requests, assignment state, cancellations, and completions.
+              </p>
+            </div>
+            <a href="/admin/dashboard" className="text-sm font-semibold text-orange-500 hover:underline">Back to Dashboard</a>
           </div>
+
           <Card>
             <CardHeader>
-              <h2 className="font-semibold text-slate-800">Recent Requests ({requests?.length ?? 0})</h2>
+              <h2 className="font-semibold text-slate-800">Recent Requests ({requestRows.length})</h2>
+              {requestsError && (
+                <p className="mt-1 text-sm text-red-600">
+                  Request data could not be loaded: {requestsError.message}
+                </p>
+              )}
             </CardHeader>
             <CardBody className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {['Type', 'Customer', 'Location', 'Status', 'Provider', 'Est. Price', 'Time'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      {['Type', 'Customer', 'Location', 'Status', 'Provider', 'Lifecycle', 'Value', 'Time'].map((heading) => (
+                        <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{heading}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {requests?.map((req) => (
-                      <tr key={req.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-800">{getProblemLabel(req.problem_type)}</td>
-                        <td className="px-4 py-3 text-slate-600">{req.users?.name ?? 'Guest'}</td>
-                        <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate">{req.location_address ?? '—'}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant={req.status === 'completed' ? 'success' : req.status === 'open' ? 'info' : req.status === 'expired' || req.status === 'cancelled' ? 'default' : 'warning'}>
-                            {req.status}
-                          </Badge>
+                    {requestRows.map((request) => {
+                      const customer = request.customer_id ? customerById.get(request.customer_id) : null
+                      const provider = request.accepted_by ? providerById.get(request.accepted_by) : null
+                      const job = jobByRequestId.get(request.id)
+
+                      return (
+                        <tr key={request.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-800">{getProblemLabel(request.problem_type)}</div>
+                            <div className="mt-1 font-mono text-xs text-slate-400">{request.id.slice(0, 8)}</div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <div>{customer?.name ?? 'Customer unavailable'}</div>
+                            <div className="text-xs text-slate-400">{customer?.phone ?? 'No phone'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <div className="max-w-[260px] break-words">{request.location_address ?? '-'}</div>
+                            {request.note && <div className="mt-1 max-w-[260px] break-words text-xs text-slate-400">{request.note}</div>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={requestBadgeVariant(request.status)} className="capitalize">
+                              {request.status.replace('_', ' ')}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <div>{provider?.users?.name ?? 'Not assigned'}</div>
+                            <div className="text-xs text-slate-400">
+                              {provider?.users?.phone ?? (request.accepted_by ? 'Provider contact unavailable' : 'Open request')}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <div>{lifecycleLabel(request, job?.completed_at)}</div>
+                            {request.status === 'cancelled' && request.cancellation_compensation_type && (
+                              <div className="mt-1 text-xs text-slate-400">
+                                Compensation: {request.cancellation_compensation_type.replaceAll('_', ' ')}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {request.final_price
+                              ? `${request.final_price} AED`
+                              : request.price_estimate_min && request.price_estimate_max
+                                ? `${request.price_estimate_min}-${request.price_estimate_max} AED`
+                                : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">
+                            {new Date(request.created_at).toLocaleString('en-AE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            {request.cancelled_at && (
+                              <div className="mt-1">Cancelled {new Date(request.cancelled_at).toLocaleDateString('en-AE')}</div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {requestRows.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-12 text-center">
+                          <p className="font-semibold text-slate-700">No customer requests yet.</p>
+                          <p className="mt-1 text-sm text-slate-500">Roadside requests will appear here as customers create them.</p>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{req.providers?.users?.name ?? '—'}</td>
-                        <td className="px-4 py-3 text-slate-600">{req.price_estimate_min && req.price_estimate_max ? `${req.price_estimate_min}–${req.price_estimate_max} AED` : '—'}</td>
-                        <td className="px-4 py-3 text-slate-400 text-xs">{new Date(req.created_at).toLocaleDateString()}</td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
