@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { BriefcaseBusiness, CreditCard, MapPin, ShieldCheck, Star, TrendingUp, WalletCards } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -126,14 +127,25 @@ export default async function ProviderDashboardPage() {
         : !onboarding.planComplete
           ? 'Choose your access plan before going online for dispatch.'
           : 'Your documents are under review. RescueGo will activate your account after verification.'
-  const { data: activeRequest } = operationalReady
-    ? await supabase
+  const admin = createAdminClient()
+  const { data: activeRequestData } = operationalReady
+    ? await admin
       .from('requests')
-      .select('*, users(name, phone)')
+      .select('*')
       .eq('accepted_by', user.id)
       .in('status', ['accepted', 'in_progress'])
       .maybeSingle<DashboardRequestRow>()
     : { data: null }
+  const { data: activeCustomer } = activeRequestData
+    ? await admin
+      .from('users')
+      .select('name, phone')
+      .eq('id', activeRequestData.customer_id)
+      .maybeSingle<{ name: string | null; phone: string | null }>()
+    : { data: null }
+  const activeRequest = activeRequestData
+    ? { ...activeRequestData, users: activeCustomer ?? null }
+    : null
 
   const { data: providerLocation } = operationalReady
     ? await supabase
