@@ -78,6 +78,9 @@ export default function RequestPage() {
   const [activeRequestLoading, setActiveRequestLoading] = useState(true)
   const [initialRequestError, setInitialRequestError] = useState('')
   const [unratedJobsCount, setUnratedJobsCount] = useState(0)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
   const addressInputRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(true)
 
@@ -196,6 +199,7 @@ export default function RequestPage() {
     setCoords(null)
     setLocationMessage('')
     setError('')
+    setCancelConfirmOpen(false)
   }
 
   function resetAfterRating() {
@@ -310,6 +314,46 @@ export default function RequestPage() {
     } catch {
       setError('Connection lost. Please check your internet connection and try again.')
       setLoading(false)
+    }
+  }
+
+  async function handleCancelRequest(requestToCancel: ActiveRequest) {
+    if (cancelling) return
+
+    setCancelling(true)
+    setError('')
+    setStatusMessage('')
+
+    try {
+      const res = await fetch('/api/requests/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestToCancel.id }),
+      })
+      const result = await res.json().catch(() => null) as { error?: string; late_cancellation?: boolean } | null
+
+      if (res.status === 401) {
+        setError('Your session expired. Please sign in again.')
+        setCancelling(false)
+        return
+      }
+
+      if (!res.ok && res.status !== 202) {
+        setError(result?.error ?? 'Unable to cancel this request right now.')
+        setCancelling(false)
+        return
+      }
+
+      resetForm()
+      setStatusMessage(
+        result?.late_cancellation
+          ? 'Your request was cancelled. Provider compensation was handled automatically.'
+          : 'Your request was cancelled.'
+      )
+      setCancelling(false)
+    } catch {
+      setError('Connection lost. Please check your internet connection and try again.')
+      setCancelling(false)
     }
   }
 
@@ -474,15 +518,52 @@ export default function RequestPage() {
                 </p>
               </div>
 
-              <button
-                onClick={resetForm}
-                disabled
-                className="text-sm text-slate-400 cursor-not-allowed"
-              >
-                Complete this request before submitting another
-              </button>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setCancelConfirmOpen(true)}
+                  disabled={cancelling}
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {cancelling ? 'Cancelling...' : isOpen ? 'Cancel request' : 'Cancel assigned request'}
+                </button>
+                <p className="text-sm text-slate-400">
+                  Complete or cancel this request before submitting another.
+                </p>
+              </div>
             </div>
           </div>
+          {cancelConfirmOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="cancel-request-title">
+              <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                <h2 id="cancel-request-title" className="text-lg font-bold text-slate-900">
+                  Cancel this recovery request?
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {isOpen
+                    ? 'Your request has not been assigned yet, so you can cancel it freely.'
+                    : 'Your provider is already assigned and may be traveling to your location. RescueGo will handle provider compensation automatically.'}
+                </p>
+                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setCancelConfirmOpen(false)}
+                    disabled={cancelling}
+                    className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Keep request
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCancelRequest(visibleRequest)}
+                    disabled={cancelling}
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-red-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {cancelling ? 'Cancelling...' : 'Cancel request'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </>
     )
@@ -493,6 +574,12 @@ export default function RequestPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
         <div className="max-w-2xl mx-auto">
+          {statusMessage && (
+            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-800">
+              {statusMessage}
+            </div>
+          )}
+
           {unratedJobsCount > 0 && (
             <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -276,8 +276,8 @@ export default function ProviderAvailabilityToggle({
             <h3 id="release-job-title" className="text-lg font-bold text-slate-900">Active job in progress</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {providerPlan === 'pay_per_job'
-                ? `Your ${PAY_PER_JOB_PROMO_FEE_AED} AED acceptance fee is non-refundable. Releasing this job will make it available to other providers and you will lose access to the exact customer location.`
-                : 'Releasing this job will make it available to other providers. You will lose access to the exact customer location.'}
+                ? `Your ${PAY_PER_JOB_PROMO_FEE_AED} AED acceptance fee is non-refundable. PPJ acceptance usage will not be restored after provider-side release. Releasing this job will make it available to other providers and you will lose access to the exact customer location.`
+                : 'Releasing this job will make it available to other providers. This request will still count toward your monthly usage, and you will lose access to the exact customer location.'}
             </p>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button

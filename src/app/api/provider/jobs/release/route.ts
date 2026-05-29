@@ -14,6 +14,11 @@ type ActiveRequestRow = {
   status: string | null
 }
 
+type ProviderReleaseCounterRow = {
+  release_count: number | null
+  provider_side_cancellation_count: number | null
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const parsed = releaseJobSchema.safeParse(body)
@@ -50,6 +55,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This job is no longer available to release' }, { status: 409 })
   }
 
+  const { data: providerCounters } = await admin
+    .from('providers')
+    .select('release_count, provider_side_cancellation_count')
+    .eq('id', user.id)
+    .single<ProviderReleaseCounterRow>()
+
   const { data: releasedRequest, error: releaseError } = await admin
     .from('requests')
     .update({
@@ -72,7 +83,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This job is no longer available to release' }, { status: 409 })
   }
 
-  const [{ error: jobError }, { error: locationError }, { error: lockError }] = await Promise.all([
+  const [{ error: jobError }, { error: locationError }, { error: lockError }, { error: providerCounterError }] = await Promise.all([
     admin
       .from('jobs')
       .update({
@@ -92,9 +103,16 @@ export async function POST(req: NextRequest) {
       .from('request_locks')
       .delete()
       .eq('request_id', parsed.data.request_id),
+    admin
+      .from('providers')
+      .update({
+        release_count: (providerCounters?.release_count ?? 0) + 1,
+        provider_side_cancellation_count: (providerCounters?.provider_side_cancellation_count ?? 0) + 1,
+      })
+      .eq('id', user.id),
   ])
 
-  if (jobError || locationError || lockError) {
+  if (jobError || locationError || lockError || providerCounterError) {
     logger.warn({
       event: 'provider_release_job_cleanup_warning',
       provider_id: user.id,
@@ -102,6 +120,7 @@ export async function POST(req: NextRequest) {
       job_error: jobError?.message,
       location_error: locationError?.message,
       lock_error: lockError?.message,
+      provider_counter_error: providerCounterError?.message,
     })
   }
 

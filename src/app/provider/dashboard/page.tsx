@@ -32,6 +32,7 @@ type ProviderDashboardRow = {
   rating: number
   jobs_this_month: number
   job_credit_balance: number | null
+  ppj_recovery_credits: number | null
   verified_badge: boolean
   documents: {
     emirates_id_url?: string
@@ -94,6 +95,12 @@ type PaymentProcessingRow = {
   created_at: string
 }
 
+type CancelledRequestNoticeRow = {
+  id: string
+  problem_type: ProblemType | null
+  cancelled_at: string | null
+}
+
 function formatApproxDistance(meters: number | null | undefined): string {
   if (meters === null || meters === undefined) return 'Distance unavailable'
   if (meters < 1000) return `Approx. ${Math.round(meters)} m away`
@@ -103,6 +110,11 @@ function formatApproxDistance(meters: number | null | undefined): string {
 function isRecentPaymentAttempt(createdAt: string | null | undefined): boolean {
   if (!createdAt) return false
   return Date.now() - new Date(createdAt).getTime() < 15 * 60 * 1000
+}
+
+function isRecentOperationalNotice(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false
+  return Date.now() - new Date(createdAt).getTime() < 24 * 60 * 60 * 1000
 }
 
 export default async function ProviderDashboardPage({
@@ -187,6 +199,18 @@ export default async function ProviderDashboardPage({
   const activeRequest = activeRequestData
     ? { ...activeRequestData, users: activeCustomer ?? null }
     : null
+
+  const { data: recentCustomerCancellation } = operationalReady && !activeRequest
+    ? await admin
+      .from('requests')
+      .select('id, problem_type, cancelled_at')
+      .eq('accepted_by', user.id)
+      .eq('status', 'cancelled')
+      .eq('cancellation_actor', 'customer')
+      .order('cancelled_at', { ascending: false })
+      .limit(1)
+      .maybeSingle<CancelledRequestNoticeRow>()
+    : { data: null }
 
   const { data: recentPpjPayment, error: recentPpjPaymentError } = operationalReady && returnedFromPayment && !activeRequest
     ? await admin
@@ -298,7 +322,9 @@ export default async function ProviderDashboardPage({
     ? {
         title: `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`,
         subtitle: 'Upgrade to a monthly plan when you want predictable capacity and stronger queue priority.',
-        creditNote: null,
+        creditNote: (provider.ppj_recovery_credits ?? 0) > 0
+          ? `${provider.ppj_recovery_credits} PPJ recovery credit${provider.ppj_recovery_credits === 1 ? '' : 's'} available for future accepted requests.`
+          : null,
         href: '/provider/subscribe',
         label: 'Upgrade to a monthly plan',
       }
@@ -531,6 +557,22 @@ export default async function ProviderDashboardPage({
             </Card>
           )}
 
+          {recentCustomerCancellation && isRecentOperationalNotice(recentCustomerCancellation.cancelled_at) && (
+            <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+              <CardBody>
+                <div className="flex flex-col gap-1">
+                  <h2 className="font-semibold text-slate-900">Customer cancelled this request.</h2>
+                  <p className="text-sm text-slate-600">
+                    {recentCustomerCancellation.problem_type
+                      ? `${getProblemLabel(recentCustomerCancellation.problem_type)} was cancelled by the customer.`
+                      : 'A recently assigned request was cancelled by the customer.'}
+                    {' '}Any eligible PPJ recovery credit or subscription usage restoration is handled automatically.
+                  </p>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
           {activeRequest && (
             <Card className="mb-6 overflow-hidden border-orange-200 bg-orange-50 shadow-sm shadow-orange-100/70">
               <CardHeader className="bg-orange-100 border-orange-200">
@@ -600,6 +642,7 @@ export default async function ProviderDashboardPage({
             providerOnline={providerIsOnline}
             locationFallback={requestFeedMode !== 'nearby'}
             requestFeedMode={requestFeedMode}
+            ppjRecoveryCredits={provider.ppj_recovery_credits ?? 0}
           />
 
           <Card className="mt-6 overflow-hidden shadow-sm shadow-slate-200/70">

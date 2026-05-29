@@ -15,6 +15,8 @@ type ProviderBillingRow = {
   plan: string
   status: string
   stripe_customer_id: string | null
+  jobs_this_month: number | null
+  ppj_recovery_credits: number | null
 }
 
 type RequestRow = {
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   const { data: provider } = await admin
     .from('providers')
-    .select('id, plan, status, stripe_customer_id')
+    .select('id, plan, status, stripe_customer_id, jobs_this_month, ppj_recovery_credits')
     .eq('id', user.id)
     .single<ProviderBillingRow>()
 
@@ -76,6 +78,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Go online before accepting requests.' }, { status: 403 })
   }
 
+  const { data: activeJob } = await admin
+    .from('requests')
+    .select('id')
+    .eq('accepted_by', user.id)
+    .in('status', ['accepted', 'in_progress'])
+    .limit(1)
+    .maybeSingle()
+
+  if (activeJob) {
+    return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
+  }
+
   const { data: request } = await admin
     .from('requests')
     .select('id, status')
@@ -96,6 +110,91 @@ export async function POST(req: NextRequest) {
 
   const distanceMeters = existing?.distance_meters ?? 0
   const feeAed = getPayPerJobFee(distanceMeters)
+
+  if ((provider.ppj_recovery_credits ?? 0) > 0) {
+    const { data: creditedRequest, error: acceptError } = await admin
+      .from('requests')
+      .update({ status: 'accepted', accepted_by: user.id })
+      .eq('id', parsed.data.request_id)
+      .eq('status', 'open')
+      .is('accepted_by', null)
+      .select('id')
+      .maybeSingle<{ id: string }>()
+
+    if (acceptError || !creditedRequest) {
+      logger.warn({
+        event: 'ppj_credit_accept_failed',
+        provider_id: user.id,
+        request_id: parsed.data.request_id,
+        error: acceptError?.message ?? 'Request is no longer available',
+      })
+      return NextResponse.json({ error: 'Request is no longer available' }, { status: 409 })
+    }
+
+    const { data: creditedProvider, error: providerUpdateError } = await admin
+      .from('providers')
+      .update({
+        ppj_recovery_credits: Math.max(0, (provider.ppj_recovery_credits ?? 0) - 1),
+        jobs_this_month: (provider.jobs_this_month ?? 0) + 1,
+      })
+      .eq('id', user.id)
+      .gt('ppj_recovery_credits', 0)
+      .select('id')
+      .maybeSingle<{ id: string }>()
+
+    if (providerUpdateError || !creditedProvider) {
+      await admin
+        .from('requests')
+        .update({ status: 'open', accepted_by: null })
+        .eq('id', parsed.data.request_id)
+        .eq('accepted_by', user.id)
+        .in('status', ['accepted', 'in_progress'])
+
+      logger.error({
+        event: 'ppj_credit_consume_failed',
+        provider_id: user.id,
+        request_id: parsed.data.request_id,
+        error: providerUpdateError?.message ?? 'No recovery credit was consumed',
+      })
+      return NextResponse.json({ error: 'Recovery credit could not be applied. Please try again.' }, { status: 409 })
+    }
+
+    const [{ error: jobError }, { error: lockError }] = await Promise.all([
+      admin
+        .from('jobs')
+        .upsert({ request_id: parsed.data.request_id, provider_id: user.id }, { onConflict: 'request_id' }),
+      admin
+        .from('request_locks')
+        .delete()
+        .eq('request_id', parsed.data.request_id),
+    ])
+
+    if (jobError || lockError) {
+      logger.error({
+        event: 'ppj_credit_assignment_cleanup_failed',
+        provider_id: user.id,
+        request_id: parsed.data.request_id,
+        job_error: jobError?.message,
+        lock_error: lockError?.message,
+      })
+      return NextResponse.json({ error: 'Recovery credit assignment needs support review' }, { status: 500 })
+    }
+
+    logger.info({
+      event: 'ppj_recovery_credit_applied',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      credits_remaining: Math.max(0, (provider.ppj_recovery_credits ?? 0) - 1),
+    })
+
+    return NextResponse.json({
+      success: true,
+      credit_applied: true,
+      request_id: parsed.data.request_id,
+      message: 'One PPJ recovery credit was applied to this request.',
+    })
+  }
+
   const stripe = getStripe()
 
   if (existing?.stripe_payment_intent_id && existing.status === 'pending') {

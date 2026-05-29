@@ -10,6 +10,8 @@ export interface User {
   phone: string
   email: string
   role: UserRole
+  cancellation_count: number
+  late_cancellation_count: number
   created_at: string
 }
 
@@ -20,6 +22,10 @@ export interface Provider {
   rating: number
   jobs_this_month: number
   job_credit_balance: number
+  ppj_recovery_credits: number
+  release_count: number
+  unable_to_complete_count: number
+  provider_side_cancellation_count: number
   verified_badge: boolean
   documents: {
     emirates_id_url?: string
@@ -57,6 +63,11 @@ export interface Request {
   price_estimate_min: number | null
   price_estimate_max: number | null
   final_price: number | null
+  cancelled_at: string | null
+  cancelled_by: string | null
+  cancellation_actor: 'customer' | 'provider' | 'admin' | null
+  cancellation_compensated_at: string | null
+  cancellation_compensation_type: 'ppj_recovery_credit' | 'subscription_usage_restore' | 'none' | null
   created_at: string
 }
 

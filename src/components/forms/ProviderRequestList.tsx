@@ -37,6 +37,7 @@ interface Props {
   providerOnline: boolean
   locationFallback?: boolean
   requestFeedMode?: 'nearby' | 'fallback' | 'offline'
+  ppjRecoveryCredits?: number
 }
 
 function formatDistance(meters: number | null): string {
@@ -64,11 +65,13 @@ export default function ProviderRequestList({
   providerOnline,
   locationFallback = false,
   requestFeedMode = locationFallback ? 'fallback' : 'nearby',
+  ppjRecoveryCredits = 0,
 }: Props) {
   const router = useRouter()
   const [requestItems, setRequestItems] = useState<ProviderRequestCard[]>(requests)
   const [accepting, setAccepting] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [showOverageModal, setShowOverageModal] = useState<string | null>(null)
   const [overageLoading, setOverageLoading] = useState(false)
   const [confirmRequestId, setConfirmRequestId] = useState<string | null>(null)
@@ -106,6 +109,7 @@ export default function ProviderRequestList({
       return
     }
     setError('')
+    setNotice('')
     setConfirmRequestId(requestId)
   }
 
@@ -128,6 +132,7 @@ export default function ProviderRequestList({
 
     setAccepting(requestId)
     setError('')
+    setNotice('')
 
     if (providerPlan === 'pay_per_job') {
       try {
@@ -147,6 +152,15 @@ export default function ProviderRequestList({
 
       if (!res.ok) {
         setError(result.error ?? 'Unable to start billing session right now.')
+        setAccepting(null)
+        setConfirmRequestId(null)
+        return
+      }
+
+      if (result.credit_applied) {
+        setNotice(result.message ?? 'One PPJ recovery credit was applied to this request.')
+        setRequestItems((current) => current.filter((request) => request.id !== requestId))
+        router.refresh()
         setAccepting(null)
         setConfirmRequestId(null)
         return
@@ -211,6 +225,7 @@ export default function ProviderRequestList({
     if (overageLoading || accepting) return
     setOverageLoading(true)
     setError('')
+    setNotice('')
 
     try {
       const res = await fetch('/api/provider/overage-checkout', {
@@ -331,7 +346,9 @@ export default function ProviderRequestList({
                     </div>
                     {providerPlan === 'pay_per_job' && (
                       <div className="mt-1 inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
-                        {LAUNCH_PROMO
+                        {ppjRecoveryCredits > 0
+                          ? 'Recovery credit available'
+                          : LAUNCH_PROMO
                           ? `${PAY_PER_JOB_PROMO_FEE_AED} AED to accept (promo)`
                           : req.distance_meters !== null && req.distance_meters >= PAY_PER_JOB_DISTANCE_THRESHOLD_M
                             ? `${PAY_PER_JOB_FEE_FAR_AED} AED to accept`
@@ -348,12 +365,17 @@ export default function ProviderRequestList({
                   onClick={() => requestAcceptConfirmation(req.id)}
                   disabled={providerStatus !== 'active' || !providerOnline || accepting !== null || overageLoading}
                 >
-                  {!providerOnline ? 'Go online first' : providerPlan === 'pay_per_job' ? 'Pay & Accept' : 'Accept'}
+                  {!providerOnline
+                    ? 'Go online first'
+                    : providerPlan === 'pay_per_job'
+                      ? ppjRecoveryCredits > 0 ? 'Accept with credit' : 'Pay & Accept'
+                      : 'Accept'}
                 </Button>
               </div>
             )})}
           </div>
         )}
+        {notice && <div className="px-6 pb-5 text-sm font-medium text-green-700">{notice}</div>}
         {error && <div className="px-6 pb-5 text-sm text-red-500">{error}</div>}
       </CardBody>
       {confirmRequest && (
@@ -362,7 +384,9 @@ export default function ProviderRequestList({
             <h3 id="accept-request-title" className="text-lg font-bold text-slate-900">Accept this recovery request?</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {providerPlan === 'pay_per_job'
-                ? `You will be charged the ${confirmPpjFee} AED Pay Per Job acceptance fee before this request is assigned to you. This fee is non-refundable if you release or abandon the job. Exact customer location is shown only after payment and assignment.`
+                ? ppjRecoveryCredits > 0
+                  ? 'One PPJ recovery credit will be applied to this assignment. No Stripe payment is required for this accepted request. Exact customer location is shown only after assignment.'
+                  : `You will be charged the ${confirmPpjFee} AED Pay Per Job acceptance fee before this request is assigned to you. This fee is non-refundable if you release or abandon the job. Exact customer location is shown only after payment and assignment.`
                 : 'You are about to accept this customer request and become responsible for completing it. Exact customer location is shown after you accept.'}
             </p>
             <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
@@ -384,7 +408,11 @@ export default function ProviderRequestList({
                 disabled={accepting !== null}
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {accepting === confirmRequest.id ? 'Accepting...' : 'Accept request'}
+                {accepting === confirmRequest.id
+                  ? 'Accepting...'
+                  : providerPlan === 'pay_per_job' && ppjRecoveryCredits > 0
+                    ? 'Accept with credit'
+                    : 'Accept request'}
               </button>
             </div>
           </div>
