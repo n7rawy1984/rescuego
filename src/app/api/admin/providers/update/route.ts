@@ -44,6 +44,36 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+  const { data: targetProvider, error: targetProviderError } = await admin
+    .from('providers')
+    .select('id, users(role)')
+    .eq('id', parsed.data.provider_id)
+    .maybeSingle<{ id: string; users: { role: string | null } | null }>()
+
+  if (targetProviderError) {
+    logger.error({
+      event: 'admin_provider_update_target_lookup_failed',
+      admin_id: user.id,
+      provider_id: parsed.data.provider_id,
+      error: targetProviderError.message,
+    })
+    return NextResponse.json({ error: 'Failed to verify provider account' }, { status: 500 })
+  }
+
+  if (!targetProvider) {
+    return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
+  }
+
+  if (targetProvider.users?.role !== 'provider') {
+    logger.warn({
+      event: 'admin_provider_update_role_mismatch_blocked',
+      admin_id: user.id,
+      provider_id: parsed.data.provider_id,
+      user_role: targetProvider.users?.role ?? null,
+    })
+    return NextResponse.json({ error: 'Provider account role mismatch' }, { status: 409 })
+  }
+
   const { error } = await admin
     .from('providers')
     .update(updates)

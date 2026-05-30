@@ -33,7 +33,11 @@ function isSubscriptionPlan(plan: unknown): plan is SubscriptionPlan {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as CheckoutRequestBody
+  const body = (await req.json().catch(() => null)) as CheckoutRequestBody | null
+  if (!body) {
+    return NextResponse.json({ error: 'Invalid checkout request' }, { status: 400 })
+  }
+
   const { plan, provider_id } = body
 
   if (!isSubscriptionPlan(plan) || typeof provider_id !== 'string') {

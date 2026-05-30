@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { getProviderAllowance } from '@/lib/provider-allowance'
 import { OVERAGE_FEE_AED, PROVIDER_STALE_MINUTES } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
@@ -37,10 +38,31 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'Invalid request id' }, { status: 400 })
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rateLimit = checkRateLimit(`overage-checkout:${user.id}`, 10, 60 * 60 * 1000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many checkout attempts. Please wait.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfter) },
+      }
+    )
+  }
 
   const admin = createAdminClient()
+
+  const { data: profile } = await admin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single<{ role: string | null }>()
+
+  if (profile?.role !== 'provider') {
+    return NextResponse.json({ error: 'Only providers can pay overage fees' }, { status: 403 })
+  }
 
   const { data: provider } = await admin
     .from('providers')

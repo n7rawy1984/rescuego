@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const rateLimit = checkRateLimit(`ppj-checkout:${user.id}`, 10, 60 * 60 * 1000)
   if (!rateLimit.allowed) {
@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+
+  const { data: profile } = await admin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single<{ role: string | null }>()
+
+  if (profile?.role !== 'provider') {
+    return NextResponse.json({ error: 'Only providers can create PPJ checkout payments' }, { status: 403 })
+  }
 
   const { data: provider } = await admin
     .from('providers')

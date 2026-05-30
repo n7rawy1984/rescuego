@@ -1,6 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// DEPRECATED: RescueGo now uses Next.js App Router APIs and dashboard logic.
+// This function uses the service role key and should not be deployed until it
+// has a fresh auth/authorization review.
+
 serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
 

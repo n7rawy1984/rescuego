@@ -37,6 +37,16 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+  const { data: profile } = await admin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single<{ role: string | null }>()
+
+  if (profile?.role !== 'provider') {
+    return NextResponse.json({ error: 'Only providers can update dispatch availability' }, { status: 403 })
+  }
+
   const { data: provider } = await admin
     .from('providers')
     .select('id, status')
