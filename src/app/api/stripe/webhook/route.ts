@@ -208,6 +208,20 @@ function resolveSubscriptionPlan(subscription: Stripe.Subscription): {
   return { plan: null, source: 'unresolved', priceIds }
 }
 
+function handledStripeEventType(type: string): boolean {
+  return [
+    'customer.subscription.created',
+    'customer.subscription.updated',
+    'customer.subscription.deleted',
+    'invoice.payment_failed',
+    'payment_intent.succeeded',
+    'payment_intent.payment_failed',
+    'payout.created',
+    'payout.paid',
+    'checkout.session.completed',
+  ].includes(type)
+}
+
 async function incrementProviderJobCount(
   supabase: SupabaseClient,
   providerId: string
@@ -269,8 +283,10 @@ async function processPaymentIntentSucceeded(
   paymentIntent: Stripe.PaymentIntent
 ): Promise<void> {
   const { fee_type, provider_id, request_id } = paymentIntent.metadata ?? {}
+  let handledPaymentIntent = false
 
   if (fee_type === 'pay_per_job' && provider_id && request_id) {
+    handledPaymentIntent = true
     const { error: paymentError } = await supabase
       .from('ppj_payments')
       .update({ status: 'paid' })
@@ -299,6 +315,7 @@ async function processPaymentIntentSucceeded(
   }
 
   if (fee_type === 'overage' && provider_id && request_id) {
+    handledPaymentIntent = true
     const { error: paymentError } = await supabase
       .from('overage_payments')
       .update({ status: 'paid', updated_at: new Date().toISOString() })
@@ -329,6 +346,17 @@ async function processPaymentIntentSucceeded(
         stripe_event_id: stripeEvent.id,
       })
     }
+  }
+
+  if (!handledPaymentIntent) {
+    logger.warn({
+      event: 'stripe_payment_intent_succeeded_unhandled',
+      stripe_event_id: stripeEvent.id,
+      payment_intent_id: paymentIntent.id,
+      metadata_fee_type: fee_type ?? null,
+      has_provider_id: Boolean(provider_id),
+      has_request_id: Boolean(request_id),
+    })
   }
 }
 
@@ -492,6 +520,11 @@ async function processStripeEvent(
       })
       .eq('stripe_customer_id', sub.customer as string)
     throwIfError(error, 'Failed to delete provider subscription')
+    logger.info({
+      event: 'stripe_subscription_deleted_synced',
+      stripe_subscription_id: sub.id,
+      stripe_customer_id: sub.customer,
+    })
   }
 
   if (event.type === 'invoice.payment_failed') {
@@ -527,16 +560,38 @@ async function processStripeEvent(
     })
     throwIfError(error, 'Failed to upsert payout')
   }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session
+    logger.info({
+      event: 'stripe_checkout_session_completed_observed',
+      stripe_event_id: event.id,
+      checkout_session_id: session.id,
+      mode: session.mode,
+      payment_status: session.payment_status,
+    })
+  }
+
+  if (!handledStripeEventType(event.type)) {
+    logger.info({
+      event: 'stripe_webhook_unhandled_event_type',
+      stripe_event_id: event.id,
+      event_type: event.type,
+    })
+  }
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
-  const signature = req.headers.get('stripe-signature')!
+  const signature = req.headers.get('stripe-signature')
   const webhookSecret = requireEnv('STRIPE_WEBHOOK_SECRET')
   const stripe = getStripe()
 
   let event: Stripe.Event
   try {
+    if (!signature) {
+      throw new Error('Missing Stripe signature')
+    }
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (error) {
     logger.error({
@@ -545,6 +600,13 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
+
+  logger.info({
+    event: 'stripe_webhook_received',
+    stripe_event_id: event.id,
+    event_type: event.type,
+    livemode: event.livemode,
+  })
 
   const supabase = createAdminClient()
   const claimResponse = await claimStripeEvent(supabase, event)
