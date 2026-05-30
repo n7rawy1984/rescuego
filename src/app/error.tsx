@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import Link from 'next/link'
+import * as Sentry from '@sentry/nextjs'
 
 export default function GlobalError({
   error,
@@ -10,8 +11,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Sentry will be wired here in TASK-OBS01
-    console.error('[RescueGo Error]', error)
+    Sentry.captureException(error)
   }, [error])
 
   return (

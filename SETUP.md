@@ -51,12 +51,21 @@ OPS_CRON_SECRET=generate-a-long-random-secret
 # Optional distributed rate limiting with Upstash Redis
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
+
+# Optional production monitoring with Sentry
+SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_DSN=
+SENTRY_AUTH_TOKEN=
+SENTRY_ORG=
+SENTRY_PROJECT=
 ```
 
 Important:
 - Never expose `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, or `STRIPE_WEBHOOK_SECRET` in client code.
 - Never expose `OPS_CRON_SECRET` in client code. It is server-only and is used to protect internal operations endpoints.
 - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are optional. If they are missing, rate limiting falls back to process-local memory for local development.
+- `SENTRY_DSN` is optional and enables server/edge error capture. `NEXT_PUBLIC_SENTRY_DSN` enables browser error capture; Sentry DSNs are public identifiers, not secret keys.
+- `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are only needed for source-map upload during production builds. Leave them empty locally unless Sentry releases are configured.
 - For local development, use Stripe test keys.
 - For production, change `NEXT_PUBLIC_APP_URL` to `https://rescuego.ae`.
 
@@ -71,6 +80,9 @@ Run all SQL migrations in order from the `supabase/migrations` folder:
 5. `005_ppj_payments.sql`
 6. `006_billing_stability.sql`
 7. `007_operational_lifecycle.sql`
+8. `008_upgrade_job_credits.sql`
+9. `009_operational_trust_credits.sql`
+10. `010_harden_open_request_privacy.sql`
 
 In Supabase:
 
@@ -78,7 +90,7 @@ In Supabase:
 2. Create a new query.
 3. Paste the contents of `001_initial_schema.sql`.
 4. Run it.
-5. Repeat for each migration in order through `007_operational_lifecycle.sql`.
+5. Repeat for each migration in order through `010_harden_open_request_privacy.sql`.
 
 These migrations create:
 - `users`
@@ -541,11 +553,39 @@ Fix:
 - Confirm `providers.documents` contains paths.
 - Confirm `SUPABASE_SERVICE_ROLE_KEY` is set.
 
+## Production Monitoring
+
+Sentry monitoring is optional and safe to leave disabled. If `SENTRY_DSN` is empty,
+server and edge error capture are not enabled. If `NEXT_PUBLIC_SENTRY_DSN` is empty,
+browser error capture is not enabled.
+
+Captured:
+- unhandled server/runtime errors
+- unhandled browser errors
+- Next.js request errors through `instrumentation.ts`
+- global app errors from `src/app/error.tsx`
+
+Disabled by default:
+- session replay
+- profiling
+- performance tracing
+- manual capture of raw operational payloads
+
+Privacy rules:
+- do not send raw Stripe webhook payloads to Sentry
+- do not send request bodies, cookies, authorization headers, session tokens, phone numbers, exact addresses, coordinates, or customer operational notes
+- use structured logs for operational IDs/statuses only, never customer contact or exact location data
+
+Source maps:
+- set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` only in CI/Vercel if source-map upload is desired
+- builds continue without source-map upload when these values are missing
+
 ## Notes for Production
 
 - Enable Supabase email confirmation.
 - Use production Stripe keys and live price IDs.
 - Set `NEXT_PUBLIC_APP_URL=https://rescuego.ae`.
+- Configure optional Sentry monitoring after confirming privacy redaction in a staging deployment.
 - Configure Stripe production webhook endpoint:
 
 ```txt

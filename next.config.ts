@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 function originFromUrl(value: string | undefined): string | null {
   if (!value) return null
@@ -12,6 +13,9 @@ function originFromUrl(value: string | undefined): string | null {
 
 const supabaseOrigin = originFromUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
 const supabaseRealtimeOrigin = supabaseOrigin?.replace(/^https:/, 'wss:') ?? null
+const hasSentrySourceMapEnv = Boolean(
+  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+)
 
 const contentSecurityPolicyReportOnly = [
   "default-src 'self'",
@@ -53,6 +57,8 @@ const contentSecurityPolicyReportOnly = [
     'https://r.stripe.com',
     'https://q.stripe.com',
     'https://m.stripe.network',
+    'https://*.ingest.sentry.io',
+    'https://*.ingest.us.sentry.io',
   ].filter(Boolean).join(' '),
   [
     "frame-src",
@@ -88,4 +94,26 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  telemetry: false,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+      removeTracing: true,
+      excludeReplayIframe: true,
+      excludeReplayShadowDOM: true,
+      excludeReplayCompressionWorker: true,
+    },
+  },
+  sourcemaps: {
+    disable: !hasSentrySourceMapEnv,
+  },
+  release: {
+    create: hasSentrySourceMapEnv,
+    finalize: hasSentrySourceMapEnv,
+  },
+  errorHandler: (error) => {
+    console.warn('[Sentry] Source map upload skipped or failed without blocking build.', error.message)
+  },
+});
