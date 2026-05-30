@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 
 const ratingSchema = z.object({
@@ -37,9 +37,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const rateLimit = checkRateLimit(`customer-rating:${user.id}`, 20, 60 * 60 * 1000)
+  const rateLimit = await checkRateLimitAsync(`customer-rating:${user.id}`, 20, 60 * 60 * 1000, 'customer_rating_submit')
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: 'Too many rating attempts. Please try again later.' }, { status: 429 })
+    return NextResponse.json(
+      { error: 'Too many rating attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfter) },
+      }
+    )
   }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()

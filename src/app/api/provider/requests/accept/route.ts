@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { getProviderAllowance } from '@/lib/provider-allowance'
 import { OVERAGE_FEE_AED, PROVIDER_STALE_MINUTES } from '@/types'
@@ -40,9 +40,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const rateLimit = checkRateLimit(`provider-accept:${user.id}`, 60, 60 * 1000)
+  const rateLimit = await checkRateLimitAsync(`provider-accept:${user.id}`, 60, 60 * 1000, 'provider_request_accept')
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: 'Too many accept attempts. Please try again shortly.' }, { status: 429 })
+    return NextResponse.json(
+      { error: 'Too many accept attempts. Please try again shortly.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfter) },
+      }
+    )
   }
 
   const { data: profile } = await supabase

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 
 const customerProfileSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -18,17 +18,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid customer profile details' }, { status: 400 })
   }
 
-  const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown'
-  const rateLimit = checkRateLimit(`customer-register:${ip}`, 5, 60 * 60 * 1000)
-  if (!rateLimit.allowed) {
-    return NextResponse.json({ error: 'Too many registration attempts from this address.' }, { status: 429 })
-  }
-
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const rateLimit = await checkRateLimitAsync(`customer-register:${user.id}`, 5, 60 * 60 * 1000, 'customer_profile_create')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many registration attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfter) },
+      }
+    )
   }
 
   if (user.email && user.email.toLowerCase() !== parsed.data.email.toLowerCase()) {
