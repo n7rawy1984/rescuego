@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 
 const cancelSchema = z.object({
   request_id: z.string().uuid(),
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const rateLimit = checkRateLimit(`customer-cancel:${user.id}`, 20, 60 * 60 * 1000)
+  const rateLimit = await checkRateLimitAsync(`customer-cancel:${user.id}`, 20, 60 * 60 * 1000, 'customer_request_cancel')
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many cancellation attempts. Please try again later.' },

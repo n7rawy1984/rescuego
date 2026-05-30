@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { roundDispatchCoordinate, UAE_BOUNDS } from '@/lib/geo'
 
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const rateLimit = checkRateLimit(`customer-request:${user.id}`, 10, 60 * 60 * 1000)
+  const rateLimit = await checkRateLimitAsync(`customer-request:${user.id}`, 10, 60 * 60 * 1000, 'customer_request_create')
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many recovery requests. Please try again later.' },

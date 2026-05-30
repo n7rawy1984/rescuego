@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getRequestUser } from '@/lib/supabase/request-user'
 import { getAppUrl } from '@/lib/env'
 import { logger } from '@/lib/logger'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 import type { ProviderPlan } from '@/types'
 
 const PLAN_PRICE_IDS: Record<Exclude<ProviderPlan, 'pay_per_job'>, string | undefined> = {
@@ -62,6 +63,17 @@ export async function POST(req: NextRequest) {
 
   if (user.id !== provider_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const rateLimit = await checkRateLimitAsync(`subscription-checkout:${user.id}`, 10, 60 * 60 * 1000, 'subscription_checkout')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many checkout attempts. Please wait.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfter) },
+      }
+    )
   }
 
   const supabase = createAdminClient()

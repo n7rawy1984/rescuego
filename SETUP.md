@@ -47,11 +47,16 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 # Internal operations, server-only
 OPS_CRON_SECRET=generate-a-long-random-secret
+
+# Optional distributed rate limiting with Upstash Redis
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 ```
 
 Important:
 - Never expose `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, or `STRIPE_WEBHOOK_SECRET` in client code.
 - Never expose `OPS_CRON_SECRET` in client code. It is server-only and is used to protect internal operations endpoints.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are optional. If they are missing, rate limiting falls back to process-local memory for local development.
 - For local development, use Stripe test keys.
 - For production, change `NEXT_PUBLIC_APP_URL` to `https://rescuego.ae`.
 

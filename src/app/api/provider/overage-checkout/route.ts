@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { getProviderAllowance } from '@/lib/provider-allowance'
 import { OVERAGE_FEE_AED, PROVIDER_STALE_MINUTES } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const rateLimit = checkRateLimit(`overage-checkout:${user.id}`, 10, 60 * 60 * 1000)
+  const rateLimit = await checkRateLimitAsync(`overage-checkout:${user.id}`, 10, 60 * 60 * 1000, 'provider_overage_checkout')
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many checkout attempts. Please wait.' },
