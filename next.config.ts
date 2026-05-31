@@ -29,6 +29,7 @@ const contentSecurityPolicyReportOnly = [
     // Keep this report-only until nonce/hash rollout is tested.
     "'unsafe-inline'",
     'https://js.stripe.com',
+    'https://static.cloudflareinsights.com',
   ].join(' '),
   [
     "style-src",
@@ -60,6 +61,7 @@ const contentSecurityPolicyReportOnly = [
     'https://*.ingest.sentry.io',
     'https://*.ingest.us.sentry.io',
     'https://*.ingest.de.sentry.io',
+    'https://cloudflareinsights.com',
   ].filter(Boolean).join(' '),
   [
     "frame-src",
