@@ -66,20 +66,21 @@ function PpjPayContent() {
   }
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
-        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="mx-auto max-w-lg">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-xl shadow-slate-200/70 sm:p-8">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100">
           <CreditCard className="h-7 w-7 text-orange-600" aria-hidden="true" />
         </div>
-        <h1 className="text-xl font-bold text-slate-900 mb-2">Pay Per Job Acceptance Fee</h1>
+        <p className="text-xs font-bold uppercase tracking-wide text-orange-600">Secure assignment payment</p>
+        <h1 className="mb-2 mt-1 text-2xl font-bold text-slate-900">Pay Per Job Acceptance Fee</h1>
         <p className="text-slate-600 mb-6">
           Pay <strong className="text-orange-600">{fee} AED</strong> to accept this recovery request.
         </p>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-800 text-left">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-sm text-amber-800 text-left">
           Once payment is confirmed, the request will be automatically assigned to you and appear as your active job.
           Exact customer location is shown only after payment and assignment.
         </div>
-        <p className="mb-6 rounded-xl bg-slate-50 px-4 py-3 text-left text-xs leading-5 text-slate-500">
+        <p className="mb-6 rounded-2xl bg-slate-50 px-4 py-3 text-left text-xs leading-5 text-slate-500">
           Secure payment powered by Stripe. Your card details are encrypted and never stored by RescueGo.
         </p>
         <StripeElementsProvider clientSecret={clientSecret}>

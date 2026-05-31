@@ -504,13 +504,13 @@ export default function ProviderRegisterPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
+      <main className="rg-page-shell">
         {LAUNCH_PROMO && (
-          <div className="-mx-4 -mt-8 mb-8 bg-orange-500 text-white text-center py-3 px-4 text-sm font-semibold">
+          <div className="-mx-4 -mt-8 mb-8 bg-orange-500 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm">
             Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat - Limited time only!
           </div>
         )}
-        <div className="max-w-2xl mx-auto">
+        <div className="rg-container-narrow">
           {existingAccount.checked && existingAccount.actionHref && !hydratingAccount && (
             <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h1 className="text-xl font-bold text-slate-900">Account already signed in</h1>
@@ -566,25 +566,26 @@ export default function ProviderRegisterPage() {
 
           {showStepFlow && (
           <>
-          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <p className="text-sm font-medium text-slate-500">Provider onboarding</p>
-            <h1 className="text-2xl font-bold text-slate-900">
+          <div className="mb-8 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200 sm:p-6">
+            <p className="text-sm font-semibold text-orange-200">Provider onboarding</p>
+            <h1 className="mt-1 text-3xl font-bold text-white">
               {isResumeFlow ? 'Continue your provider setup' : 'Join as Recovery Provider'}
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-2 text-sm leading-6 text-slate-300">
               {isResumeFlow ? 'Finish the remaining steps to activate your RescueGo provider account.' : 'Start receiving recovery requests in your area'}
             </p>
-            <div className="flex gap-2 mt-4">
+            <div className="mt-6 flex gap-2">
               {[1, 2, 3, 4].map((s) => (
-                <div key={s} className={`flex-1 h-1.5 rounded-full ${step >= s ? 'bg-orange-500' : 'bg-slate-200'}`} />
+                <div key={s} className={`h-2 flex-1 rounded-full ${step >= s ? 'bg-orange-500' : 'bg-white/20'}`} />
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2">Step {step} of 4</p>
+            <p className="mt-2 text-xs font-semibold text-slate-300">Step {step} of 4</p>
           </div>
 
           {step === 1 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-              <h2 className="text-lg font-semibold mb-4">Complete provider profile</h2>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70 sm:p-8">
+              <h2 className="mb-2 text-xl font-bold text-slate-900">Complete provider profile</h2>
+              <p className="mb-6 text-sm leading-6 text-slate-500">This profile helps RescueGo verify your account and contact you during onboarding.</p>
               <form onSubmit={handleAccountSubmit} className="flex flex-col gap-4">
                 <Input id="name" label="Full Name" value={form.name} onChange={e => update('name', e.target.value)} required placeholder="Ahmed Al Rashid" />
                 <Input id="phone" type="tel" label="Phone Number" value={form.phone} onChange={e => update('phone', e.target.value)} required placeholder="+971 50 000 0000" />
@@ -609,8 +610,8 @@ export default function ProviderRegisterPage() {
           )}
 
           {step === 2 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-              <h2 className="text-lg font-semibold mb-2">Upload Required Documents</h2>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70 sm:p-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-2">Upload Required Documents</h2>
               <p className="text-sm text-slate-500 mb-6">All documents are reviewed by our team before activation. Max 5MB each. JPG, PNG, or PDF.</p>
               <form onSubmit={handleDocumentUpload} className="flex flex-col gap-5">
                 {[
@@ -618,7 +619,7 @@ export default function ProviderRegisterPage() {
                   { key: 'license', label: 'UAE Driving License' },
                   { key: 'vehicle', label: 'Vehicle Photo (with plate visible)' },
                 ].map(({ key, label }) => (
-                  <div key={key} className="flex flex-col gap-1.5">
+                  <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <label className="text-sm font-medium text-slate-700">{label} <span className="text-red-500">*</span></label>
                     <input
                       type="file"
@@ -637,8 +638,8 @@ export default function ProviderRegisterPage() {
           )}
 
           {step === 3 && (
-            <div>
-              <h2 className="text-lg font-semibold mb-1">Choose your access plan</h2>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70 sm:p-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-1">Choose your access plan</h2>
               <p className="mb-4 text-sm text-slate-500">Use Pay Per Job or subscribe monthly before your account is ready for requests.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 {PLANS.map((plan) => (
@@ -646,7 +647,7 @@ export default function ProviderRegisterPage() {
                     key={plan.id}
                     onClick={() => setSelectedPlan(plan.id)}
                     disabled={loading}
-                    className={`relative rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${selectedPlan === plan.id ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
+                    className={`relative rounded-2xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${selectedPlan === plan.id ? 'border-orange-500 bg-orange-50 shadow-md shadow-orange-100' : 'border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/30'}`}
                   >
                     {plan.highlight && <span className="absolute top-3 right-3 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Popular</span>}
                     <div className="font-bold text-slate-900 text-lg">{plan.name}</div>

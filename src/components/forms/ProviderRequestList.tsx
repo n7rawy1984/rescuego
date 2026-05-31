@@ -279,12 +279,13 @@ export default function ProviderRequestList({
         : PAY_PER_JOB_FEE_NEAR_AED
 
   return (
-    <Card className="overflow-hidden border-slate-200 shadow-sm shadow-slate-200/70">
-      <CardHeader className="border-slate-100 bg-white">
+    <Card className="overflow-hidden border-slate-200 shadow-lg shadow-slate-200/70">
+      <CardHeader className="border-slate-200 bg-slate-950 text-white">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold text-slate-900">Nearby Roadside Requests</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="text-xs font-bold uppercase tracking-wide text-orange-200">Request intake</p>
+            <h2 className="mt-1 text-xl font-bold text-white">Nearby Roadside Requests</h2>
+            <p className="mt-1 text-sm text-slate-300">
               {requestItems.length > 0
                 ? requestFeedMode === 'fallback'
                   ? `Showing ${requestItems.length} available open request${requestItems.length === 1 ? '' : 's'} while nearby location matching refreshes.`
@@ -294,7 +295,7 @@ export default function ProviderRequestList({
                 : 'Open requests will appear here as customers submit them.'}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 ring-1 ring-white/10">
             <span className={`h-2 w-2 rounded-full ${providerOnline ? 'bg-green-500' : 'bg-slate-400'}`} />
             Auto updates
           </span>
@@ -307,8 +308,8 @@ export default function ProviderRequestList({
           </div>
         )}
         {requestItems.length === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+          <div className="px-6 py-16 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400">
               <Search className="h-5 w-5" aria-hidden="true" />
             </div>
             <p className="font-semibold text-slate-800">
@@ -327,25 +328,25 @@ export default function ProviderRequestList({
             {requestItems.map((req) => {
               const Icon = problemIcons[req.problem_type] ?? HelpCircle
               return (
-              <div key={req.id} className="flex flex-col gap-4 px-5 py-5 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <div key={req.id} className="flex flex-col gap-5 px-5 py-5 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
-                    <div className="font-semibold text-slate-800">{getProblemLabel(req.problem_type)}</div>
-                    <div className="mt-1 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
+                    <div className="text-lg font-bold text-slate-900">{getProblemLabel(req.problem_type)}</div>
+                    <div className="mt-2 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                       <div className="min-w-0">
                         <div className="break-words">Location hidden until accepted</div>
                         <div className="text-xs text-slate-400">Exact customer location is shared after assignment.</div>
                       </div>
                     </div>
-                    <div className="text-xs text-slate-400 mt-0.5">
+                    <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                       {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     {providerPlan === 'pay_per_job' && (
-                      <div className="mt-1 inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
+                      <div className="mt-2 inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 ring-1 ring-orange-100">
                         {ppjRecoveryCredits > 0
                           ? 'Recovery credit available'
                           : LAUNCH_PROMO
@@ -360,7 +361,7 @@ export default function ProviderRequestList({
                 </div>
                 <Button
                   size="sm"
-                  className="w-full sm:w-auto"
+                  className="w-full shadow-md shadow-orange-100 sm:w-auto"
                   loading={accepting === req.id}
                   onClick={() => requestAcceptConfirmation(req.id)}
                   disabled={providerStatus !== 'active' || !providerOnline || accepting !== null || overageLoading}

@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import { SUBSCRIPTION_PLANS } from '@/types'
 import type { ProviderPlan } from '@/types'
 
@@ -115,7 +116,7 @@ export default function SubscribePlans({
   return (
     <div>
       {(hasSubscription || selectedPlan || returnedFromBillingPortal || planWasAlreadyCurrent) && (
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-md shadow-slate-200/70">
           <p className="text-sm font-semibold text-slate-900">
             You are currently on {planName(currentPlan)}.
           </p>
@@ -154,7 +155,12 @@ export default function SubscribePlans({
           const isCurrent = currentPlan === plan.id
 
           return (
-            <article key={plan.id} className={`rounded-2xl border bg-white p-6 shadow-sm ${isCurrent ? 'border-green-500 ring-2 ring-green-100' : isSelected ? 'border-amber-300 ring-1 ring-amber-100' : 'border-slate-200'}`}>
+            <article key={plan.id} className={`relative overflow-hidden rounded-3xl border bg-white p-6 shadow-lg shadow-slate-200/70 ${isCurrent ? 'border-green-500 ring-2 ring-green-100' : isSelected ? 'border-amber-300 ring-2 ring-amber-100' : 'border-slate-200'}`}>
+            {plan.id === 'pro' && !isCurrent && (
+              <div className="absolute right-5 top-5 rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
+                Popular
+              </div>
+            )}
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
               <div className="flex flex-wrap justify-end gap-2">
@@ -171,12 +177,12 @@ export default function SubscribePlans({
                 {selectedPlanCopy(plan.id)}
               </p>
             )}
-            <div className="mt-3 flex items-end gap-2">
-              <span className="text-3xl font-bold text-slate-950">{plan.price_aed}</span>
+            <div className="mt-5 flex items-end gap-2">
+              <span className="text-4xl font-bold text-slate-950">{plan.price_aed}</span>
               <span className="pb-1 text-sm text-slate-500">AED/mo</span>
             </div>
 
-            <dl className="mt-6 space-y-3 text-sm">
+            <dl className="mt-6 space-y-3 rounded-2xl bg-slate-50 p-4 text-sm">
               <div className="flex justify-between gap-4">
                 <dt className="text-slate-500">Monthly jobs</dt>
                 <dd className="font-semibold text-slate-800">{plan.monthly_jobs ?? 'Unlimited'}</dd>
@@ -195,12 +201,12 @@ export default function SubscribePlans({
               </div>
             </dl>
 
-            <div className="mt-6 rounded-xl bg-slate-50 p-4">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
               <h3 className="text-sm font-semibold text-slate-900">What you get</h3>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 {planValueCopy(plan.id).map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <span className="font-bold text-green-600">✓</span>
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -217,7 +223,7 @@ export default function SubscribePlans({
               type="button"
               onClick={() => handleSubscribe(plan.id)}
               disabled={loadingPlan !== null || isCurrent}
-              className={`mt-6 flex h-11 w-full items-center justify-center rounded-lg px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-slate-100 text-slate-500' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+              className={`mt-6 flex min-h-12 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-slate-100 text-slate-500' : 'bg-orange-500 text-white shadow-md shadow-orange-100 hover:bg-orange-600'}`}
             >
               {isCurrent
                 ? 'Current Plan'

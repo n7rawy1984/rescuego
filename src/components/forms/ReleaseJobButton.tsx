@@ -62,8 +62,9 @@ export default function ReleaseJobButton({ requestId, providerPlan }: ReleaseJob
   }
 
   return (
-    <div className="mt-4">
-      <Button type="button" variant="outline" onClick={() => setOpen(true)} disabled={loading}>
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+      <p className="mb-3 text-sm text-slate-600">Unable to complete this job? Release it so another eligible provider can help the customer.</p>
+      <Button type="button" variant="outline" onClick={() => setOpen(true)} disabled={loading} className="w-full sm:w-auto">
         Release / Unable to complete
       </Button>
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
@@ -83,7 +84,7 @@ export default function ReleaseJobButton({ requestId, providerPlan }: ReleaseJob
                 type="button"
                 onClick={() => setOpen(false)}
                 disabled={loading}
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Keep job
               </button>
@@ -91,7 +92,7 @@ export default function ReleaseJobButton({ requestId, providerPlan }: ReleaseJob
                 type="button"
                 onClick={releaseJob}
                 disabled={loading}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Releasing...' : 'Release job'}
               </button>

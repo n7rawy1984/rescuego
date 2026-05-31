@@ -68,7 +68,8 @@ export default function CompleteJobForm({ requestId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+    <form onSubmit={handleSubmit} className="mt-4 rounded-2xl border border-orange-100 bg-white/80 p-4 shadow-sm">
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
       <Input
         id={`final-price-${requestId}`}
         type="number"
@@ -83,6 +84,7 @@ export default function CompleteJobForm({ requestId }: Props) {
       <Button type="submit" loading={loading}>
         {loading ? 'Completing job...' : 'Complete Job'}
       </Button>
+      </div>
       {error && <p className="text-sm text-red-500 sm:pb-2">{error}</p>}
     </form>
   )

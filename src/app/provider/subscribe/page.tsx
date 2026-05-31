@@ -63,11 +63,12 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 px-4 py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8 max-w-2xl">
-            <h1 className="text-2xl font-bold text-slate-900">Choose your subscription plan</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+      <main className="rg-page-shell">
+        <div className="rg-container">
+          <div className="mb-8 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200 sm:p-7">
+            <p className="text-sm font-semibold text-orange-200">Subscription upgrade</p>
+            <h1 className="mt-1 text-3xl font-bold text-white sm:text-4xl">Choose your subscription plan</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
               Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower premium commissions.
             </p>
           </div>
