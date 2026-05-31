@@ -419,8 +419,8 @@ export default async function ProviderDashboardPage({
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-20">
-        <div className="rg-container">
+      <main className="min-h-screen bg-[#F8FAFC]">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           <section className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Provider operations</p>
@@ -520,9 +520,9 @@ export default async function ProviderDashboardPage({
             providerPlan={provider.plan}
           />
 
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3">
+          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
+              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
                 <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E1F5EE] text-[#0F6E56]">
                   <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />
                 </div>
@@ -534,8 +534,8 @@ export default async function ProviderDashboardPage({
                 </div>
               </CardBody>
             </Card>
-            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3">
+            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
+              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
                 <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E6F1FB] text-[#185FA5]">
                   <CreditCard className="h-4 w-4" aria-hidden="true" />
                 </div>
@@ -553,8 +553,8 @@ export default async function ProviderDashboardPage({
                 ) : null}
               </CardBody>
             </Card>
-            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3">
+            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
+              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
                 <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#FAEEDA] text-amber-700">
                   <TrendingUp className="h-4 w-4" aria-hidden="true" />
                 </div>
@@ -564,8 +564,8 @@ export default async function ProviderDashboardPage({
                 </div>
               </CardBody>
             </Card>
-            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3">
+            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
+              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
                 <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E1F5EE] text-[#0F6E56]">
                   <WalletCards className="h-4 w-4" aria-hidden="true" />
                 </div>
