@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { BriefcaseBusiness, CreditCard, MapPin, ShieldCheck, Star, TrendingUp, WalletCards } from 'lucide-react'
+import { BriefcaseBusiness, CreditCard, History, MapPin, ShieldCheck, Star, TrendingUp, WalletCards } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -195,7 +195,6 @@ export default async function ProviderDashboardPage({
 
   if (!provider) redirect('/provider/register')
 
-  const statusVariant = provider.status === 'active' ? 'success' : provider.status === 'suspended' ? 'danger' : 'warning'
   const roundedRating = Math.round(provider.rating)
   const onboarding = getProviderOnboardingState({
     name: provider.users?.name ?? null,
@@ -420,44 +419,58 @@ export default async function ProviderDashboardPage({
   return (
     <>
       <Navbar />
-      <main className="rg-page-shell">
+      <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-20">
         <div className="rg-container">
-          <section className="relative mb-6 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200 sm:p-7">
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-orange-500/10 blur-3xl" aria-hidden="true" />
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <section className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-orange-200">Provider operations</p>
-                <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Manage availability, active jobs, request intake, and recent activity from one operational workspace.</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Provider operations</p>
+                <h1 className="mt-1 text-3xl font-medium tracking-tight text-slate-950 sm:text-4xl">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Manage availability, active jobs, request intake, and recent activity.</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Badge variant={statusVariant} className="capitalize">{provider.status}</Badge>
-                  <Badge variant="info">{getPlanLabel(provider.plan)}</Badge>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${
+                      provider.status === 'active'
+                        ? 'bg-[#E1F5EE] text-[#0F6E56]'
+                        : provider.status === 'suspended'
+                          ? 'bg-red-50 text-red-700'
+                          : 'bg-[#FAEEDA] text-amber-800'
+                    }`}
+                  >
+                    {provider.status}
+                  </span>
+                  <span className="rounded-full bg-[#E6F1FB] px-3 py-1 text-xs font-medium text-[#185FA5]">{getPlanLabel(provider.plan)}</span>
                   {provider.verified_badge && (
-                    <Badge variant="success" className="gap-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-medium text-[#0F6E56]">
                       <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                       Trusted Recovery Partner
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-left shadow-sm sm:text-right">
+              <div className="rounded-lg border border-amber-200 bg-[#FAEEDA] px-4 py-3 text-left sm:text-right">
                 <div className="flex items-center gap-1 sm:justify-end">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star
                       key={star}
-                      className={`h-5 w-5 ${star <= roundedRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                      className={`h-5 w-5 ${star <= roundedRating ? 'fill-amber-500 text-amber-500' : 'text-amber-200'}`}
                       aria-hidden="true"
                     />
                   ))}
-                  <span className="ml-2 text-3xl font-bold text-white">{provider.rating.toFixed(1)}</span>
+                  <span className="ml-2 text-2xl font-medium text-amber-950">{provider.rating.toFixed(1)}</span>
                 </div>
-                <div className="mt-1 text-sm text-slate-300">Your rating</div>
+                <div className="mt-1 text-sm text-amber-800">Your rating</div>
                 {!recentJobs?.length ? (
-                  <div className="text-xs text-slate-400">Your first reviews will appear after completed jobs.</div>
+                  <div className="text-xs text-amber-700">Your first reviews will appear after completed jobs.</div>
                 ) : null}
               </div>
-            </div>
           </section>
+
+          {operationalReady && (
+            <div className="mb-6 flex max-w-3xl items-center gap-3 rounded-lg border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-sm text-[#0F6E56]">
+              <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span>Your provider account is active for RescueGo dispatch operations.</span>
+            </div>
+          )}
 
           <ProviderOnboardingChecklist
             name={provider.users?.name ?? null}
@@ -508,30 +521,28 @@ export default async function ProviderDashboardPage({
           />
 
           <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-            <Card className="min-h-[150px] border-slate-200 bg-white shadow-md shadow-slate-200/70">
+            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
               <CardBody className="flex h-full flex-col justify-between gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E1F5EE] text-[#0F6E56]">
                   <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-slate-950">{provider.jobs_this_month}</div>
+                  <div className="text-3xl font-medium text-slate-950">{provider.jobs_this_month}</div>
                   <div className="mt-1 text-sm text-slate-500">
-                    {allowance.isPayPerJob ? 'Accepted jobs this month' : 'Monthly jobs used'}
+                    Jobs this month
                   </div>
                 </div>
               </CardBody>
             </Card>
-            <Card className="min-h-[150px] border-orange-200 bg-orange-50 shadow-md shadow-orange-100/70">
+            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
               <CardBody className="flex h-full flex-col justify-between gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-orange-600 ring-1 ring-orange-100">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E6F1FB] text-[#185FA5]">
                   <CreditCard className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-slate-950">
-                    {allowance.isPayPerJob ? 'PPJ' : allowance.isUnlimited ? 'Unlimited' : allowance.remaining}
-                  </div>
-                  <div className="mt-1 text-sm text-orange-800">
-                    {allowance.isPayPerJob ? 'No monthly allowance' : 'Available jobs remaining'}
+                  <div className="text-2xl font-medium text-slate-950">{getPlanLabel(provider.plan)}</div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {allowance.isPayPerJob ? 'No monthly allowance' : allowance.isUnlimited ? 'Unlimited monthly jobs' : `${allowance.remaining} available jobs`}
                   </div>
                 </div>
                 {allowance.creditBalance > 0 && allowance.hasMonthlyAllowance ? (
@@ -542,25 +553,25 @@ export default async function ProviderDashboardPage({
                 ) : null}
               </CardBody>
             </Card>
-            <Card className="min-h-[150px] border-slate-200 bg-white shadow-md shadow-slate-200/70">
+            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
               <CardBody className="flex h-full flex-col justify-between gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#FAEEDA] text-amber-700">
                   <TrendingUp className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-orange-500">{getPlanLabel(provider.plan)}</div>
+                  <div className="text-2xl font-medium text-amber-700">{allowance.isPayPerJob ? 'PPJ' : allowance.isUnlimited ? 'Unlimited' : 'Monthly'}</div>
                   <div className="mt-1 text-sm text-slate-500">Current access</div>
                 </div>
               </CardBody>
             </Card>
-            <Card className="min-h-[150px] border-green-200 bg-green-50 shadow-md shadow-green-100/70">
+            <Card className="min-h-[132px] rounded-lg border-slate-200 bg-white shadow-sm">
               <CardBody className="flex h-full flex-col justify-between gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-green-600 ring-1 ring-green-100">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E1F5EE] text-[#0F6E56]">
                   <WalletCards className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-green-700">{totalEarnings > 0 ? `${totalEarnings} AED` : '-'}</div>
-                  <div className="mt-1 text-sm text-green-800">Earnings from last 10 jobs</div>
+                  <div className="text-3xl font-medium text-[#1D9E75]">{totalEarnings > 0 ? `${totalEarnings} AED` : '-'}</div>
+                  <div className="mt-1 text-sm text-slate-500">Earnings</div>
                 </div>
                 {totalEarnings === 0 ? (
                   <div className="text-xs text-slate-400 mt-1">Completed jobs will build this total.</div>
@@ -570,31 +581,31 @@ export default async function ProviderDashboardPage({
           </div>
 
           {upgradePrompt && (
-            <div className="mb-6 flex flex-col justify-between gap-4 rounded-3xl border border-orange-200 bg-gradient-to-r from-orange-50 via-white to-amber-50 p-5 shadow-md shadow-orange-100/60 sm:flex-row sm:items-center">
+            <div className="mb-6 flex flex-col justify-between gap-4 rounded-lg border border-[#B5D4F4] bg-[#E6F1FB] p-5 sm:flex-row sm:items-center">
               <div>
-                <p className="font-semibold text-orange-900 text-sm">
+                <p className="text-sm font-medium text-[#185FA5]">
                   {upgradePrompt.title}
                 </p>
-                <p className="text-xs text-orange-700 mt-0.5">
+                <p className="mt-0.5 text-xs text-slate-600">
                   {upgradePrompt.subtitle}
                 </p>
                 {upgradePrompt.creditNote ? (
-                  <p className="mt-1 text-xs text-orange-700/80">
+                  <p className="mt-1 text-xs text-[#185FA5]">
                     {upgradePrompt.creditNote}
                   </p>
                 ) : null}
               </div>
                   <a
                     href={upgradePrompt.href}
-                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[#185FA5] bg-white px-4 text-sm font-medium text-[#185FA5] transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
                   >
-                {upgradePrompt.label}
+                Upgrade plan →
               </a>
             </div>
           )}
 
           {provider.plan === 'business' && (
-            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <p className="font-semibold text-slate-800 text-sm">You are on the highest plan.</p>
               <p className="text-xs text-slate-500 mt-0.5">Business includes unlimited jobs, highest priority, and no premium commission.</p>
             </div>
@@ -676,12 +687,12 @@ export default async function ProviderDashboardPage({
           )}
 
           {activeRequest && (
-            <Card className="mb-6 overflow-hidden border-orange-300 bg-orange-50 shadow-xl shadow-orange-100/80">
-              <CardHeader className="border-orange-200 bg-gradient-to-r from-orange-500 to-amber-500 text-white">
+            <Card className="mb-6 overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
+              <CardHeader className="border-slate-200 bg-white">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-orange-100">Assigned now</p>
-                  <h2 className="mt-1 text-xl font-bold text-white">Active Job</h2>
-                  <p className="mt-1 text-sm text-orange-50">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned now</p>
+                  <h2 className="mt-1 text-xl font-medium text-slate-950">Active Job</h2>
+                  <p className="mt-1 text-sm text-slate-500">
                     Customer contact and exact location are visible because this job is assigned to you.
                   </p>
                 </div>
@@ -690,9 +701,9 @@ export default async function ProviderDashboardPage({
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="font-semibold text-slate-800">{getProblemLabel(activeRequest.problem_type)}</div>
-                    <div className="mt-3 rounded-xl border border-orange-100 bg-white/80 p-4">
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
                       <div className="flex items-start gap-2">
-                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" aria-hidden="true" />
+                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0F6E56]" aria-hidden="true" />
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-slate-800">
                             {activeLocation?.label ?? 'Location details unavailable'}
@@ -707,7 +718,7 @@ export default async function ProviderDashboardPage({
                       </div>
                       <LocationActions coordinates={activeLocation?.coordinates ?? null} />
                     </div>
-                    <div className="mt-3 rounded-xl border border-orange-100 bg-white/80 p-4">
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
                       <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Customer contact</div>
                       <div className="mt-1 text-sm font-semibold text-slate-800">
                         {activeRequest.users?.name ?? 'Customer'}
@@ -724,7 +735,7 @@ export default async function ProviderDashboardPage({
                       )}
                     </div>
                     {activeRequest.note && (
-                      <div className="mt-3 rounded-xl border border-orange-100 bg-white/80 p-4">
+                      <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Location notes</div>
                         <p className="mt-1 text-sm text-slate-600">{activeRequest.note}</p>
                       </div>
@@ -751,9 +762,12 @@ export default async function ProviderDashboardPage({
             ppjRecoveryCredits={provider.ppj_recovery_credits ?? 0}
           />
 
-          <Card className="mt-6 overflow-hidden shadow-sm shadow-slate-200/70">
+          <Card className="mt-6 overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
             <CardHeader className="border-slate-100 bg-white">
-              <h2 className="font-semibold text-slate-900">Recent Activity</h2>
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-[#0F6E56]" aria-hidden="true" />
+                <h2 className="font-medium text-slate-900">Recent Activity</h2>
+              </div>
               <p className="mt-1 text-sm text-slate-500">Completed jobs, customer cancellations, and released requests.</p>
             </CardHeader>
             <CardBody className="p-0">
@@ -764,16 +778,15 @@ export default async function ProviderDashboardPage({
                     const location = safeActivityLocation(job.requests?.location_address)
 
                     return (
-                      <div key={job.id} className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start sm:px-6">
+                      <div key={job.id} className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 first:border-t-0 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-medium text-slate-800">
+                            <div className="font-medium text-slate-900">
                               {job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Service'}
                             </div>
                             <Badge variant={activity.badge}>{activity.label}</Badge>
                           </div>
                           <div className="mt-1 text-sm text-slate-500 break-words">{location}</div>
-                          <div className="mt-1 text-xs text-slate-400">{activity.detail}</div>
                         </div>
                         <div className="text-left sm:text-right">
                           <div className="font-semibold text-slate-800">

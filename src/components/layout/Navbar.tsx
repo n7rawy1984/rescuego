@@ -108,6 +108,8 @@ export default function Navbar() {
   }, [loadAttempt, router])
 
   const dashboardHref = dashboardHrefForRole(role)
+  const baseNavLink = 'rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2'
+  const activeNavLink = 'bg-[#E1F5EE] text-[#0F6E56]'
 
   function retryLoadUserRole() {
     setLoadError('')
@@ -134,20 +136,20 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10 xl:px-12">
-        <Link href="/" className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2" aria-label="RescueGo home">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 shadow-sm" aria-hidden="true">
+    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10 xl:px-12">
+        <Link href="/" className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2" aria-label="RescueGo home">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1D9E75]" aria-hidden="true">
             <span className="text-white font-bold text-sm">R</span>
           </div>
           <span className="font-bold text-xl text-slate-900">RescueGo</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/pricing" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">Pricing</Link>
-          <Link href="/about" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">About</Link>
+          <Link href="/pricing" className={`${baseNavLink} ${pathname === '/pricing' ? activeNavLink : ''}`}>Pricing</Link>
+          <Link href="/about" className={`${baseNavLink} ${pathname === '/about' ? activeNavLink : ''}`}>About</Link>
           {role === 'admin' && !loadError && !loading && (
-            <Link href="/admin/providers" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">Admin Tools</Link>
+            <Link href="/admin/providers" className={`${baseNavLink} ${pathname.startsWith('/admin') ? activeNavLink : ''}`}>Admin Tools</Link>
           )}
           {loadError ? (
             <div className="flex items-center gap-3">
@@ -155,7 +157,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={retryLoadUserRole}
-                className="text-sm font-semibold text-orange-600 hover:text-orange-700"
+                className="text-sm font-semibold text-[#0F6E56] hover:text-[#1D9E75]"
               >
                 Try again
               </button>
@@ -170,22 +172,22 @@ export default function Navbar() {
               <Link
                 href={dashboardHref}
                 onClick={(event) => event.currentTarget.blur()}
-                className="inline-flex min-h-10 items-center rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-600 active:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                className={`inline-flex min-h-9 items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 ${pathname.startsWith(dashboardHref) ? activeNavLink : 'text-slate-700 hover:bg-[#E1F5EE] hover:text-[#0F6E56]'}`}
               >
                 Dashboard
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-orange-600 active:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] active:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
                 Logout
               </button>
             </>
           ) : (
             <>
-              <Link href="/auth/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">Sign In</Link>
-              <Link href="/customer/request" className="inline-flex min-h-10 items-center rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">
+              <Link href="/auth/login" className={`${baseNavLink} ${pathname.startsWith('/auth/login') ? activeNavLink : ''}`}>Sign In</Link>
+              <Link href="/customer/request" className="inline-flex min-h-9 items-center rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2">
                 Get Help Now
               </Link>
             </>
@@ -193,7 +195,7 @@ export default function Navbar() {
         </div>
 
         <button
-          className="rounded-lg p-2 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 md:hidden"
+          className="rounded-lg p-2 transition-colors hover:bg-[#E1F5EE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 md:hidden"
           onClick={() => setOpen(!open)}
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
@@ -213,10 +215,10 @@ export default function Navbar() {
 
       {open && (
         <div id="mobile-nav" className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-4 shadow-sm md:hidden">
-          <Link href="/pricing" className="rounded-lg px-3 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={() => setOpen(false)}>Pricing</Link>
-          <Link href="/about" className="rounded-lg px-3 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={() => setOpen(false)}>About</Link>
+          <Link href="/pricing" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/pricing' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>Pricing</Link>
+          <Link href="/about" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/about' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>About</Link>
           {role === 'admin' && !loadError && !loading && (
-            <Link href="/admin/providers" className="rounded-lg px-3 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={() => setOpen(false)}>Admin Tools</Link>
+            <Link href="/admin/providers" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname.startsWith('/admin') ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>Admin Tools</Link>
           )}
           {loadError ? (
             <div className="rounded-lg border border-red-100 bg-red-50 p-3">
@@ -224,7 +226,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={retryLoadUserRole}
-                className="mt-2 text-sm font-semibold text-orange-600"
+                className="mt-2 text-sm font-semibold text-[#0F6E56]"
               >
                 Try again
               </button>
@@ -238,7 +240,7 @@ export default function Navbar() {
             <>
               <Link
                 href={dashboardHref}
-                className="rounded-lg bg-orange-500 px-4 py-3 text-center font-semibold text-white shadow-sm active:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                className={`rounded-lg px-4 py-3 text-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 ${pathname.startsWith(dashboardHref) ? activeNavLink : 'text-slate-700 hover:bg-[#E1F5EE] hover:text-[#0F6E56]'}`}
                 onClick={(event) => {
                   event.currentTarget.blur()
                   setOpen(false)
@@ -249,15 +251,15 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-lg px-3 py-3 text-left font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-orange-600 active:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                className="rounded-lg px-3 py-3 text-left font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] active:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
                 Logout
               </button>
             </>
           ) : (
             <>
-              <Link href="/auth/login" className="rounded-lg px-3 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50" onClick={() => setOpen(false)}>Sign In</Link>
-              <Link href="/customer/request" className="rounded-lg bg-orange-500 px-4 py-3 text-center font-semibold text-white shadow-sm" onClick={() => setOpen(false)}>
+              <Link href="/auth/login" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname.startsWith('/auth/login') ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>Sign In</Link>
+              <Link href="/customer/request" className="rounded-lg bg-[#1D9E75] px-4 py-3 text-center font-medium text-white" onClick={() => setOpen(false)}>
                 Get Help Now
               </Link>
             </>

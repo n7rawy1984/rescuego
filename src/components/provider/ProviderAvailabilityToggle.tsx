@@ -206,24 +206,21 @@ export default function ProviderAvailabilityToggle({
   }
 
   return (
-    <section className={`mb-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-6 ${online ? 'border-green-200 shadow-green-100/60 ring-1 ring-green-100' : 'border-orange-200 shadow-orange-100/50 ring-1 ring-orange-100'}`}>
+    <section className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold text-slate-950">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${online ? 'bg-[#1D9E75]' : 'bg-[#E24B4A]'}`} aria-hidden="true" />
+          <div>
+            <h2 className="text-base font-medium text-slate-950">
               {online ? 'You are online for dispatch' : 'You are offline'}
             </h2>
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${online ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
-              <span className={`h-2 w-2 rounded-full ${online ? 'bg-green-500' : 'bg-slate-400'}`} />
-              {online ? 'Online' : 'Offline'}
-            </span>
+            <p className="mt-1 text-sm text-slate-500">
+              {online ? formatUpdatedAt(updatedAt) : 'Go online when you are available for nearby roadside requests.'}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Your location is only shared while you are online.
+            </p>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {online ? formatUpdatedAt(updatedAt) : 'Go online when you are available for nearby roadside requests.'}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            Your location is only shared while you are online.
-          </p>
         </div>
         <div className="flex flex-col gap-2 sm:w-auto sm:flex-row">
           <Button
@@ -231,7 +228,7 @@ export default function ProviderAvailabilityToggle({
             onClick={updateOnlineLocation}
             loading={loading}
             disabled={disabled}
-            className="h-11 w-full px-5 sm:w-auto"
+            className="h-11 w-full bg-[#1D9E75] px-5 text-white hover:bg-[#0F6E56] focus:ring-[#1D9E75] sm:w-auto"
           >
             {online ? (
               <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -292,7 +289,7 @@ export default function ProviderAvailabilityToggle({
                 type="button"
                 onClick={releaseJobAndGoOffline}
                 disabled={releaseLoading || !activeRequestId}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {releaseLoading ? 'Releasing...' : 'Release job and go offline'}
               </button>

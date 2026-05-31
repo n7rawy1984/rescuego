@@ -279,13 +279,18 @@ export default function ProviderRequestList({
         : PAY_PER_JOB_FEE_NEAR_AED
 
   return (
-    <Card className="overflow-hidden border-slate-200 shadow-lg shadow-slate-200/70">
-      <CardHeader className="border-slate-200 bg-slate-950 text-white">
+    <Card className="overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
+      <CardHeader className="border-slate-100 bg-white">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-orange-200">Request intake</p>
-            <h2 className="mt-1 text-xl font-bold text-white">Nearby Roadside Requests</h2>
-            <p className="mt-1 text-sm text-slate-300">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <MapPin className="h-4 w-4 text-[#0F6E56]" aria-hidden="true" />
+              <h2 className="text-xl font-medium text-slate-950">Nearby Roadside Requests</h2>
+              <span className="rounded-full bg-[#E1F5EE] px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-[#0F6E56]">
+                Request intake
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-slate-500">
               {requestItems.length > 0
                 ? requestFeedMode === 'fallback'
                   ? `Showing ${requestItems.length} available open request${requestItems.length === 1 ? '' : 's'} while nearby location matching refreshes.`
@@ -295,8 +300,8 @@ export default function ProviderRequestList({
                 : 'Open requests will appear here as customers submit them.'}
             </p>
           </div>
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 ring-1 ring-white/10">
-            <span className={`h-2 w-2 rounded-full ${providerOnline ? 'bg-green-500' : 'bg-slate-400'}`} />
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+            <span className={`h-2 w-2 rounded-full ${providerOnline ? 'bg-[#1D9E75]' : 'bg-slate-400'}`} />
             Auto updates
           </span>
         </div>
@@ -309,11 +314,11 @@ export default function ProviderRequestList({
         )}
         {requestItems.length === 0 ? (
           <div className="px-6 py-16 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <Search className="h-5 w-5" aria-hidden="true" />
             </div>
             <p className="font-semibold text-slate-800">
-              {requestFeedMode === 'nearby' ? 'No nearby roadside requests right now.' : 'No open requests right now.'}
+              No open requests right now
             </p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
               {requestFeedMode === 'nearby'
@@ -324,17 +329,17 @@ export default function ProviderRequestList({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="space-y-3 p-4 sm:p-5">
             {requestItems.map((req) => {
               const Icon = problemIcons[req.problem_type] ?? HelpCircle
               return (
-              <div key={req.id} className="flex flex-col gap-5 px-5 py-5 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <div key={req.id} className="flex flex-col gap-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-[#9FE1CB] sm:flex-row sm:items-start sm:justify-between sm:p-5">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#E1F5EE] text-[#0F6E56] ring-1 ring-[#9FE1CB]">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-lg font-bold text-slate-900">{getProblemLabel(req.problem_type)}</div>
+                    <div className="text-lg font-medium text-slate-950">{getProblemLabel(req.problem_type)}</div>
                     <div className="mt-2 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                       <div className="min-w-0">
@@ -346,7 +351,7 @@ export default function ProviderRequestList({
                       {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     {providerPlan === 'pay_per_job' && (
-                      <div className="mt-2 inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 ring-1 ring-orange-100">
+                      <div className="mt-2 inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
                         {ppjRecoveryCredits > 0
                           ? 'Recovery credit available'
                           : LAUNCH_PROMO
@@ -361,7 +366,7 @@ export default function ProviderRequestList({
                 </div>
                 <Button
                   size="sm"
-                  className="w-full shadow-md shadow-orange-100 sm:w-auto"
+                  className="w-full bg-[#1D9E75] text-white shadow-sm hover:bg-[#0F6E56] focus:ring-[#1D9E75] sm:w-auto"
                   loading={accepting === req.id}
                   onClick={() => requestAcceptConfirmation(req.id)}
                   disabled={providerStatus !== 'active' || !providerOnline || accepting !== null || overageLoading}
@@ -399,7 +404,7 @@ export default function ProviderRequestList({
                 type="button"
                 onClick={() => setConfirmRequestId(null)}
                 disabled={accepting !== null}
-              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
                 Cancel
               </button>
@@ -407,7 +412,7 @@ export default function ProviderRequestList({
                 type="button"
                 onClick={() => handleAccept(confirmRequest.id)}
                 disabled={accepting !== null}
-                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
                 {accepting === confirmRequest.id
                   ? 'Accepting...'
@@ -425,20 +430,20 @@ export default function ProviderRequestList({
             <h3 className="text-lg font-bold text-slate-900 mb-2">Monthly Limit Reached</h3>
             <p className="text-sm text-slate-600 mb-4">
               You&apos;ve used all your jobs this month. Accept this request for a one-time overage fee of{' '}
-              <strong className="text-orange-600">{OVERAGE_FEE_AED} AED</strong>?
+              <strong className="text-[#0F6E56]">{OVERAGE_FEE_AED} AED</strong>?
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowOverageModal(null)}
                 disabled={overageLoading}
-                className="min-h-10 flex-1 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                className="min-h-10 flex-1 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleOverageConfirm(showOverageModal)}
                 disabled={overageLoading}
-                className="min-h-10 flex-1 rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                className="min-h-10 flex-1 rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
                 {overageLoading ? 'Setting up...' : `Pay ${OVERAGE_FEE_AED} AED`}
               </button>
