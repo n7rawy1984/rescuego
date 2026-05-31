@@ -82,39 +82,45 @@ export default async function AdminRevenuePage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">Revenue Log</h1>
-            <a href="/admin/dashboard" className="text-sm text-orange-500 hover:underline">← Back to Dashboard</a>
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Revenue operations</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">Revenue Log</h1>
+                <p className="mt-1 text-sm text-slate-500">Review payouts, commission charges, PPJ payments, and failed overage events.</p>
+              </div>
+              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Back to Dashboard</a>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card>
-              <CardBody>
+            <Card className="border-slate-200 shadow-sm">
+              <CardBody className="min-h-28">
                 <div className="text-2xl font-bold text-green-600">{(totalPaid / 100).toFixed(2)} AED</div>
                 <div className="text-sm text-slate-500">Total Paid Out</div>
               </CardBody>
             </Card>
-            <Card>
-              <CardBody>
+            <Card className="border-slate-200 shadow-sm">
+              <CardBody className="min-h-28">
                 <div className="text-2xl font-bold text-orange-600">{(totalCommissions / 100).toFixed(2)} AED</div>
                 <div className="text-sm text-slate-500">Total Commissions Charged</div>
               </CardBody>
             </Card>
-            <Card>
-              <CardBody>
+            <Card className="border-slate-200 shadow-sm">
+              <CardBody className="min-h-28">
                 <div className="text-2xl font-bold text-slate-700">{jobs?.length ?? 0}</div>
                 <div className="text-sm text-slate-500">Total Jobs</div>
               </CardBody>
             </Card>
-            <Card>
-              <CardBody>
+            <Card className="border-slate-200 shadow-sm">
+              <CardBody className="min-h-28">
                 <div className="text-2xl font-bold text-green-600">{totalPPJRevenue} AED</div>
                 <div className="text-sm text-slate-500">PPJ Revenue (paid)</div>
                 <div className="text-xs text-slate-400 mt-1">{ppjPayments?.length ?? 0} payments</div>
               </CardBody>
             </Card>
-            <Card>
-              <CardBody>
+            <Card className="border-slate-200 shadow-sm">
+              <CardBody className="min-h-28">
                 <div className="text-2xl font-bold text-red-600">{failedOverages?.length ?? 0}</div>
                 <div className="text-sm text-slate-500">Failed Overage Payments</div>
                 <div className="text-xs text-slate-400 mt-1">Needs provider follow-up</div>
@@ -123,20 +129,25 @@ export default async function AdminRevenuePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
+            <Card className="overflow-hidden border-slate-200 shadow-sm">
               <CardHeader><h2 className="font-semibold text-slate-800">Stripe Payouts</h2></CardHeader>
               <CardBody className="p-0">
                 {!payouts?.length ? (
-                  <div className="px-6 py-8 text-center text-slate-500 text-sm">No payouts yet</div>
+                  <div className="px-6 py-10 text-center">
+                    <p className="text-sm font-semibold text-slate-700">No payouts yet</p>
+                    <p className="mt-1 text-xs text-slate-500">Stripe payout records will appear here after payout activity.</p>
+                  </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {payouts.map(payout => (
-                      <div key={payout.id} className="px-6 py-3 flex justify-between items-center">
-                        <div>
+                      <div key={payout.id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
                           <div className="font-semibold text-slate-800">{((payout.amount ?? 0) / 100).toFixed(2)} {payout.currency}</div>
-                          <div className="text-xs text-slate-400">{payout.arrival_date} · {payout.stripe_payout_id}</div>
+                          <div className="mt-1 break-all text-xs text-slate-400">{payout.arrival_date} · {payout.stripe_payout_id}</div>
                         </div>
-                        <Badge variant={payout.status === 'paid' ? 'success' : 'warning'}>{payout.status}</Badge>
+                        <div className="shrink-0">
+                          <Badge variant={payout.status === 'paid' ? 'success' : 'warning'}>{payout.status}</Badge>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -144,20 +155,23 @@ export default async function AdminRevenuePage() {
               </CardBody>
             </Card>
 
-            <Card>
+            <Card className="overflow-hidden border-slate-200 shadow-sm">
               <CardHeader><h2 className="font-semibold text-slate-800">Recent Commission Charges</h2></CardHeader>
               <CardBody className="p-0">
                 {!jobs?.length ? (
-                  <div className="px-6 py-8 text-center text-slate-500 text-sm">No commission jobs yet</div>
+                  <div className="px-6 py-10 text-center">
+                    <p className="text-sm font-semibold text-slate-700">No commission jobs yet</p>
+                    <p className="mt-1 text-xs text-slate-500">Completed commission activity will appear here.</p>
+                  </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {jobs.filter((job) => (job.commission_amount ?? 0) > 0).slice(0, 20).map((job) => (
-                      <div key={job.id} className="px-6 py-3 flex justify-between items-center">
+                      <div key={job.id} className="flex items-center justify-between gap-4 px-6 py-4">
                         <div>
-                          <div className="font-medium text-slate-800">{job.providers?.users?.name ?? '—'}</div>
+                          <div className="font-medium text-slate-800">{job.providers?.users?.name ?? '-'}</div>
                           <div className="text-xs text-slate-400">{job.requests?.problem_type} · {job.commission_rate}% rate</div>
                         </div>
-                        <div className="font-semibold text-orange-600">{((job.commission_amount ?? 0) / 100).toFixed(2)} AED</div>
+                        <div className="shrink-0 font-semibold text-orange-600">{((job.commission_amount ?? 0) / 100).toFixed(2)} AED</div>
                       </div>
                     ))}
                   </div>
@@ -167,33 +181,33 @@ export default async function AdminRevenuePage() {
           </div>
 
           {ppjPayments && ppjPayments.length > 0 && (
-            <Card className="mt-6">
+            <Card className="mt-6 overflow-hidden border-slate-200 shadow-sm">
               <CardHeader>
                 <h2 className="font-semibold text-slate-800">Pay Per Job Payments</h2>
               </CardHeader>
               <CardBody className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[820px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
                       {['Provider', 'Fee', 'Distance', 'Promo?', 'Date', 'Stripe PI'].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{heading}</th>
+                        <th key={heading} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {ppjPayments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-800">{payment.providers?.users?.name ?? '-'}</td>
-                        <td className="px-4 py-3 text-slate-700">{payment.fee_aed} AED</td>
-                        <td className="px-4 py-3 text-slate-500">{(payment.distance_meters / 1000).toFixed(1)} km</td>
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-4 font-medium text-slate-800">{payment.providers?.users?.name ?? '-'}</td>
+                        <td className="px-5 py-4 text-slate-700">{payment.fee_aed} AED</td>
+                        <td className="px-5 py-4 text-slate-500">{(payment.distance_meters / 1000).toFixed(1)} km</td>
+                        <td className="px-5 py-4">
                           {payment.promo_applied
                             ? <span className="text-orange-600 font-semibold text-xs">Yes</span>
                             : <span className="text-slate-400 text-xs">No</span>
                           }
                         </td>
-                        <td className="px-4 py-3 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                        <td className="px-5 py-4 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
+                        <td className="px-5 py-4 font-mono text-xs text-slate-400">
                           {payment.stripe_payment_intent_id
                             ? <span title={payment.stripe_payment_intent_id}>{payment.stripe_payment_intent_id.slice(0, 16)}...</span>
                             : '-'
@@ -208,26 +222,26 @@ export default async function AdminRevenuePage() {
           )}
 
           {failedOverages && failedOverages.length > 0 && (
-            <Card className="mt-6">
+            <Card className="mt-6 overflow-hidden border-slate-200 shadow-sm">
               <CardHeader>
                 <h2 className="font-semibold text-slate-800">Failed Overage Payments</h2>
               </CardHeader>
               <CardBody className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
                       {['Provider', 'Fee', 'Date', 'Stripe PI'].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{heading}</th>
+                        <th key={heading} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {failedOverages.map((payment) => (
                       <tr key={payment.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-800">{payment.providers?.users?.name ?? '-'}</td>
-                        <td className="px-4 py-3 text-slate-700">{payment.fee_aed} AED</td>
-                        <td className="px-4 py-3 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                        <td className="px-5 py-4 font-medium text-slate-800">{payment.providers?.users?.name ?? '-'}</td>
+                        <td className="px-5 py-4 text-slate-700">{payment.fee_aed} AED</td>
+                        <td className="px-5 py-4 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
+                        <td className="px-5 py-4 font-mono text-xs text-slate-400">
                           {payment.stripe_payment_intent_id
                             ? <span title={payment.stripe_payment_intent_id}>{payment.stripe_payment_intent_id.slice(0, 16)}...</span>
                             : '-'

@@ -112,18 +112,20 @@ export default async function AdminRequestsPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">Operational requests</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">All Requests</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Monitor customer roadside requests, assignment state, cancellations, and completions.
-              </p>
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Operational requests</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">All Requests</h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Monitor customer roadside requests, assignment state, cancellations, and completions.
+                </p>
+              </div>
+              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Back to Dashboard</a>
             </div>
-            <a href="/admin/dashboard" className="text-sm font-semibold text-orange-500 hover:underline">Back to Dashboard</a>
           </div>
 
-          <Card>
+          <Card className="overflow-hidden border-slate-200 shadow-sm">
             <CardHeader>
               <h2 className="font-semibold text-slate-800">Recent Requests ({requestRows.length})</h2>
               {requestsError && (
@@ -134,11 +136,11 @@ export default async function AdminRequestsPage() {
             </CardHeader>
             <CardBody className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[1080px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       {['Type', 'Customer', 'Location', 'Status', 'Provider', 'Lifecycle', 'Value', 'Time'].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{heading}</th>
+                        <th key={heading} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
                   </thead>
@@ -149,31 +151,31 @@ export default async function AdminRequestsPage() {
                       const job = jobByRequestId.get(request.id)
 
                       return (
-                        <tr key={request.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-3">
+                        <tr key={request.id} className="align-top hover:bg-slate-50">
+                          <td className="px-5 py-4">
                             <div className="font-medium text-slate-800">{getProblemLabel(request.problem_type)}</div>
                             <div className="mt-1 font-mono text-xs text-slate-400">{request.id.slice(0, 8)}</div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             <div>{customer?.name ?? 'Customer unavailable'}</div>
                             <div className="text-xs text-slate-400">{customer?.phone ?? 'No phone'}</div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             <div className="max-w-[260px] break-words">{request.location_address ?? '-'}</div>
                             {request.note && <div className="mt-1 max-w-[260px] break-words text-xs text-slate-400">{request.note}</div>}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-5 py-4">
                             <Badge variant={requestBadgeVariant(request.status)} className="capitalize">
                               {request.status.replace('_', ' ')}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             <div>{provider?.users?.name ?? 'Not assigned'}</div>
                             <div className="text-xs text-slate-400">
                               {provider?.users?.phone ?? (request.accepted_by ? 'Provider contact unavailable' : 'Open request')}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             <div>{lifecycleLabel(request, job?.completed_at)}</div>
                             {request.status === 'cancelled' && request.cancellation_compensation_type && (
                               <div className="mt-1 text-xs text-slate-400">
@@ -181,14 +183,14 @@ export default async function AdminRequestsPage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             {request.final_price
                               ? `${request.final_price} AED`
                               : request.price_estimate_min && request.price_estimate_max
                                 ? `${request.price_estimate_min}-${request.price_estimate_max} AED`
                                 : '-'}
                           </td>
-                          <td className="px-4 py-3 text-slate-400 text-xs">
+                          <td className="px-5 py-4 text-xs text-slate-400">
                             {new Date(request.created_at).toLocaleString('en-AE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             {request.cancelled_at && (
                               <div className="mt-1">Cancelled {new Date(request.cancelled_at).toLocaleDateString('en-AE')}</div>
@@ -199,7 +201,7 @@ export default async function AdminRequestsPage() {
                     })}
                     {requestRows.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="px-4 py-12 text-center">
+                        <td colSpan={8} className="px-5 py-14 text-center">
                           <p className="font-semibold text-slate-700">No customer requests yet.</p>
                           <p className="mt-1 text-sm text-slate-500">Roadside requests will appear here as customers create them.</p>
                         </td>

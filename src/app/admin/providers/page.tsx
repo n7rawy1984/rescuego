@@ -145,19 +145,21 @@ export default async function AdminProvidersPage({
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">Admin moderation</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">Manage Providers</h1>
-              <p className="mt-1 text-sm text-slate-500">Review documents, approve providers, and manage trust badges.</p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <a href="/admin/dashboard" className="text-sm font-semibold text-orange-500 hover:underline">Dashboard</a>
-              <a href="/admin/requests" className="text-sm font-semibold text-slate-500 hover:text-orange-500">Requests</a>
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Admin moderation</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">Manage Providers</h1>
+                <p className="mt-1 text-sm text-slate-500">Review documents, approve providers, and manage trust badges.</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Dashboard</a>
+                <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Requests</a>
+              </div>
             </div>
           </div>
 
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden border-slate-200 shadow-sm">
             <CardHeader className="bg-white">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -181,7 +183,7 @@ export default async function AdminProvidersPage({
                         activeFilter === filter.id
                           ? 'bg-orange-500 text-white'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
+                      } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500`}
                     >
                       {filter.label}
                     </a>
@@ -191,36 +193,36 @@ export default async function AdminProvidersPage({
             </CardHeader>
             <CardBody className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[1040px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       {['Provider', 'Contact', 'Plan', 'Status', 'Jobs', 'Created', 'Documents', 'Trust', 'Actions'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                        <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredProviders.map((provider) => (
-                      <tr key={provider.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-4">
+                      <tr key={provider.id} className="align-top hover:bg-slate-50">
+                        <td className="px-5 py-4">
                           <div className="font-medium text-slate-800">{provider.users?.name ?? 'Unnamed provider'}</div>
                           <div className="text-xs text-slate-400">{provider.id.slice(0, 8)}</div>
                         </td>
-                        <td className="px-4 py-4 text-slate-600">
-                          <div>{provider.users?.email ?? '-'}</div>
+                        <td className="px-5 py-4 text-slate-600">
+                          <div className="max-w-56 break-words">{provider.users?.email ?? '-'}</div>
                           <div className="text-xs text-slate-400">{provider.users?.phone ?? 'No phone'}</div>
                         </td>
-                        <td className="px-4 py-3"><Badge variant="info">{getPlanLabel(provider.plan)}</Badge></td>
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-4"><Badge variant="info">{getPlanLabel(provider.plan)}</Badge></td>
+                        <td className="px-5 py-4">
                           <Badge variant={statusBadgeVariant(provider.status)} className="capitalize">
                             {provider.status}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{provider.jobs_this_month ?? 0}</td>
-                        <td className="px-4 py-3 text-slate-500">
+                        <td className="px-5 py-4 text-slate-700">{provider.jobs_this_month ?? 0}</td>
+                        <td className="px-5 py-4 text-slate-500">
                           {provider.created_at ? new Date(provider.created_at).toLocaleDateString('en-AE') : '-'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-4">
                           <div className="min-w-48 space-y-2">
                             <Badge variant={provider.documentsComplete ? 'success' : 'warning'}>
                               {provider.documentsComplete ? 'Documents complete' : 'Missing documents'}
@@ -241,21 +243,21 @@ export default async function AdminProvidersPage({
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-4">
                           {provider.verified_badge ? (
                             <Badge variant="success">Verified Provider</Badge>
                           ) : (
                             <Badge>Not verified</Badge>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-4">
                           <AdminProviderActions providerId={provider.id} currentStatus={provider.status} verifiedBadge={Boolean(provider.verified_badge)} />
                         </td>
                       </tr>
                     ))}
                     {filteredProviders.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="px-4 py-12 text-center">
+                        <td colSpan={9} className="px-5 py-14 text-center">
                           <p className="font-semibold text-slate-700">No providers match this filter.</p>
                           <p className="mt-1 text-sm text-slate-500">
                             Try another moderation filter, or check back after new provider registrations.

@@ -54,7 +54,8 @@ export default async function AdminDashboardPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Marketplace operations</p>
               <h1 className="mt-1 text-2xl font-bold text-slate-900">Admin Dashboard</h1>
@@ -70,20 +71,21 @@ export default async function AdminDashboardPage() {
                 View requests
               </a>
             </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 mb-8 md:grid-cols-3">
-            <a href="/admin/providers?filter=pending" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100">
+            <a href="/admin/providers?filter=pending" className="min-h-32 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
               <div className="text-2xl font-bold text-amber-700">{pendingProviders}</div>
               <div className="mt-1 text-sm font-semibold text-amber-900">Pending provider approvals</div>
               <div className="mt-1 text-xs text-amber-800">Review documents and activate eligible providers.</div>
             </a>
-            <a href="/admin/providers?filter=missing-documents" className="rounded-2xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50">
+            <a href="/admin/providers?filter=missing-documents" className="min-h-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
               <div className="text-2xl font-bold text-slate-800">{totalProviders ?? 0}</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">Provider moderation</div>
               <div className="mt-1 text-xs text-slate-500">Check missing documents, status, and trust badges.</div>
             </a>
-            <a href="/admin/revenue" className="rounded-2xl border border-red-200 bg-red-50 p-4 transition-colors hover:bg-red-100">
+            <a href="/admin/revenue" className="min-h-32 rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">
               <div className="text-2xl font-bold text-red-700">{(failedStripeEvents ?? 0) + (failedOveragePayments ?? 0)}</div>
               <div className="mt-1 text-sm font-semibold text-red-900">Payment exceptions</div>
               <div className="mt-1 text-xs text-red-800">Watch failed Stripe events and overage payments.</div>
@@ -101,8 +103,8 @@ export default async function AdminDashboardPage() {
               { label: 'Failed Stripe Events', value: failedStripeEvents ?? 0, color: 'text-red-600' },
               { label: 'Failed Overages', value: failedOveragePayments ?? 0, color: 'text-red-600' },
             ].map(stat => (
-              <Card key={stat.label}>
-                <CardBody>
+              <Card key={stat.label} className="border-slate-200 shadow-sm">
+                <CardBody className="min-h-28">
                   <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
                   <div className="text-sm text-slate-500 mt-1">{stat.label}</div>
                 </CardBody>
@@ -120,7 +122,7 @@ export default async function AdminDashboardPage() {
                     { label: 'Pending Review', count: pendingProviders, variant: 'warning' as const },
                     { label: 'Suspended', count: suspendedProviders, variant: 'danger' as const },
                   ].map(item => (
-                    <div key={item.label} className="flex justify-between items-center">
+                    <div key={item.label} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
                       <Badge variant={item.variant}>{item.label}</Badge>
                       <span className="font-semibold text-slate-700">{item.count}</span>
                     </div>
@@ -137,10 +139,20 @@ export default async function AdminDashboardPage() {
                     { label: 'Open', count: openRequests, variant: 'info' as const },
                     { label: 'Completed', count: completedRequests, variant: 'success' as const },
                     { label: 'Expired', count: expiredRequests, variant: 'default' as const },
-                    { label: 'Other', count: totalRequests - openRequests - completedRequests - expiredRequests, variant: 'default' as const },
+                    {
+                      label: 'Other',
+                      count: totalRequests - openRequests - completedRequests - expiredRequests,
+                      variant: 'default' as const,
+                      description: 'Accepted, in progress, cancelled, and other non-primary states.',
+                    },
                   ].map(item => (
-                    <div key={item.label} className="flex justify-between items-center">
-                      <Badge variant={item.variant}>{item.label}</Badge>
+                    <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-3 py-2">
+                      <div>
+                        <Badge variant={item.variant}>{item.label}</Badge>
+                        {'description' in item && item.description ? (
+                          <p className="mt-1 text-xs leading-5 text-slate-500">{item.description}</p>
+                        ) : null}
+                      </div>
                       <span className="font-semibold text-slate-700">{item.count}</span>
                     </div>
                   ))}
@@ -161,9 +173,9 @@ export default async function AdminDashboardPage() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {recentEvents.map(event => (
-                      <div key={event.id} className="px-6 py-3 flex justify-between items-center">
-                        <span className="text-sm font-mono text-slate-700">{event.type}</span>
-                        <div className="text-right">
+                      <div key={event.id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="min-w-0 break-all font-mono text-sm text-slate-700">{event.type}</span>
+                        <div className="shrink-0 sm:text-right">
                           <Badge variant={event.status === 'failed' ? 'danger' : event.status === 'processing' ? 'warning' : 'success'}>
                             {event.status ?? 'processed'}
                           </Badge>
@@ -189,7 +201,7 @@ export default async function AdminDashboardPage() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {recentPayouts.map(payout => (
-                      <div key={payout.id} className="px-6 py-3 flex justify-between items-center">
+                      <div key={payout.id} className="flex items-center justify-between gap-4 px-6 py-4">
                         <div>
                           <div className="text-sm font-semibold text-slate-800">{(payout.amount / 100).toFixed(2)} {payout.currency}</div>
                           <div className="text-xs text-slate-400">{payout.arrival_date}</div>
@@ -204,9 +216,9 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <a href="/admin/providers" className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Manage Providers</a>
-            <a href="/admin/requests" className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">View All Requests</a>
-            <a href="/admin/revenue" className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">Revenue Log</a>
+            <a href="/admin/providers" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Manage Providers</a>
+            <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">View All Requests</a>
+            <a href="/admin/revenue" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Revenue Log</a>
           </div>
         </div>
       </main>
