@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
@@ -48,9 +48,9 @@ export default function ForgotPasswordPage() {
             <span className="font-bold text-2xl text-slate-900">RescueGo</span>
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Reset Password</h1>
-          <p className="text-slate-500 mt-1">We&apos;ll send a reset link to your email</p>
+          <p className="mt-1 text-sm text-slate-500">We&apos;ll send a reset link to your email</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           {sent ? (
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">

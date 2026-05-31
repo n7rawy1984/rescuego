@@ -517,7 +517,7 @@ export default function ProviderRegisterPage() {
               <p className="mt-2 text-sm text-slate-600">{existingAccount.message}</p>
               <Link
                 href={existingAccount.actionHref}
-                className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
               >
                 {existingAccount.actionLabel}
               </Link>
@@ -558,7 +558,7 @@ export default function ProviderRegisterPage() {
                   <p className="mt-2 text-sm text-slate-500">RescueGo will activate your account after verification.</p>
                 </>
               )}
-              <Link href="/provider/dashboard" className="mt-6 inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
+              <Link href="/provider/dashboard" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
                 Go to Provider Dashboard
               </Link>
             </div>
@@ -566,11 +566,12 @@ export default function ProviderRegisterPage() {
 
           {showStepFlow && (
           <>
-          <div className="mb-8">
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <p className="text-sm font-medium text-slate-500">Provider onboarding</p>
             <h1 className="text-2xl font-bold text-slate-900">
               {isResumeFlow ? 'Continue your provider setup' : 'Join as Recovery Provider'}
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="mt-1 text-sm text-slate-500">
               {isResumeFlow ? 'Finish the remaining steps to activate your RescueGo provider account.' : 'Start receiving recovery requests in your area'}
             </p>
             <div className="flex gap-2 mt-4">
@@ -582,7 +583,7 @@ export default function ProviderRegisterPage() {
           </div>
 
           {step === 1 && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
               <h2 className="text-lg font-semibold mb-4">Complete provider profile</h2>
               <form onSubmit={handleAccountSubmit} className="flex flex-col gap-4">
                 <Input id="name" label="Full Name" value={form.name} onChange={e => update('name', e.target.value)} required placeholder="Ahmed Al Rashid" />
@@ -608,7 +609,7 @@ export default function ProviderRegisterPage() {
           )}
 
           {step === 2 && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
               <h2 className="text-lg font-semibold mb-2">Upload Required Documents</h2>
               <p className="text-sm text-slate-500 mb-6">All documents are reviewed by our team before activation. Max 5MB each. JPG, PNG, or PDF.</p>
               <form onSubmit={handleDocumentUpload} className="flex flex-col gap-5">
@@ -623,7 +624,7 @@ export default function ProviderRegisterPage() {
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={e => setFiles(prev => ({ ...prev, [key]: e.target.files?.[0] }))}
-                      className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-orange-50 file:text-orange-700 file:font-semibold hover:file:bg-orange-100"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-orange-50 file:px-4 file:py-2 file:font-semibold file:text-orange-700 hover:file:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
                 ))}
@@ -645,7 +646,7 @@ export default function ProviderRegisterPage() {
                     key={plan.id}
                     onClick={() => setSelectedPlan(plan.id)}
                     disabled={loading}
-                    className={`p-5 rounded-xl border-2 text-left transition-all relative ${selectedPlan === plan.id ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
+                    className={`relative rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${selectedPlan === plan.id ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
                   >
                     {plan.highlight && <span className="absolute top-3 right-3 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Popular</span>}
                     <div className="font-bold text-slate-900 text-lg">{plan.name}</div>
@@ -668,7 +669,7 @@ export default function ProviderRegisterPage() {
                 <>
                   <h2 className="text-xl font-bold text-slate-900">Your provider account is ready</h2>
                   <p className="mt-2 text-sm text-slate-500">You can now manage requests, availability, and subscription settings from your dashboard.</p>
-                  <Link href="/provider/dashboard" className="mt-6 inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
+                  <Link href="/provider/dashboard" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
                     Go to Provider Dashboard
                   </Link>
                 </>
@@ -684,7 +685,7 @@ export default function ProviderRegisterPage() {
                       ? 'RescueGo will review your provider account and activate it after verification.'
                       : 'RescueGo is reviewing your provider account. You can check status from your dashboard while approval is pending.'}
                   </p>
-                  <Link href="/provider/dashboard" className="mt-6 inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
+                  <Link href="/provider/dashboard" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
                     Check Dashboard
                   </Link>
                 </>

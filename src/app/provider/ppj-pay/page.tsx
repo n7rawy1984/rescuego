@@ -48,23 +48,26 @@ function PpjPayContent() {
 
   if (loading) {
     return (
-      <div className="text-center py-12 text-slate-500">
-        Preparing secure payment...
+      <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-orange-500" aria-hidden="true" />
+        <p className="font-semibold text-slate-800">Preparing secure payment...</p>
+        <p className="mt-1 text-sm text-slate-500">Opening the Stripe payment form safely.</p>
       </div>
     )
   }
 
   if (!clientSecret || !requestId) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500">Invalid or expired payment session. Please go back to the dashboard and try again.</p>
+      <div className="mx-auto max-w-md rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm">
+        <p className="font-semibold text-red-600">Invalid or expired payment session.</p>
+        <p className="mt-1 text-sm text-slate-500">Please go back to the dashboard and try again.</p>
       </div>
     )
   }
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
         <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CreditCard className="h-7 w-7 text-orange-600" aria-hidden="true" />
         </div>
@@ -72,16 +75,19 @@ function PpjPayContent() {
         <p className="text-slate-600 mb-6">
           Pay <strong className="text-orange-600">{fee} AED</strong> to accept this recovery request.
         </p>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800 text-left">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-800 text-left">
           Once payment is confirmed, the request will be automatically assigned to you and appear as your active job.
           Exact customer location is shown only after payment and assignment.
         </div>
+        <p className="mb-6 rounded-xl bg-slate-50 px-4 py-3 text-left text-xs leading-5 text-slate-500">
+          Secure payment powered by Stripe. Your card details are encrypted and never stored by RescueGo.
+        </p>
         <StripeElementsProvider clientSecret={clientSecret}>
           <PaymentElementForm returnPath="/provider/dashboard?payment=processing" />
         </StripeElementsProvider>
         <a
           href="/provider/dashboard"
-          className="mt-6 inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+          className="mt-6 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
         >
           Back to Dashboard
         </a>
@@ -94,8 +100,8 @@ export default function PpjPayPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
-        <Suspense fallback={<div className="text-center py-12 text-slate-500">Loading...</div>}>
+      <main className="min-h-screen bg-slate-50 px-4 py-8 pt-20">
+        <Suspense fallback={<div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">Loading secure payment...</div>}>
           <PpjPayContent />
         </Suspense>
       </main>

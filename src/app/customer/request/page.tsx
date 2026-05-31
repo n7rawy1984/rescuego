@@ -623,15 +623,16 @@ export default function RequestPage() {
             </div>
           )}
 
-          <div className="mb-8">
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
+                <p className="text-sm font-medium text-slate-500">Customer request</p>
                 <h1 className="text-2xl font-bold text-slate-900">Request Roadside Help</h1>
-                <p className="text-slate-500 mt-1">No active request right now. Start a new request or review past jobs.</p>
+                <p className="mt-1 text-sm text-slate-500">No active request right now. Start a new request or review past jobs.</p>
               </div>
               <Link
                 href="/customer/history"
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
               >
                 <History className="mr-2 h-4 w-4" aria-hidden="true" />
                 Request history
@@ -652,7 +653,7 @@ export default function RequestPage() {
           </div>
 
           {step === 1 && (
-            <div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-lg font-semibold text-slate-800 mb-4">What is the problem?</h2>
               <div className="grid grid-cols-2 gap-3">
                 {PROBLEM_OPTIONS.map((opt) => {
@@ -661,7 +662,7 @@ export default function RequestPage() {
                     <button
                       key={opt.type}
                       onClick={() => setProblemType(opt.type)}
-                      className={`p-5 rounded-xl border-2 text-left transition-all ${problemType === opt.type ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
+                      className={`min-h-28 rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${problemType === opt.type ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
                     >
                       <div className="mb-2 text-orange-600">
                         <Icon className="h-5 w-5" aria-hidden="true" />
@@ -683,7 +684,7 @@ export default function RequestPage() {
           )}
 
           {step === 2 && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-lg font-semibold text-slate-800">Contact and location details</h2>
               <Input
                 id="phone"
@@ -697,7 +698,7 @@ export default function RequestPage() {
               <p className="-mt-2 text-xs text-slate-500">
                 Your assigned provider will use this number to call you after accepting the request.
               </p>
-              <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="w-full">
+              <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="min-h-11 w-full">
                 <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
                 Use my current location
               </Button>
@@ -739,7 +740,7 @@ export default function RequestPage() {
                   )}
                 </div>
               )}
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <Button variant="ghost" onClick={() => setStep(1)} className="flex-1">Back</Button>
                 <Button className="flex-1" disabled={!phone.trim() || !address.trim()} onClick={() => setStep(3)}>Continue</Button>
               </div>
@@ -747,9 +748,9 @@ export default function RequestPage() {
           )}
 
           {step === 3 && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-lg font-semibold text-slate-800">Confirm Your Request</h2>
-              <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3">
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 text-sm">Problem</span>
                   <span className="font-semibold text-slate-800 capitalize">{problemType?.replace('_', ' ')}</span>
@@ -777,7 +778,7 @@ export default function RequestPage() {
                 <p className="text-sm text-amber-800">Payment is made directly to the provider after service. RescueGo does not charge you.</p>
               </div>
               {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <Button variant="ghost" onClick={() => setStep(2)} className="flex-1">Back</Button>
                 <Button className="flex-1" loading={loading} onClick={handleSubmit}>
                   {loading ? 'Submitting...' : 'Submit Request'}

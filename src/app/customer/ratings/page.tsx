@@ -60,21 +60,26 @@ export default async function CustomerRatingsPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">Rate Completed Jobs</h1>
-            <p className="mt-1 text-slate-500">Ratings are required after every completed RescueGo job.</p>
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <p className="text-sm font-medium text-slate-500">Customer ratings</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">Rate Completed Jobs</h1>
+            <p className="mt-1 text-sm text-slate-500">Ratings help keep RescueGo provider quality high after every completed job.</p>
           </div>
 
           {unratedJobs.length === 0 ? (
-            <Card>
+            <Card className="border-slate-200 shadow-sm">
               <CardBody>
-                <p className="text-center text-slate-500">No completed jobs are waiting for a rating.</p>
+                <div className="py-12 text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 text-sm font-bold text-green-600">✓</div>
+                  <p className="font-semibold text-slate-800">No ratings waiting</p>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">Completed jobs that still need your rating will appear here.</p>
+                </div>
               </CardBody>
             </Card>
           ) : (
             <div className="flex flex-col gap-6">
               {unratedJobs.map((job) => (
-                <Card key={job.id}>
+                <Card key={job.id} className="overflow-hidden border-slate-200 shadow-sm">
                   <CardHeader>
                     <div className="flex flex-col gap-1">
                       <h2 className="font-semibold text-slate-800">
@@ -88,7 +93,7 @@ export default async function CustomerRatingsPage() {
                       </p>
                     </div>
                   </CardHeader>
-                  <CardBody>
+                  <CardBody className="bg-white">
                     <RatingForm jobId={job.id} providerId={job.provider_id} />
                   </CardBody>
                 </Card>

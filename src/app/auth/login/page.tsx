@@ -163,7 +163,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
@@ -173,9 +173,9 @@ export default function LoginPage() {
             <span className="font-bold text-2xl text-slate-900">RescueGo</span>
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Sign In</h1>
-          <p className="text-slate-500 mt-1">Welcome back</p>
+          <p className="mt-1 text-sm text-slate-500">Welcome back to RescueGo operations</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input id="email" type="email" label="Email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" disabled={loading} />
             <Input id="password" type="password" label="Password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Password" disabled={loading} />
@@ -184,9 +184,9 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+            {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
             {loadingMessage && (
-              <div className="rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800" role="status" aria-live="polite">
+              <div className="rounded-lg bg-orange-50 px-3 py-2 text-sm font-medium text-orange-800" role="status" aria-live="polite">
                 {loadingMessage}
               </div>
             )}

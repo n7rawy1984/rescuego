@@ -424,37 +424,38 @@ export default async function ProviderDashboardPage({
         <div className="max-w-6xl mx-auto">
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">Provider dashboard</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge variant={statusVariant} className="capitalize">{provider.status}</Badge>
-                <Badge variant="info">{getPlanLabel(provider.plan)}</Badge>
-                {provider.verified_badge && (
-                  <Badge variant="success" className="gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    Trusted Recovery Partner
-                  </Badge>
-                )}
+              <div>
+                <p className="text-sm font-medium text-slate-500">Provider dashboard</p>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
+                <p className="mt-1 text-sm text-slate-500">Manage availability, active jobs, request intake, and recent activity.</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge variant={statusVariant} className="capitalize">{provider.status}</Badge>
+                  <Badge variant="info">{getPlanLabel(provider.plan)}</Badge>
+                  {provider.verified_badge && (
+                    <Badge variant="success" className="gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                      Trusted Recovery Partner
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="rounded-xl bg-slate-50 px-4 py-3 text-left sm:text-right">
-              <div className="flex items-center gap-1 sm:justify-end">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`h-5 w-5 ${star <= roundedRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
-                    aria-hidden="true"
-                  />
-                ))}
-                <span className="ml-2 text-3xl font-bold text-slate-900">{provider.rating.toFixed(1)}</span>
-              </div>
+              <div className="rounded-xl bg-slate-50 px-4 py-3 text-left sm:text-right">
+                <div className="flex items-center gap-1 sm:justify-end">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-5 w-5 ${star <= roundedRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                      aria-hidden="true"
+                    />
+                  ))}
+                  <span className="ml-2 text-3xl font-bold text-slate-900">{provider.rating.toFixed(1)}</span>
+                </div>
                 <div className="mt-1 text-sm text-slate-500">Your rating</div>
                 {!recentJobs?.length ? (
                   <div className="text-xs text-slate-400">Your first reviews will appear after completed jobs.</div>
                 ) : null}
+              </div>
             </div>
-          </div>
           </section>
 
           <ProviderOnboardingChecklist
@@ -574,10 +575,10 @@ export default async function ProviderDashboardPage({
                   </p>
                 ) : null}
               </div>
-              <a
-                href={upgradePrompt.href}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600"
-              >
+                  <a
+                    href={upgradePrompt.href}
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                  >
                 {upgradePrompt.label}
               </a>
             </div>
@@ -704,7 +705,7 @@ export default async function ProviderDashboardPage({
                       {activeRequest.users?.phone ? (
                         <a
                           href={`tel:${activeRequest.users.phone}`}
-                          className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
+                          className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 sm:w-auto"
                         >
                           Call customer
                         </a>

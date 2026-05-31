@@ -82,21 +82,23 @@ export default async function CustomerHistoryPage() {
       <Navbar />
       <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">Your Request History</h1>
-            <p className="mt-1 text-slate-500">All your past roadside recovery requests.</p>
+          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <p className="text-sm font-medium text-slate-500">Customer history</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">Your Request History</h1>
+            <p className="mt-1 text-sm text-slate-500">Review past roadside recovery requests, prices, and rating status.</p>
           </div>
 
           {!requests || requests.length === 0 ? (
-            <Card>
+            <Card className="border-slate-200 shadow-sm">
               <CardBody>
-                <div className="py-12 text-center">
+                <div className="py-14 text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-400">0</div>
                   <div className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">History</div>
                   <p className="font-medium text-slate-700">No requests yet</p>
-                  <p className="text-sm text-slate-500 mt-1">Your roadside requests will appear here.</p>
+                  <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Your roadside requests will appear here after you submit your first recovery request.</p>
                   <a
                     href="/customer/request"
-                    className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                    className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
                   >
                     Request Help Now
                   </a>
@@ -104,14 +106,14 @@ export default async function CustomerHistoryPage() {
               </CardBody>
             </Card>
           ) : (
-            <Card>
+            <Card className="overflow-hidden border-slate-200 shadow-sm">
               <CardHeader>
                 <h2 className="font-semibold text-slate-800">{requests.length} request{requests.length !== 1 ? 's' : ''}</h2>
               </CardHeader>
               <CardBody className="p-0">
                 <div className="divide-y divide-slate-100">
                   {requests.map((req) => (
-                    <div key={req.id} className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+                    <div key={req.id} className="flex flex-col gap-3 px-5 py-5 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                       <div className="min-w-0">
                         <div className="font-medium text-slate-800">{getProblemLabel(req.problem_type)}</div>
                         <div className="text-sm text-slate-500 mt-0.5 break-words">{req.location_address ?? 'Location not recorded'}</div>

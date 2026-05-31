@@ -279,7 +279,7 @@ export default function ProviderRequestList({
         : PAY_PER_JOB_FEE_NEAR_AED
 
   return (
-    <Card className="overflow-hidden shadow-sm shadow-slate-200/70">
+    <Card className="overflow-hidden border-slate-200 shadow-sm shadow-slate-200/70">
       <CardHeader className="border-slate-100 bg-white">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -327,7 +327,7 @@ export default function ProviderRequestList({
             {requestItems.map((req) => {
               const Icon = problemIcons[req.problem_type] ?? HelpCircle
               return (
-              <div key={req.id} className="px-5 py-5 flex flex-col gap-4 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <div key={req.id} className="flex flex-col gap-4 px-5 py-5 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
                     <Icon className="h-5 w-5" aria-hidden="true" />
@@ -398,7 +398,7 @@ export default function ProviderRequestList({
                 type="button"
                 onClick={() => setConfirmRequestId(null)}
                 disabled={accepting !== null}
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
               >
                 Cancel
               </button>
@@ -406,7 +406,7 @@ export default function ProviderRequestList({
                 type="button"
                 onClick={() => handleAccept(confirmRequest.id)}
                 disabled={accepting !== null}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
               >
                 {accepting === confirmRequest.id
                   ? 'Accepting...'
@@ -430,14 +430,14 @@ export default function ProviderRequestList({
               <button
                 onClick={() => setShowOverageModal(null)}
                 disabled={overageLoading}
-                className="flex-1 h-10 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                className="min-h-10 flex-1 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleOverageConfirm(showOverageModal)}
                 disabled={overageLoading}
-                className="flex-1 h-10 rounded-lg bg-orange-500 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60 transition-colors"
+                className="min-h-10 flex-1 rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
               >
                 {overageLoading ? 'Setting up...' : `Pay ${OVERAGE_FEE_AED} AED`}
               </button>
