@@ -58,6 +58,7 @@ NEXT_PUBLIC_SENTRY_DSN=
 SENTRY_AUTH_TOKEN=
 SENTRY_ORG=
 SENTRY_PROJECT=
+SENTRY_VERIFICATION_ENABLED=false
 ```
 
 Important:
@@ -66,6 +67,7 @@ Important:
 - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are optional. If they are missing, rate limiting falls back to process-local memory for local development.
 - `SENTRY_DSN` is optional and enables server/edge error capture. `NEXT_PUBLIC_SENTRY_DSN` enables browser error capture; Sentry DSNs are public identifiers, not secret keys.
 - `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are only needed for source-map upload during production builds. Leave them empty locally unless Sentry releases are configured.
+- `SENTRY_VERIFICATION_ENABLED` enables the temporary admin-only Sentry verification endpoint. Keep it `false` except while confirming production monitoring.
 - For local development, use Stripe test keys.
 - For production, change `NEXT_PUBLIC_APP_URL` to `https://rescuego.ae`.
 
@@ -579,6 +581,14 @@ Privacy rules:
 Source maps:
 - set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` only in CI/Vercel if source-map upload is desired
 - builds continue without source-map upload when these values are missing
+
+Sentry production verification:
+1. Set `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, and `SENTRY_VERIFICATION_ENABLED=true` in Vercel.
+2. Redeploy.
+3. Sign in as an admin user.
+4. Send a POST request to `/api/admin/sentry-verify` from the same authenticated browser session.
+5. Confirm the event named `RescueGo Sentry verification event` appears in Sentry.
+6. Set `SENTRY_VERIFICATION_ENABLED=false` and redeploy after verification.
 
 ## Notes for Production
 
