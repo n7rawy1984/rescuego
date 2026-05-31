@@ -118,23 +118,27 @@ export default async function AdminProvidersPage({
   const legitimateProviders = (providers ?? []).filter((provider) => provider.users?.role === 'provider')
   const invalidProviderRows = (providers ?? []).filter((provider) => provider.users?.role !== 'provider')
 
-  const providersWithLinks: AdminProviderWithLinks[] = await Promise.all(
-    legitimateProviders.map(async (provider) => {
-      const missingDocumentLabels = missingProviderDocuments(provider.documents).map(providerDocumentLabel)
-      return {
-        ...provider,
-        documentLinks: await createDocumentLinks(provider),
-        missingDocumentLabels,
-        documentsComplete: missingDocumentLabels.length === 0,
-      }
-    })
-  )
+  const providersWithDocumentState = legitimateProviders.map((provider) => {
+    const missingDocumentLabels = missingProviderDocuments(provider.documents).map(providerDocumentLabel)
+    return {
+      ...provider,
+      missingDocumentLabels,
+      documentsComplete: missingDocumentLabels.length === 0,
+    }
+  })
 
-  const filteredProviders = providersWithLinks.filter((provider) => {
+  const filteredProviderRows = providersWithDocumentState.filter((provider) => {
     if (activeFilter === 'all') return true
     if (activeFilter === 'missing-documents') return !provider.documentsComplete
     return provider.status === activeFilter
   })
+
+  const filteredProviders: AdminProviderWithLinks[] = await Promise.all(
+    filteredProviderRows.map(async (provider) => ({
+      ...provider,
+      documentLinks: await createDocumentLinks(provider),
+    }))
+  )
 
   return (
     <>
@@ -158,7 +162,7 @@ export default async function AdminProvidersPage({
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="font-semibold text-slate-900">Providers ({filteredProviders.length})</h2>
-                  <p className="text-sm text-slate-500">{providersWithLinks.length} legitimate provider accounts</p>
+                  <p className="text-sm text-slate-500">{providersWithDocumentState.length} legitimate provider accounts</p>
                 </div>
                 {invalidProviderRows.length > 0 && (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

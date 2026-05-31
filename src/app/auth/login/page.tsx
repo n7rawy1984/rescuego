@@ -139,8 +139,8 @@ export default function LoginPage() {
         return
       }
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      const confirmedSession = data.session ?? (await supabase.auth.getSession()).data.session
+      if (!confirmedSession) {
         setError('We could not confirm your session. Please try signing in again.')
         setLoading(false)
         setLoadingMessage('')

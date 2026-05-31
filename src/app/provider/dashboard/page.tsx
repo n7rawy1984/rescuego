@@ -218,14 +218,38 @@ export default async function ProviderDashboardPage({
           ? 'Choose your access plan before going online for dispatch.'
           : 'Your documents are under review. RescueGo will activate your account after verification.'
   const admin = createAdminClient()
-  const { data: activeRequestData, error: activeRequestError } = operationalReady
-    ? await admin
-      .from('requests')
-      .select('*')
-      .eq('accepted_by', user.id)
-      .in('status', ['accepted', 'in_progress'])
-      .maybeSingle<DashboardRequestRow>()
-    : { data: null, error: null }
+  const [
+    activeRequestResult,
+    providerLocationResult,
+    recentJobsResult,
+  ] = await Promise.all([
+    operationalReady
+      ? admin
+        .from('requests')
+        .select('*')
+        .eq('accepted_by', user.id)
+        .in('status', ['accepted', 'in_progress'])
+        .maybeSingle<DashboardRequestRow>()
+      : Promise.resolve({ data: null, error: null }),
+    operationalReady
+      ? supabase
+        .from('provider_locations')
+        .select('updated_at')
+        .eq('provider_id', user.id)
+        .maybeSingle<ProviderLocationRow>()
+      : Promise.resolve({ data: null }),
+    operationalReady
+      ? supabase
+        .from('jobs')
+        .select('id, completed_at, requests(problem_type, location_address, status, accepted_by, final_price, cancellation_actor, cancelled_at, created_at)')
+        .eq('provider_id', user.id)
+        .order('completed_at', { ascending: false, nullsFirst: false })
+        .limit(10)
+        .returns<RecentJobRow[]>()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const { data: activeRequestData, error: activeRequestError } = activeRequestResult
 
   if (activeRequestError) {
     logger.error({
@@ -304,13 +328,7 @@ export default async function ProviderDashboardPage({
     })
   }
 
-  const { data: providerLocation } = operationalReady
-    ? await supabase
-      .from('provider_locations')
-      .select('updated_at')
-      .eq('provider_id', user.id)
-      .maybeSingle<ProviderLocationRow>()
-    : { data: null }
+  const { data: providerLocation } = providerLocationResult
 
   const providerLocationUpdatedAt = providerLocation?.updated_at ?? null
   const providerIsOnline = operationalReady && isTimestampWithinMinutes(providerLocationUpdatedAt, PROVIDER_STALE_MINUTES)
@@ -344,15 +362,7 @@ export default async function ProviderDashboardPage({
     requestFeedMode = providerIsOnline ? 'fallback' : 'offline'
   }
 
-  const { data: recentJobs } = operationalReady
-    ? await supabase
-      .from('jobs')
-      .select('id, completed_at, requests(problem_type, location_address, status, accepted_by, final_price, cancellation_actor, cancelled_at, created_at)')
-      .eq('provider_id', user.id)
-      .order('completed_at', { ascending: false, nullsFirst: false })
-      .limit(10)
-      .returns<RecentJobRow[]>()
-    : { data: null }
+  const { data: recentJobs } = recentJobsResult
 
   const allowance = getProviderAllowance({
     plan: provider.plan,
