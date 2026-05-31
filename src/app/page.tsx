@@ -287,7 +287,7 @@ export default async function HomePage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   href={ctas.primaryHref}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
                 >
                   {ctas.primaryLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -295,7 +295,7 @@ export default async function HomePage() {
                 {ctas.secondaryHref ? (
                   <Link
                     href={ctas.secondaryHref}
-                    className="inline-flex h-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-6 text-sm font-semibold text-white transition hover:border-orange-300 hover:bg-white/15"
+                    className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-6 text-sm font-semibold text-white transition hover:border-orange-300 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
                   >
                     {ctas.secondaryLabel}
                   </Link>
@@ -313,7 +313,7 @@ export default async function HomePage() {
             </div>
 
             <div className="w-full max-w-md justify-self-center rounded-2xl border border-white/10 bg-white/10 p-3 shadow-2xl shadow-black/30 lg:max-w-none lg:justify-self-end">
-              <div className="rounded-xl bg-white p-5 text-slate-950 shadow-xl sm:p-6">
+              <div className="rounded-2xl bg-white p-5 text-slate-950 shadow-xl sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-wide text-orange-600">
@@ -374,7 +374,7 @@ export default async function HomePage() {
                 return (
                   <article
                     key={step.title}
-                    className="flex min-h-[240px] flex-col rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+                    className="flex min-h-[240px] flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-50 text-orange-600 ring-1 ring-orange-100">
@@ -405,7 +405,7 @@ export default async function HomePage() {
                 return (
                   <article
                     key={service.title}
-                    className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-slate-200"
+                    className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
                   >
                     <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-orange-50 text-orange-600 ring-1 ring-orange-100">
                       <Icon className="h-5 w-5" aria-hidden="true" />
@@ -431,14 +431,14 @@ export default async function HomePage() {
               />
               <Link
                 href={ctas.providerHref}
-                className="inline-flex h-12 items-center justify-center rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white transition hover:bg-orange-600"
+                className="inline-flex min-h-12 items-center justify-center rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white transition hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
               >
                 {ctas.providerLabel}
               </Link>
             </div>
             <div className="grid gap-5 sm:grid-cols-3">
               {providerPlans.map((plan) => (
-                <article key={plan.name} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                <article key={plan.name} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-lg font-bold text-slate-950">{plan.name}</h3>
                     {plan.badge ? (

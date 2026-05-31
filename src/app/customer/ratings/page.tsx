@@ -58,16 +58,16 @@ export default async function CustomerRatingsPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
+      <main className="rg-page-shell">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="rg-page-header mb-8">
             <p className="text-sm font-medium text-slate-500">Customer ratings</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Rate Completed Jobs</h1>
-            <p className="mt-1 text-sm text-slate-500">Ratings help keep RescueGo provider quality high after every completed job.</p>
+            <h1 className="rg-title mt-1">Rate Completed Jobs</h1>
+            <p className="rg-body-muted mt-1">Ratings help keep RescueGo provider quality high after every completed job.</p>
           </div>
 
           {unratedJobs.length === 0 ? (
-            <Card className="border-slate-200 shadow-sm">
+            <Card>
               <CardBody>
                 <div className="py-12 text-center">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 text-sm font-bold text-green-600">✓</div>
@@ -79,7 +79,7 @@ export default async function CustomerRatingsPage() {
           ) : (
             <div className="flex flex-col gap-6">
               {unratedJobs.map((job) => (
-                <Card key={job.id} className="overflow-hidden border-slate-200 shadow-sm">
+                <Card key={job.id} className="overflow-hidden">
                   <CardHeader>
                     <div className="flex flex-col gap-1">
                       <h2 className="font-semibold text-slate-800">

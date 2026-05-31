@@ -80,16 +80,16 @@ export default async function CustomerHistoryPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
+      <main className="rg-page-shell">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="rg-page-header mb-8">
             <p className="text-sm font-medium text-slate-500">Customer history</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Your Request History</h1>
-            <p className="mt-1 text-sm text-slate-500">Review past roadside recovery requests, prices, and rating status.</p>
+            <h1 className="rg-title mt-1">Your Request History</h1>
+            <p className="rg-body-muted mt-1">Review past roadside recovery requests, prices, and rating status.</p>
           </div>
 
           {!requests || requests.length === 0 ? (
-            <Card className="border-slate-200 shadow-sm">
+            <Card>
               <CardBody>
                 <div className="py-14 text-center">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-400">0</div>
@@ -106,7 +106,7 @@ export default async function CustomerHistoryPage() {
               </CardBody>
             </Card>
           ) : (
-            <Card className="overflow-hidden border-slate-200 shadow-sm">
+            <Card className="overflow-hidden">
               <CardHeader>
                 <h2 className="font-semibold text-slate-800">{requests.length} request{requests.length !== 1 ? 's' : ''}</h2>
               </CardHeader>
@@ -115,7 +115,7 @@ export default async function CustomerHistoryPage() {
                   {requests.map((req) => (
                     <div key={req.id} className="flex flex-col gap-3 px-5 py-5 transition-colors hover:bg-slate-50 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                       <div className="min-w-0">
-                        <div className="font-medium text-slate-800">{getProblemLabel(req.problem_type)}</div>
+                        <div className="font-semibold text-slate-900">{getProblemLabel(req.problem_type)}</div>
                         <div className="text-sm text-slate-500 mt-0.5 break-words">{req.location_address ?? 'Location not recorded'}</div>
                         <div className="text-xs text-slate-400 mt-1">{new Date(req.created_at).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                         {req.status === 'completed' && (
@@ -125,7 +125,7 @@ export default async function CustomerHistoryPage() {
                         )}
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${statusColors[req.status]}`}>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-slate-200 ${statusColors[req.status]}`}>
                           {statusLabels[req.status]}
                         </span>
                         {req.status === 'completed' && jobByRequestId.get(req.id) && (

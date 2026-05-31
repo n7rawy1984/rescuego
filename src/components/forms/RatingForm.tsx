@@ -62,8 +62,8 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
 
   if (submitted) {
     return (
-      <div className="py-4 text-center">
-        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+      <div className="py-6 text-center">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 ring-1 ring-green-200">
           <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
@@ -76,11 +76,11 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
 
   return (
     <div>
-      <p className="text-slate-500 text-sm mb-6">How was your recovery provider? Your rating helps other drivers.</p>
+      <p className="mb-6 rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">How was your recovery provider? Your rating helps other drivers.</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div>
-          <p className="text-sm font-medium text-slate-700 mb-2">Rating <span className="text-red-500">*</span></p>
-          <div className="flex gap-1" role="group" aria-label="Star rating">
+          <p className="mb-2 text-sm font-semibold text-slate-700">Rating <span className="text-red-500">*</span></p>
+          <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-2" role="group" aria-label="Star rating">
             {[1, 2, 3, 4, 5].map((star) => {
               const isFilled = star <= (hoveredStar || stars)
               return (
@@ -92,7 +92,7 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
                   onMouseLeave={() => setHoveredStar(0)}
                   aria-label={`Rate ${star} out of 5 stars`}
                   aria-pressed={stars === star}
-                  className="p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-500 rounded"
+                  className="rounded-lg p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 >
                   <svg
                     className={`w-8 h-8 transition-colors ${isFilled ? 'text-amber-400 fill-amber-400' : 'text-slate-300 fill-none'}`}
@@ -118,13 +118,13 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
           )}
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="comment" className="text-sm font-medium text-slate-700">Comment (optional)</label>
+          <label htmlFor="comment" className="text-sm font-semibold text-slate-700">Comment (optional)</label>
           <textarea
             id="comment"
             value={comment}
             onChange={e => setComment(e.target.value)}
             placeholder="Tell others about your experience..."
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[80px] resize-none"
+            className="min-h-[96px] w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
         </div>
         {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}

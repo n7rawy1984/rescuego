@@ -376,7 +376,7 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
+        <main className="rg-page-shell flex items-center justify-center">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-orange-500" aria-hidden="true" />
             <p className="font-semibold text-slate-800">Checking your active request...</p>
@@ -391,7 +391,7 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
+        <main className="rg-page-shell flex items-center justify-center">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <h1 className="text-xl font-bold text-slate-900">We couldn&apos;t load your current request</h1>
             <p className="mt-2 text-sm text-slate-500">{initialRequestError}</p>
@@ -421,14 +421,15 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
-          <div className="mx-auto max-w-xl">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-900">Rate Your Recovery Service</h1>
-              <p className="mt-1 text-slate-500">Please rate your completed job before submitting another request.</p>
+        <main className="rg-page-shell">
+          <div className="rg-container-narrow">
+            <div className="rg-page-header mb-6">
+              <p className="text-sm font-medium text-slate-500">Job completed</p>
+              <h1 className="rg-title mt-1">Rate Your Recovery Service</h1>
+              <p className="rg-body-muted mt-1">Please rate your completed job before submitting another request.</p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rg-card p-5 sm:p-6">
               <div className="mb-5 rounded-xl bg-slate-50 p-4">
                 <div className="font-semibold text-slate-900">{getProblemLabel(completedUnratedRequest.request.problem_type)}</div>
                 <p className="mt-1 text-sm text-slate-500">
@@ -468,9 +469,9 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
-          <div className="max-w-md w-full">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+        <main className="rg-page-shell flex items-center justify-center">
+          <div className="w-full max-w-md">
+            <div className="rg-card p-6 text-center sm:p-8">
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -596,8 +597,8 @@ export default function RequestPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
-        <div className="max-w-2xl mx-auto">
+        <main className="rg-page-shell">
+        <div className="rg-container-narrow">
           {statusMessage && (
             <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-800">
               {statusMessage}
@@ -623,7 +624,7 @@ export default function RequestPage() {
             </div>
           )}
 
-          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="rg-page-header mb-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-500">Customer request</p>
@@ -638,13 +639,13 @@ export default function RequestPage() {
                 Request history
               </Link>
             </div>
-            <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-semibold text-slate-800">Ready when you need help</p>
               <p className="mt-1 text-sm text-slate-500">
                 Tell us what happened, share your location, and nearby verified providers can accept your request.
               </p>
             </div>
-            <div className="flex gap-2 mt-4">
+            <div className="mt-5 flex gap-2" aria-label={`Step ${step} of 3`}>
               {[1, 2, 3].map((s) => (
                 <div key={s} className={`flex-1 h-1.5 rounded-full ${step >= s ? 'bg-orange-500' : 'bg-slate-200'}`} />
               ))}
@@ -653,7 +654,7 @@ export default function RequestPage() {
           </div>
 
           {step === 1 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="rg-card p-5 sm:p-6">
               <h2 className="text-lg font-semibold text-slate-800 mb-4">What is the problem?</h2>
               <div className="grid grid-cols-2 gap-3">
                 {PROBLEM_OPTIONS.map((opt) => {
@@ -662,7 +663,7 @@ export default function RequestPage() {
                     <button
                       key={opt.type}
                       onClick={() => setProblemType(opt.type)}
-                      className={`min-h-28 rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${problemType === opt.type ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}
+                      className={`min-h-32 rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${problemType === opt.type ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/30'}`}
                     >
                       <div className="mb-2 text-orange-600">
                         <Icon className="h-5 w-5" aria-hidden="true" />
@@ -684,7 +685,7 @@ export default function RequestPage() {
           )}
 
           {step === 2 && (
-            <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="rg-card flex flex-col gap-4 p-5 sm:p-6">
               <h2 className="text-lg font-semibold text-slate-800">Contact and location details</h2>
               <Input
                 id="phone"
@@ -748,7 +749,7 @@ export default function RequestPage() {
           )}
 
           {step === 3 && (
-            <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="rg-card flex flex-col gap-4 p-5 sm:p-6">
               <h2 className="text-lg font-semibold text-slate-800">Confirm Your Request</h2>
               <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <div className="flex justify-between items-center">

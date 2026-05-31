@@ -65,7 +65,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="rg-page-shell flex items-center justify-center">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
@@ -77,7 +77,7 @@ export default function RegisterPage() {
           <h1 className="text-2xl font-bold text-slate-900">Create Account</h1>
           <p className="mt-1 text-sm text-slate-500">Free for drivers - no credit card needed</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="rg-card p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input id="name" label="Full Name" value={form.name} onChange={e => update('name', e.target.value)} required placeholder="Ahmed Al Rashid" />
             <Input id="phone" type="tel" label="Phone Number" value={form.phone} onChange={e => update('phone', e.target.value)} required placeholder="+971 50 000 0000" />

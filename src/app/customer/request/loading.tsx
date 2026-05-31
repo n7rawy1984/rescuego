@@ -4,9 +4,9 @@ export default function CustomerRequestLoading() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 px-4 py-8 pt-20">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <main className="rg-page-shell">
+        <div className="rg-container-narrow">
+          <div className="rg-page-header mb-8">
             <div className="h-4 w-36 animate-pulse rounded bg-slate-200" />
             <div className="mt-3 h-8 w-64 animate-pulse rounded-lg bg-slate-200" />
             <div className="mt-3 h-4 w-full max-w-md animate-pulse rounded bg-slate-200" />

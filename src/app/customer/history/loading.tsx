@@ -5,9 +5,9 @@ export default function CustomerHistoryLoading() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 pt-16 px-4 py-8">
+      <main className="rg-page-shell">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="rg-page-header mb-8">
             <div className="h-4 w-36 animate-pulse rounded bg-slate-200" />
             <div className="mt-3 h-8 w-56 animate-pulse rounded-lg bg-slate-200" />
             <div className="mt-3 h-4 w-72 animate-pulse rounded bg-slate-200" />
