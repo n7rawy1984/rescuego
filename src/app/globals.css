@@ -1,17 +1,49 @@
 @import "tailwindcss";
 
 :root {
+  /* RescueGo design tokens. Keep these as the shared visual source of truth for Phase 2B. */
   --background: #ffffff;
   --foreground: #0f172a;
+
   --primary: #f97316;
+  --primary-hover: #ea580c;
+  --primary-soft: #fff7ed;
   --primary-foreground: #ffffff;
+
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-raised: #ffffff;
+
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
   --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
   --card: #ffffff;
   --card-foreground: #0f172a;
+
   --destructive: #ef4444;
+  --destructive-hover: #dc2626;
+  --destructive-soft: #fef2f2;
+
   --success: #22c55e;
+  --success-soft: #f0fdf4;
+  --warning: #f59e0b;
+  --warning-soft: #fffbeb;
+  --info: #2563eb;
+  --info-soft: #eff6ff;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.05);
+  --shadow-card-hover: 0 10px 25px rgb(15 23 42 / 0.08);
+
+  --container-page: 72rem;
+  --container-narrow: 48rem;
+  --section-gap: 1.5rem;
 }
 
 * {
@@ -34,4 +66,76 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/*
+  Phase 2B reusable class patterns:
+  - .rg-page-shell: standard authenticated page background and spacing
+  - .rg-container / .rg-container-narrow: dashboard and form widths
+  - .rg-page-header: section-leading page header card
+  - .rg-card: base card treatment for future page passes
+  These are intentionally additive; existing page classes can migrate gradually.
+*/
+@layer components {
+  .rg-page-shell {
+    min-height: 100vh;
+    background: var(--surface-muted);
+    padding: 5rem 1rem 2rem;
+  }
+
+  .rg-container {
+    width: 100%;
+    max-width: var(--container-page);
+    margin-inline: auto;
+  }
+
+  .rg-container-narrow {
+    width: 100%;
+    max-width: var(--container-narrow);
+    margin-inline: auto;
+  }
+
+  .rg-page-header {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--surface-raised);
+    box-shadow: var(--shadow-card);
+    padding: 1.25rem;
+  }
+
+  .rg-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    color: var(--card-foreground);
+    box-shadow: var(--shadow-card);
+  }
+
+  .rg-title {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--foreground);
+  }
+
+  .rg-section-title {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--foreground);
+  }
+
+  .rg-body-muted {
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .rg-page-header {
+      padding: 1.5rem;
+    }
+  }
 }

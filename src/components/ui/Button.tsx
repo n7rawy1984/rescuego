@@ -9,18 +9,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, disabled, children, ...props }, ref) => {
-    const base = 'inline-flex items-center justify-center font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed'
+    const base = 'inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60'
     const variants = {
-      primary: 'bg-orange-500 hover:bg-orange-600 text-white focus:ring-orange-500',
-      secondary: 'bg-slate-800 hover:bg-slate-700 text-white focus:ring-slate-500',
-      outline: 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50 focus:ring-orange-500',
-      ghost: 'hover:bg-slate-100 text-slate-700 focus:ring-slate-300',
-      destructive: 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-500',
+      primary: 'bg-orange-500 text-white shadow-sm hover:bg-orange-600 focus:ring-orange-500',
+      secondary: 'bg-slate-900 text-white shadow-sm hover:bg-slate-800 focus:ring-slate-500',
+      outline: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:ring-orange-500',
+      ghost: 'text-slate-700 hover:bg-slate-100 focus:ring-slate-300',
+      destructive: 'bg-red-500 text-white shadow-sm hover:bg-red-600 focus:ring-red-500',
     }
     const sizes = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2 text-base',
-      lg: 'px-6 py-3 text-lg',
+      sm: 'min-h-9 px-3 py-1.5 text-sm',
+      md: 'min-h-10 px-4 py-2 text-sm',
+      lg: 'min-h-12 px-6 py-3 text-base',
     }
     return (
       <button
