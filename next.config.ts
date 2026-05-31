@@ -59,6 +59,7 @@ const contentSecurityPolicyReportOnly = [
     'https://m.stripe.network',
     'https://*.ingest.sentry.io',
     'https://*.ingest.us.sentry.io',
+    'https://*.ingest.de.sentry.io',
   ].filter(Boolean).join(' '),
   [
     "frame-src",
