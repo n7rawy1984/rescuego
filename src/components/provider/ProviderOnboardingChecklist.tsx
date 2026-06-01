@@ -125,7 +125,7 @@ export default function ProviderOnboardingChecklist({
             <span>{progressPct}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${progressPct}%` }} />
+            <div className="h-full rounded-full bg-[#1D9E75] transition-all" style={{ width: `${progressPct}%` }} />
           </div>
         </div>
       </CardHeader>
@@ -149,7 +149,7 @@ export default function ProviderOnboardingChecklist({
                   {primaryItem.actionHref && primaryItem.actionLabel ? (
                     <Link
                       href={primaryItem.actionHref}
-                      className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 sm:w-auto"
+                      className="mt-3 inline-flex h-9 w-full items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 sm:w-auto"
                     >
                       {primaryItem.actionLabel}
                     </Link>

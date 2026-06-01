@@ -21,7 +21,7 @@ export default function Accordion({ items }: { items: AccordionItem[] }) {
           >
             <span className="text-base font-semibold text-slate-950">{item.question}</span>
             <svg
-              className={`w-5 h-5 shrink-0 text-orange-500 transition-transform duration-200 ${open === i ? 'rotate-45' : ''}`}
+              className={`w-5 h-5 shrink-0 text-[#1D9E75] transition-transform duration-200 ${open === i ? 'rotate-45' : ''}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

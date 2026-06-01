@@ -378,7 +378,7 @@ export default function RequestPage() {
         <Navbar />
         <main className="rg-page-shell flex items-center justify-center">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-orange-500" aria-hidden="true" />
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#1D9E75]" aria-hidden="true" />
             <p className="font-semibold text-slate-800">Checking your active request...</p>
             <p className="mt-1 text-sm text-slate-500">This prevents duplicate roadside requests.</p>
           </div>
@@ -486,8 +486,8 @@ export default function RequestPage() {
               </div>
 
               {!isOpen && (
-                <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 p-4 text-left">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-orange-700">Assigned provider</div>
+                <div className="mb-6 rounded-xl border border-[#DDE7EE] bg-[#E1F5EE] p-4 text-left">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned provider</div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">
                     {visibleRequest.provider_name ?? 'Recovery provider assigned'}
                   </div>
@@ -507,21 +507,21 @@ export default function RequestPage() {
 
               <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left space-y-3">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
+                  <div className="w-6 h-6 rounded-full bg-[#1D9E75] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Provider notified</p>
                     <p className="text-xs text-slate-500">Nearby providers can see and accept your request now</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'accepted' || visibleRequest.status === 'in_progress' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
+                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'accepted' || visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Provider accepts</p>
                     <p className="text-xs text-slate-500">You&apos;ll receive a call from the provider directly</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'in_progress' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
+                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Pay provider directly</p>
                     <p className="text-xs text-slate-500">Cash or card - RescueGo never charges drivers</p>
@@ -606,17 +606,17 @@ export default function RequestPage() {
           )}
 
           {unratedJobsCount > 0 && (
-            <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4">
+            <div className="mb-6 rounded-xl border border-[#DDE7EE] bg-[#E1F5EE] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-semibold text-orange-900">You have a completed job waiting for rating.</p>
-                  <p className="mt-1 text-sm text-orange-800">
+                  <p className="font-semibold text-[#0F6E56]">You have a completed job waiting for rating.</p>
+                  <p className="mt-1 text-sm text-[#0F6E56]">
                     Please rate your provider to keep RescueGo quality high.
                   </p>
                 </div>
                 <Link
                   href="/customer/ratings"
-                  className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                  className="inline-flex h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56]"
                 >
                   Rate now
                 </Link>
@@ -633,7 +633,7 @@ export default function RequestPage() {
               </div>
               <Link
                 href="/customer/history"
-                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
                 <History className="mr-2 h-4 w-4" aria-hidden="true" />
                 Request history
@@ -647,7 +647,7 @@ export default function RequestPage() {
             </div>
             <div className="mt-5 flex gap-2" aria-label={`Step ${step} of 3`}>
               {[1, 2, 3].map((s) => (
-                <div key={s} className={`flex-1 h-1.5 rounded-full ${step >= s ? 'bg-orange-500' : 'bg-slate-200'}`} />
+                <div key={s} className={`flex-1 h-1.5 rounded-full ${step >= s ? 'bg-[#1D9E75]' : 'bg-slate-200'}`} />
               ))}
             </div>
             <p className="text-xs text-slate-500 mt-2">Step {step} of 3</p>
@@ -663,9 +663,9 @@ export default function RequestPage() {
                     <button
                       key={opt.type}
                       onClick={() => setProblemType(opt.type)}
-                      className={`min-h-32 rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${problemType === opt.type ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/30'}`}
+                      className={`min-h-32 rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75] ${problemType === opt.type ? 'border-[#1D9E75] bg-[#E1F5EE] shadow-sm' : 'border-slate-200 bg-white hover:border-[#9FE1CB] hover:bg-[#E1F5EE]/30'}`}
                     >
-                      <div className="mb-2 text-orange-600">
+                      <div className="mb-2 text-[#0F6E56]">
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
                       <div className="font-semibold text-slate-800">{opt.label}</div>
@@ -723,7 +723,7 @@ export default function RequestPage() {
                   id="note"
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[100px] resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1D9E75] min-h-[100px] resize-none"
                   placeholder="Building name, parking level, gate/security instructions, or nearby landmark"
                   maxLength={500}
                 />

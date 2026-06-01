@@ -9,6 +9,11 @@
   --primary-hover: #0f6e56;
   --primary-soft: #e1f5ee;
   --primary-foreground: #ffffff;
+  --dark-green: #0f6e56;
+  --dark-navy: #07122b;
+  --light-surface: #f8fafc;
+  --soft-success: #dcfce7;
+  --accent-amber: #f59e0b;
 
   --surface: #ffffff;
   --surface-muted: #f8fafc;
@@ -16,7 +21,7 @@
 
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  --border: #e5e7eb;
+  --border: #dde7ee;
   --border-strong: #cbd5e1;
 
   --card: #ffffff;
@@ -27,7 +32,7 @@
   --destructive-soft: #fef2f2;
 
   --success: #1d9e75;
-  --success-soft: #e1f5ee;
+  --success-soft: #dcfce7;
   --warning: #f59e0b;
   --warning-soft: #fffbeb;
   --info: #2563eb;

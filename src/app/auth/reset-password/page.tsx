@@ -45,7 +45,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center" aria-hidden="true">
+            <div className="w-10 h-10 bg-[#1D9E75] rounded-xl flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
             <span className="font-bold text-2xl text-slate-900">RescueGo</span>
@@ -66,7 +66,7 @@ export default function ResetPasswordPage() {
               <p className="text-sm text-slate-500 mb-6">
                 Your password has been changed successfully. You can now sign in with the new password.
               </p>
-              <Link href="/auth/login" className="text-orange-500 font-semibold hover:underline text-sm">
+              <Link href="/auth/login" className="text-[#1D9E75] font-semibold hover:underline text-sm">
                 Back to Sign In
               </Link>
             </div>

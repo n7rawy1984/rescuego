@@ -99,7 +99,7 @@ export default function AdminProviderActions({ providerId, currentStatus, verifi
                 type="button"
                 onClick={updateProvider}
                 disabled={loading}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Updating...' : 'Confirm'}
               </button>

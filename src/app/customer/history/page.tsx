@@ -29,7 +29,7 @@ type HistoryJobRow = {
 
 const statusColors: Record<RequestStatus, string> = {
   open: 'bg-blue-100 text-blue-700',
-  accepted: 'bg-orange-100 text-orange-700',
+  accepted: 'bg-[#DCFCE7] text-[#0F6E56]',
   in_progress: 'bg-yellow-100 text-yellow-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-slate-100 text-slate-500',
@@ -98,7 +98,7 @@ export default async function CustomerHistoryPage() {
                   <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Your roadside requests will appear here after you submit your first recovery request.</p>
                   <a
                     href="/customer/request"
-                    className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+                    className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#1D9E75] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
                   >
                     Request Help Now
                   </a>

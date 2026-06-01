@@ -93,7 +93,7 @@ export default function PaymentElementForm({ returnPath = '/provider/dashboard' 
         type="submit"
         disabled={!stripe || !elements || processing}
         aria-label="Confirm secure Stripe payment"
-        className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-5 flex h-11 w-full items-center justify-center rounded-lg bg-[#1D9E75] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {processing ? 'Processing...' : 'Pay securely'}
       </button>

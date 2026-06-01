@@ -11,9 +11,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, disabled, children, ...props }, ref) => {
     const base = 'inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60'
     const variants = {
-      primary: 'bg-orange-500 text-white shadow-sm hover:bg-orange-600 focus:ring-orange-500',
+      primary: 'bg-[#1D9E75] text-white shadow-sm hover:bg-[#0F6E56] focus:ring-[#1D9E75]',
       secondary: 'bg-slate-900 text-white shadow-sm hover:bg-slate-800 focus:ring-slate-500',
-      outline: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:ring-orange-500',
+      outline: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:ring-[#1D9E75]',
       ghost: 'text-slate-700 hover:bg-slate-100 focus:ring-slate-300',
       destructive: 'bg-red-500 text-white shadow-sm hover:bg-red-600 focus:ring-red-500',
     }

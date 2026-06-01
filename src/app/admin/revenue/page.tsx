@@ -89,7 +89,7 @@ export default async function AdminRevenuePage() {
                 <h1 className="mt-1 text-2xl font-bold text-slate-900">Revenue Log</h1>
                 <p className="mt-1 text-sm text-slate-500">Review payouts, commission charges, PPJ payments, and failed overage events.</p>
               </div>
-              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Back to Dashboard</a>
+              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Back to Dashboard</a>
             </div>
           </div>
 
@@ -102,7 +102,7 @@ export default async function AdminRevenuePage() {
             </Card>
             <Card className="border-slate-200 shadow-sm">
               <CardBody className="min-h-28">
-                <div className="text-2xl font-bold text-orange-600">{(totalCommissions / 100).toFixed(2)} AED</div>
+                <div className="text-2xl font-bold text-[#0F6E56]">{(totalCommissions / 100).toFixed(2)} AED</div>
                 <div className="text-sm text-slate-500">Total Commissions Charged</div>
               </CardBody>
             </Card>
@@ -171,7 +171,7 @@ export default async function AdminRevenuePage() {
                           <div className="font-medium text-slate-800">{job.providers?.users?.name ?? '-'}</div>
                           <div className="text-xs text-slate-400">{job.requests?.problem_type} · {job.commission_rate}% rate</div>
                         </div>
-                        <div className="shrink-0 font-semibold text-orange-600">{((job.commission_amount ?? 0) / 100).toFixed(2)} AED</div>
+                        <div className="shrink-0 font-semibold text-[#0F6E56]">{((job.commission_amount ?? 0) / 100).toFixed(2)} AED</div>
                       </div>
                     ))}
                   </div>
@@ -202,7 +202,7 @@ export default async function AdminRevenuePage() {
                         <td className="px-5 py-4 text-slate-500">{(payment.distance_meters / 1000).toFixed(1)} km</td>
                         <td className="px-5 py-4">
                           {payment.promo_applied
-                            ? <span className="text-orange-600 font-semibold text-xs">Yes</span>
+                            ? <span className="text-[#0F6E56] font-semibold text-xs">Yes</span>
                             : <span className="text-slate-400 text-xs">No</span>
                           }
                         </td>

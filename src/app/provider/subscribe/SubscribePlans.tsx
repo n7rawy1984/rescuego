@@ -157,7 +157,7 @@ export default function SubscribePlans({
           return (
             <article key={plan.id} className={`relative overflow-hidden rounded-3xl border bg-white p-6 shadow-lg shadow-slate-200/70 ${isCurrent ? 'border-green-500 ring-2 ring-green-100' : isSelected ? 'border-amber-300 ring-2 ring-amber-100' : 'border-slate-200'}`}>
             {plan.id === 'pro' && !isCurrent && (
-              <div className="absolute right-5 top-5 rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
+              <div className="absolute right-5 top-5 rounded-full bg-[#1D9E75] px-3 py-1 text-xs font-bold text-white shadow-sm">
                 Popular
               </div>
             )}
@@ -223,7 +223,7 @@ export default function SubscribePlans({
               type="button"
               onClick={() => handleSubscribe(plan.id)}
               disabled={loadingPlan !== null || isCurrent}
-              className={`mt-6 flex min-h-12 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-slate-100 text-slate-500' : 'bg-orange-500 text-white shadow-md shadow-orange-100 hover:bg-orange-600'}`}
+              className={`mt-6 flex min-h-12 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-slate-100 text-slate-500' : 'bg-[#1D9E75] text-white shadow-md shadow-[#DCFCE7] hover:bg-[#0F6E56]'}`}
             >
               {isCurrent
                 ? 'Current Plan'

@@ -31,7 +31,7 @@ export default function DubaiPage() {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">Roadside Recovery Dubai — Fast &amp; Trusted</h1>
             <p className="text-slate-300 text-lg mb-8 max-w-2xl">Broken down in Dubai? RescueGo connects you to verified roadside recovery providers across all Dubai areas — from Downtown to Deira, JBR to Al Qusais.</p>
-            <Link href="/customer/request" className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors">Request Recovery in Dubai</Link>
+            <Link href="/customer/request" className="inline-block bg-[#1D9E75] hover:bg-[#0F6E56] text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors">Request Recovery in Dubai</Link>
           </div>
         </section>
 
@@ -44,11 +44,11 @@ export default function DubaiPage() {
                 <div key={label} className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
                   <div className="text-3xl mb-2">{icon}</div>
                   <div className="font-semibold text-slate-800">{label}</div>
-                  <div className="text-sm text-orange-600 mt-1">{price}</div>
+                  <div className="text-sm text-[#0F6E56] mt-1">{price}</div>
                 </div>
               ))}
             </div>
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+            <div className="bg-[#E1F5EE] border border-[#DDE7EE] rounded-xl p-6">
               <h3 className="font-bold text-slate-900 mb-2">Coverage Areas in Dubai</h3>
               <p className="text-slate-600 text-sm">Downtown Dubai · Dubai Marina · JBR · Deira · Bur Dubai · Al Qusais · Jumeirah · Business Bay · DIFC · Dubai Hills · Al Barsha · Mirdif · Al Quoz · Dubai Silicon Oasis · Dubai South</p>
             </div>

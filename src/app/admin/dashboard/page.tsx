@@ -64,7 +64,7 @@ export default async function AdminDashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <a href="/admin/providers?filter=pending" className="inline-flex h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
+              <a href="/admin/providers?filter=pending" className="inline-flex h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56]">
                 Review pending
               </a>
               <a href="/admin/requests" className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
@@ -80,7 +80,7 @@ export default async function AdminDashboardPage() {
               <div className="mt-1 text-sm font-semibold text-amber-900">Pending provider approvals</div>
               <div className="mt-1 text-xs text-amber-800">Review documents and activate eligible providers.</div>
             </a>
-            <a href="/admin/providers?filter=missing-documents" className="min-h-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
+            <a href="/admin/providers?filter=missing-documents" className="min-h-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">
               <div className="text-2xl font-bold text-slate-800">{totalProviders ?? 0}</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">Provider moderation</div>
               <div className="mt-1 text-xs text-slate-500">Check missing documents, status, and trust badges.</div>
@@ -96,7 +96,7 @@ export default async function AdminDashboardPage() {
             {[
               { label: 'Total Customers', value: totalCustomers ?? 0, color: 'text-blue-600' },
               { label: 'Total Providers', value: totalProviders ?? 0, color: 'text-purple-600' },
-              { label: 'Total Requests', value: totalRequests, color: 'text-orange-600' },
+              { label: 'Total Requests', value: totalRequests, color: 'text-[#0F6E56]' },
               { label: 'Completed Jobs', value: completedRequests, color: 'text-green-600' },
               { label: 'Active Subscriptions', value: activeSubscriptions ?? 0, color: 'text-green-600' },
               { label: 'Expired Requests', value: expiredRequests, color: 'text-slate-600' },
@@ -216,9 +216,9 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <a href="/admin/providers" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Manage Providers</a>
-            <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">View All Requests</a>
-            <a href="/admin/revenue" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">Revenue Log</a>
+            <a href="/admin/providers" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Manage Providers</a>
+            <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">View All Requests</a>
+            <a href="/admin/revenue" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Revenue Log</a>
           </div>
         </div>
       </main>

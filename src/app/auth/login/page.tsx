@@ -167,7 +167,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center" aria-hidden="true">
+            <div className="w-10 h-10 bg-[#1D9E75] rounded-xl flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
             <span className="font-bold text-2xl text-slate-900">RescueGo</span>
@@ -180,13 +180,13 @@ export default function LoginPage() {
             <Input id="email" type="email" label="Email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" disabled={loading} />
             <Input id="password" type="password" label="Password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Password" disabled={loading} />
             <div className="text-right -mt-2">
-              <Link href="/auth/forgot-password" className="text-sm text-orange-500 hover:underline">
+              <Link href="/auth/forgot-password" className="text-sm text-[#1D9E75] hover:underline">
                 Forgot password?
               </Link>
             </div>
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
             {loadingMessage && (
-              <div className="rounded-lg bg-orange-50 px-3 py-2 text-sm font-medium text-orange-800" role="status" aria-live="polite">
+              <div className="rounded-lg bg-[#E1F5EE] px-3 py-2 text-sm font-medium text-[#0F6E56]" role="status" aria-live="polite">
                 {loadingMessage}
               </div>
             )}
@@ -195,8 +195,8 @@ export default function LoginPage() {
             </Button>
           </form>
           <div className="mt-6 flex flex-col gap-2 text-center text-sm text-slate-500">
-            <p>New customer? <Link href="/auth/register" className="text-orange-500 font-semibold hover:underline">Create account</Link></p>
-            <p>Recovery provider? <Link href="/provider/register" className="text-orange-500 font-semibold hover:underline">Join as Provider</Link></p>
+            <p>New customer? <Link href="/auth/register" className="text-[#1D9E75] font-semibold hover:underline">Create account</Link></p>
+            <p>Recovery provider? <Link href="/provider/register" className="text-[#1D9E75] font-semibold hover:underline">Join as Provider</Link></p>
           </div>
         </div>
       </div>

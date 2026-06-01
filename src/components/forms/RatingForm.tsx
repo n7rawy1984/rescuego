@@ -92,7 +92,7 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
                   onMouseLeave={() => setHoveredStar(0)}
                   aria-label={`Rate ${star} out of 5 stars`}
                   aria-pressed={stars === star}
-                  className="rounded-lg p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="rounded-lg p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
                 >
                   <svg
                     className={`w-8 h-8 transition-colors ${isFilled ? 'text-amber-400 fill-amber-400' : 'text-slate-300 fill-none'}`}
@@ -124,7 +124,7 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
             value={comment}
             onChange={e => setComment(e.target.value)}
             placeholder="Tell others about your experience..."
-            className="min-h-[96px] w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="min-h-[96px] w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
           />
         </div>
         {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}

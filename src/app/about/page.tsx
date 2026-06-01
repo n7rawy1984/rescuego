@@ -39,8 +39,8 @@ export default function AboutPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-16">
-              <div className="bg-orange-50 rounded-2xl p-8 border border-orange-200 order-2 md:order-1">
-                <div className="mb-4 text-sm font-semibold uppercase tracking-wide text-orange-500">After</div>
+              <div className="bg-[#E1F5EE] rounded-2xl p-8 border border-[#DDE7EE] order-2 md:order-1">
+                <div className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#1D9E75]">After</div>
                 <h3 className="font-bold text-slate-900 text-lg mb-2">With RescueGo</h3>
                 <ul className="flex flex-col gap-2 text-slate-600 text-sm">
                   {['One tap — providers notified instantly', 'Emirates ID verified providers only', 'Live GPS tracking on map', 'Price range shown before you request', 'Mandatory ratings after every job'].map(p => (
@@ -59,7 +59,7 @@ export default function AboutPage() {
               <h2 className="text-2xl font-bold mb-6 text-center">Built by Mohamed Elnahrawy</h2>
               <p className="text-slate-300 text-center leading-relaxed max-w-2xl mx-auto mb-6">RescueGo was designed and built as a production-grade SaaS product for the UAE market. The platform uses modern technology — Supabase, Next.js, Stripe, and Google Maps — to deliver a real-time, reliable experience for both drivers and providers.</p>
               <div className="text-center">
-                <a href="https://elnahrawy.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
+                <a href="https://elnahrawy.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-[#1D9E75] hover:bg-[#0F6E56] text-white px-6 py-3 rounded-xl font-semibold transition-colors">
                   Visit elnahrawy.com
                 </a>
               </div>
@@ -68,7 +68,7 @@ export default function AboutPage() {
             <div className="text-center">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Ready to get started?</h2>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/customer/request" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl font-semibold transition-colors">Request Recovery (Free)</Link>
+                <Link href="/customer/request" className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white px-8 py-4 rounded-xl font-semibold transition-colors">Request Recovery (Free)</Link>
                 <Link href="/provider/register" className="border-2 border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white px-8 py-4 rounded-xl font-semibold transition-colors">Join as Provider</Link>
               </div>
             </div>

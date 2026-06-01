@@ -38,7 +38,7 @@ export function getStatusColor(status: RequestStatus | ProviderStatus): string {
   const colors: Record<string, string> = {
     open: 'bg-blue-100 text-blue-800',
     accepted: 'bg-yellow-100 text-yellow-800',
-    in_progress: 'bg-orange-100 text-orange-800',
+    in_progress: 'bg-[#DCFCE7] text-[#0F6E56]',
     completed: 'bg-green-100 text-green-800',
     cancelled: 'bg-gray-100 text-gray-800',
     expired: 'bg-slate-100 text-slate-600',

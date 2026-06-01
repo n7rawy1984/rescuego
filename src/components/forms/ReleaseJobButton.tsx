@@ -92,7 +92,7 @@ export default function ReleaseJobButton({ requestId, providerPlan }: ReleaseJob
                 type="button"
                 onClick={releaseJob}
                 disabled={loading}
-                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Releasing...' : 'Release job'}
               </button>

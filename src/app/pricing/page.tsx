@@ -137,7 +137,7 @@ export default async function PricingPage() {
       <Navbar />
       <main className="pt-16">
         {LAUNCH_PROMO && (
-          <div className="bg-orange-500 text-white text-center py-3 px-4 text-sm font-semibold">
+          <div className="bg-[#1D9E75] text-white text-center py-3 px-4 text-sm font-semibold">
             Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat - Limited time only!
           </div>
         )}
@@ -149,7 +149,7 @@ export default async function PricingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
               href="/provider/register?plan=pay_per_job"
-              className="inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white transition hover:bg-orange-600"
+              className="inline-flex h-11 items-center justify-center rounded-lg bg-[#1D9E75] px-6 text-sm font-semibold text-white transition hover:bg-[#0F6E56]"
             >
               Join as Provider
             </a>
@@ -174,7 +174,7 @@ export default async function PricingPage() {
                 </div>
               </div>
             ) : (
-            <div className="mb-12 rounded-2xl border border-orange-200 bg-orange-50 p-6 md:p-8">
+            <div className="mb-12 rounded-2xl border border-[#DDE7EE] bg-[#E1F5EE] p-6 md:p-8">
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="max-w-2xl">
                   <h2 className="text-2xl font-bold text-slate-900">Start free with Pay Per Job</h2>
@@ -197,7 +197,7 @@ export default async function PricingPage() {
                 </div>
                 <Link
                   href={payPerJobHref(viewer)}
-                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-orange-500 px-6 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-[#1D9E75] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56]"
                 >
                   {payPerJobLabel(viewer)}
                 </Link>
@@ -226,11 +226,11 @@ export default async function PricingPage() {
               {PLANS.map((plan) => {
                 const isCurrentPlan = viewer.currentPlan === plan.id
                 return (
-                  <div key={plan.id} className={`relative rounded-2xl border-2 p-6 md:p-8 ${isCurrentPlan ? 'border-green-500 shadow-xl shadow-green-100' : plan.highlight ? 'border-orange-500 shadow-xl shadow-orange-100' : 'border-slate-200'}`}>
+                  <div key={plan.id} className={`relative rounded-2xl border-2 p-6 md:p-8 ${isCurrentPlan ? 'border-green-500 shadow-xl shadow-green-100' : plan.highlight ? 'border-[#1D9E75] shadow-xl shadow-[#DCFCE7]' : 'border-slate-200'}`}>
                     {isCurrentPlan ? (
                       <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white text-sm font-bold px-4 py-1 rounded-full">Active Plan</div>
                     ) : plan.highlight ? (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-sm font-bold px-4 py-1 rounded-full">Most Popular</div>
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#1D9E75] text-white text-sm font-bold px-4 py-1 rounded-full">Most Popular</div>
                     ) : null}
                     <div className="font-bold text-xl text-slate-900 mb-2">{plan.name}</div>
                     <p className="mb-4 text-sm leading-6 text-slate-600">{plan.positioning}</p>
@@ -254,7 +254,7 @@ export default async function PricingPage() {
                         Current Plan
                       </button>
                     ) : (
-                      <Link href={subscriptionPlanHref(viewer, plan.id)} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'border-2 border-orange-500 text-orange-500 hover:bg-orange-50'}`}>
+                      <Link href={subscriptionPlanHref(viewer, plan.id)} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-[#1D9E75] hover:bg-[#0F6E56] text-white' : 'border-2 border-[#1D9E75] text-[#1D9E75] hover:bg-[#E1F5EE]'}`}>
                         {planButtonLabel(plan.id)}
                       </Link>
                     )}

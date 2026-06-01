@@ -68,7 +68,7 @@ export default function CompleteJobForm({ requestId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 rounded-2xl border border-orange-100 bg-white/80 p-4 shadow-sm">
+    <form onSubmit={handleSubmit} className="mt-4 rounded-2xl border border-[#DDE7EE] bg-white/80 p-4 shadow-sm">
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
       <Input
         id={`final-price-${requestId}`}

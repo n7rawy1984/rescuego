@@ -38,7 +38,7 @@ export default function LocationActions({ coordinates }: LocationActionsProps) {
         href={googleMapsSearchUrl(coordinates)}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
       >
         <MapPinned className="h-4 w-4" aria-hidden="true" />
         Open in Google Maps
@@ -46,7 +46,7 @@ export default function LocationActions({ coordinates }: LocationActionsProps) {
       <button
         type="button"
         onClick={copyLocation}
-        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-orange-200 bg-white px-4 text-sm font-semibold text-orange-700 transition hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#DDE7EE] bg-white px-4 text-sm font-semibold text-[#0F6E56] transition hover:bg-[#E1F5EE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
       >
         <Copy className="h-4 w-4" aria-hidden="true" />
         {copied ? 'Copied' : 'Copy location'}

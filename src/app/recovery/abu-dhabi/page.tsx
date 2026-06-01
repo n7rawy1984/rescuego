@@ -22,7 +22,7 @@ export default function AbuDhabiPage() {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">Car Breakdown Recovery Abu Dhabi</h1>
             <p className="text-slate-300 text-lg mb-8 max-w-2xl">Stuck on the Abu Dhabi Corniche, Khalifa City, or Yas Island? RescueGo connects you to verified recovery providers across Abu Dhabi in minutes.</p>
-            <Link href="/customer/request" className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors">Request Recovery in Abu Dhabi</Link>
+            <Link href="/customer/request" className="inline-block bg-[#1D9E75] hover:bg-[#0F6E56] text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors">Request Recovery in Abu Dhabi</Link>
           </div>
         </section>
         <section className="py-12 px-4 bg-white">
@@ -34,11 +34,11 @@ export default function AbuDhabiPage() {
                 <div key={label} className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
                   <div className="text-3xl mb-2">{icon}</div>
                   <div className="font-semibold text-slate-800">{label}</div>
-                  <div className="text-sm text-orange-600 mt-1">{price}</div>
+                  <div className="text-sm text-[#0F6E56] mt-1">{price}</div>
                 </div>
               ))}
             </div>
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+            <div className="bg-[#E1F5EE] border border-[#DDE7EE] rounded-xl p-6">
               <h3 className="font-bold text-slate-900 mb-2">Coverage Areas in Abu Dhabi</h3>
               <p className="text-slate-600 text-sm">Abu Dhabi City · Khalifa City · Yas Island · Al Reem Island · Mohammed Bin Zayed City · Al Ain · Al Mushrif · Al Shamkha · Masdar City · Al Raha Beach</p>
             </div>

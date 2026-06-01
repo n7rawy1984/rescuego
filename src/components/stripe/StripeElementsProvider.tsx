@@ -31,7 +31,7 @@ export default function StripeElementsProvider({
         appearance: {
           theme: 'stripe',
           variables: {
-            colorPrimary: '#f97316',
+            colorPrimary: '#1D9E75',
             borderRadius: '10px',
           },
         },

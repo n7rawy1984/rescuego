@@ -49,7 +49,7 @@ function PpjPayContent() {
   if (loading) {
     return (
       <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
-        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-orange-500" aria-hidden="true" />
+        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#1D9E75]" aria-hidden="true" />
         <p className="font-semibold text-slate-800">Preparing secure payment...</p>
         <p className="mt-1 text-sm text-slate-500">Opening the Stripe payment form safely.</p>
       </div>
@@ -68,13 +68,13 @@ function PpjPayContent() {
   return (
       <div className="mx-auto max-w-lg">
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-xl shadow-slate-200/70 sm:p-8">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100">
-          <CreditCard className="h-7 w-7 text-orange-600" aria-hidden="true" />
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#DCFCE7]">
+          <CreditCard className="h-7 w-7 text-[#0F6E56]" aria-hidden="true" />
         </div>
-        <p className="text-xs font-bold uppercase tracking-wide text-orange-600">Secure assignment payment</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-[#0F6E56]">Secure assignment payment</p>
         <h1 className="mb-2 mt-1 text-2xl font-bold text-slate-900">Pay Per Job Acceptance Fee</h1>
         <p className="text-slate-600 mb-6">
-          Pay <strong className="text-orange-600">{fee} AED</strong> to accept this recovery request.
+          Pay <strong className="text-[#0F6E56]">{fee} AED</strong> to accept this recovery request.
         </p>
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-sm text-amber-800 text-left">
           Once payment is confirmed, the request will be automatically assigned to you and appear as your active job.
@@ -88,7 +88,7 @@ function PpjPayContent() {
         </StripeElementsProvider>
         <a
           href="/provider/dashboard"
-          className="mt-6 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+          className="mt-6 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
         >
           Back to Dashboard
         </a>

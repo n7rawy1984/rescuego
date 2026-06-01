@@ -20,7 +20,7 @@ export default function NotFound() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="/customer/request"
-              className="inline-flex h-11 items-center justify-center rounded-lg bg-orange-500 px-6 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+              className="inline-flex h-11 items-center justify-center rounded-lg bg-[#1D9E75] px-6 text-sm font-semibold text-white hover:bg-[#0F6E56] transition-colors"
             >
               Request Recovery
             </Link>

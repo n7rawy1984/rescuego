@@ -69,7 +69,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center" aria-hidden="true">
+            <div className="w-10 h-10 bg-[#1D9E75] rounded-xl flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
             <span className="font-bold text-2xl text-slate-900">RescueGo</span>
@@ -90,7 +90,7 @@ export default function RegisterPage() {
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-500">
-            Already have an account? <Link href="/auth/login" className="text-orange-500 font-semibold hover:underline">Sign In</Link>
+            Already have an account? <Link href="/auth/login" className="text-[#1D9E75] font-semibold hover:underline">Sign In</Link>
           </p>
         </div>
       </div>
