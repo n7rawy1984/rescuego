@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LocateFixed, Power, RefreshCw } from 'lucide-react'
+import { Power, Radio, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { distanceMeters, roundDispatchCoordinate } from '@/lib/geo'
 import type { Coordinates } from '@/lib/geo'
@@ -206,14 +206,27 @@ export default function ProviderAvailabilityToggle({
   }
 
   return (
-    <section className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+    <section className={`mb-6 block w-full clear-both rounded-xl border p-5 shadow-sm transition-colors ${
+      online ? 'border-[#9FE1CB] bg-[#E1F5EE]' : 'border-slate-200 bg-white'
+    }`}>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
-          <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${online ? 'bg-[#1D9E75]' : 'bg-[#E24B4A]'}`} aria-hidden="true" />
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+            online ? 'bg-white text-[#0F6E56]' : 'bg-slate-100 text-slate-500'
+          }`}>
+            {online ? (
+              <Wifi className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <WifiOff className="h-5 w-5" aria-hidden="true" />
+            )}
+          </div>
           <div>
-            <h2 className="text-base font-medium text-slate-950">
-              {online ? 'You are online for dispatch' : 'You are offline'}
-            </h2>
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${online ? 'animate-pulse bg-[#1D9E75]' : 'bg-[#E24B4A]'}`} aria-hidden="true" />
+              <h2 className="text-base font-medium text-slate-950">
+                {online ? 'You are online for dispatch' : 'You are offline'}
+              </h2>
+            </div>
             <p className="mt-1 text-sm text-slate-500">
               {online ? formatUpdatedAt(updatedAt) : 'Go online when you are available for nearby roadside requests.'}
             </p>
@@ -233,7 +246,7 @@ export default function ProviderAvailabilityToggle({
             {online ? (
               <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
             ) : (
-              <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
+              <Radio className="mr-2 h-4 w-4" aria-hidden="true" />
             )}
             {online ? 'Refresh Location' : 'Go Online'}
           </Button>

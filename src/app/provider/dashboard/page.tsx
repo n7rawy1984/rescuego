@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { BriefcaseBusiness, CreditCard, History, MapPin, ShieldCheck, Star, TrendingUp, WalletCards } from 'lucide-react'
+import { MapPin, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -14,6 +14,10 @@ import CompleteJobForm from '@/components/forms/CompleteJobForm'
 import ReleaseJobButton from '@/components/forms/ReleaseJobButton'
 import ProviderOnboardingChecklist from '@/components/provider/ProviderOnboardingChecklist'
 import ProviderAvailabilityToggle from '@/components/provider/ProviderAvailabilityToggle'
+import ProviderDashboardHeader from '@/components/provider/dashboard/ProviderDashboardHeader'
+import ProviderStatsGrid from '@/components/provider/dashboard/ProviderStatsGrid'
+import ProviderUpgradeNotice from '@/components/provider/dashboard/ProviderUpgradeNotice'
+import ProviderRecentActivitySection from '@/components/provider/dashboard/ProviderRecentActivitySection'
 import LocationActions from '@/components/provider/LocationActions'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
@@ -195,7 +199,6 @@ export default async function ProviderDashboardPage({
 
   if (!provider) redirect('/provider/register')
 
-  const roundedRating = Math.round(provider.rating)
   const onboarding = getProviderOnboardingState({
     name: provider.users?.name ?? null,
     email: provider.users?.email ?? null,
@@ -415,56 +418,36 @@ export default async function ProviderDashboardPage({
             label: 'Upgrade to Business',
           }
         : null
+  const recentActivityItems = (recentJobs ?? []).map((job) => {
+    const activity = recentActivityStatus(job)
+    return {
+      id: job.id,
+      problemLabel: job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Service',
+      badgeLabel: activity.label,
+      badgeVariant: activity.badge,
+      location: safeActivityLocation(job.requests?.location_address),
+      amount: job.completed_at || job.requests?.status === 'completed'
+        ? job.requests?.final_price ? `${job.requests.final_price} AED` : 'Completed'
+        : '-',
+      date: activity.date ? new Date(activity.date).toLocaleDateString('en-AE') : 'Date unavailable',
+    }
+  })
 
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-[#F8FAFC]">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-          <section className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Provider operations</p>
-                <h1 className="mt-1 text-3xl font-medium tracking-tight text-slate-950 sm:text-4xl">Welcome, {provider.users?.name?.split(' ')[0] ?? 'Provider'}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Manage availability, active jobs, request intake, and recent activity.</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${
-                      provider.status === 'active'
-                        ? 'bg-[#E1F5EE] text-[#0F6E56]'
-                        : provider.status === 'suspended'
-                          ? 'bg-red-50 text-red-700'
-                          : 'bg-[#FAEEDA] text-amber-800'
-                    }`}
-                  >
-                    {provider.status}
-                  </span>
-                  <span className="rounded-full bg-[#E6F1FB] px-3 py-1 text-xs font-medium text-[#185FA5]">{getPlanLabel(provider.plan)}</span>
-                  {provider.verified_badge && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-medium text-[#0F6E56]">
-                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                      Trusted Recovery Partner
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="rounded-lg border border-amber-200 bg-[#FAEEDA] px-4 py-3 text-left sm:text-right">
-                <div className="flex items-center gap-1 sm:justify-end">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`h-5 w-5 ${star <= roundedRating ? 'fill-amber-500 text-amber-500' : 'text-amber-200'}`}
-                      aria-hidden="true"
-                    />
-                  ))}
-                  <span className="ml-2 text-2xl font-medium text-amber-950">{provider.rating.toFixed(1)}</span>
-                </div>
-                <div className="mt-1 text-sm text-amber-800">Your rating</div>
-                {!recentJobs?.length ? (
-                  <div className="text-xs text-amber-700">Your first reviews will appear after completed jobs.</div>
-                ) : null}
-              </div>
-          </section>
+          <ProviderDashboardHeader
+            name={provider.users?.name?.split(' ')[0] ?? 'Provider'}
+            rating={provider.rating}
+            status={provider.status}
+            planLabel={getPlanLabel(provider.plan)}
+            verified={provider.verified_badge}
+            hasRecentJobs={Boolean(recentJobs?.length)}
+          />
 
+          {/* OPERATIONAL READY NOTICE */}
           {operationalReady && (
             <div className="mb-6 flex max-w-3xl items-center gap-3 rounded-lg border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-sm text-[#0F6E56]">
               <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
@@ -472,6 +455,7 @@ export default async function ProviderDashboardPage({
             </div>
           )}
 
+          {/* ONBOARDING CHECKLIST */}
           <ProviderOnboardingChecklist
             name={provider.users?.name ?? null}
             email={provider.users?.email ?? null}
@@ -482,6 +466,7 @@ export default async function ProviderDashboardPage({
             documents={provider.documents}
           />
 
+          {/* NOT READY STATE */}
           {!operationalReady && (
             <Card className="mb-6 border-slate-200 bg-white shadow-sm">
               <CardBody>
@@ -508,314 +493,213 @@ export default async function ProviderDashboardPage({
             </Card>
           )}
 
+          {/* OPERATIONAL DASHBOARD */}
           {operationalReady && (
-          <>
-          <ProviderAvailabilityToggle
-            providerStatus={provider.status}
-            initialOnline={providerIsOnline}
-            initialUpdatedAt={providerLocationUpdatedAt}
-            disabledReason={availabilityDisabledReason}
-            hasActiveJob={Boolean(activeRequest)}
-            activeRequestId={activeRequest?.id ?? null}
-            providerPlan={provider.plan}
-          />
-
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E1F5EE] text-[#0F6E56]">
-                  <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <div>
-                  <div className="text-3xl font-medium text-slate-950">{provider.jobs_this_month}</div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    Jobs this month
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E6F1FB] text-[#185FA5]">
-                  <CreditCard className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <div>
-                  <div className="text-2xl font-medium text-slate-950">{getPlanLabel(provider.plan)}</div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {allowance.isPayPerJob ? 'No monthly allowance' : allowance.isUnlimited ? 'Unlimited monthly jobs' : `${allowance.remaining} available jobs`}
-                  </div>
-                </div>
-                {allowance.creditBalance > 0 && allowance.hasMonthlyAllowance ? (
-                  <div className="text-xs text-green-600 mt-1">Includes preserved upgrade credits.</div>
-                ) : null}
-                {allowance.isPayPerJob ? (
-                  <div className="text-xs text-slate-400 mt-1">Pay only when you accept a request.</div>
-                ) : null}
-              </CardBody>
-            </Card>
-            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#FAEEDA] text-amber-700">
-                  <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <div>
-                  <div className="text-2xl font-medium text-amber-700">{allowance.isPayPerJob ? 'PPJ' : allowance.isUnlimited ? 'Unlimited' : 'Monthly'}</div>
-                  <div className="mt-1 text-sm text-slate-500">Current access</div>
-                </div>
-              </CardBody>
-            </Card>
-            <Card className="min-h-[120px] rounded-xl border-gray-100 bg-white p-4 shadow-sm">
-              <CardBody className="flex h-full flex-col justify-between gap-3 p-0 sm:p-0">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#E1F5EE] text-[#0F6E56]">
-                  <WalletCards className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <div>
-                  <div className="text-3xl font-medium text-[#1D9E75]">{totalEarnings > 0 ? `${totalEarnings} AED` : '-'}</div>
-                  <div className="mt-1 text-sm text-slate-500">Earnings</div>
-                </div>
-                {totalEarnings === 0 ? (
-                  <div className="text-xs text-slate-400 mt-1">Completed jobs will build this total.</div>
-                ) : null}
-              </CardBody>
-            </Card>
-          </div>
-
-          {upgradePrompt && (
-            <div className="mb-6 flex flex-col justify-between gap-4 rounded-lg border border-[#B5D4F4] bg-[#E6F1FB] p-5 sm:flex-row sm:items-center">
-              <div>
-                <p className="text-sm font-medium text-[#185FA5]">
-                  {upgradePrompt.title}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-600">
-                  {upgradePrompt.subtitle}
-                </p>
-                {upgradePrompt.creditNote ? (
-                  <p className="mt-1 text-xs text-[#185FA5]">
-                    {upgradePrompt.creditNote}
+            <>
+              {/* SUSPENDED NOTICE */}
+              {provider.status === 'suspended' && (
+                <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="font-semibold text-red-800">Account Suspended</p>
+                  <p className="mt-1 text-sm text-red-700">
+                    Contact support to resolve your account status.{' '}
+                    <a href="mailto:n7rawy19840@gmail.com" className="font-semibold underline hover:text-red-900">
+                      Email support
+                    </a>
                   </p>
-                ) : null}
-              </div>
-                  <a
-                    href={upgradePrompt.href}
-                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[#185FA5] bg-white px-4 text-sm font-medium text-[#185FA5] transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
-                  >
-                Upgrade plan →
-              </a>
-            </div>
-          )}
-
-          {provider.plan === 'business' && (
-            <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="font-semibold text-slate-800 text-sm">You are on the highest plan.</p>
-              <p className="text-xs text-slate-500 mt-0.5">Business includes unlimited jobs, highest priority, and no premium commission.</p>
-            </div>
-          )}
-
-          {provider.plan === 'pay_per_job' && (provider.ppj_recovery_credits ?? 0) > 0 && (
-            <Card className="mb-6 border-green-200 bg-green-50 shadow-sm">
-              <CardBody>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="font-semibold text-green-900">
-                      {provider.ppj_recovery_credits === 1
-                        ? 'You have 1 recovery credit from a customer cancellation.'
-                        : `You have ${provider.ppj_recovery_credits} recovery credits available.`}
-                    </h2>
-                    <p className="mt-1 text-sm text-green-800">
-                      These credits automatically replace future PPJ acceptance payments.
-                    </p>
-                    <p className="mt-1 text-xs text-green-700">
-                      Your next PPJ acceptance will use an available credit automatically.
-                    </p>
-                  </div>
-                  <Badge variant="success" className="w-fit">
-                    {provider.ppj_recovery_credits} credit{provider.ppj_recovery_credits === 1 ? '' : 's'}
-                  </Badge>
-                </div>
-              </CardBody>
-            </Card>
-          )}
-
-          {provider.status === 'suspended' && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-              <p className="text-red-800 font-semibold">Account Suspended</p>
-              <p className="text-red-700 text-sm mt-1">
-                Contact support to resolve your account status.{' '}
-                <a href="mailto:n7rawy19840@gmail.com" className="underline font-semibold hover:text-red-900">
-                  Email support
-                </a>
-              </p>
-            </div>
-          )}
-
-          {paymentFinalizing && (
-            <Card className="mb-6 border-amber-200 bg-amber-50 shadow-sm">
-              <CardBody>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="font-semibold text-amber-900">Payment received. Finalizing job assignment...</h2>
-                    <p className="mt-1 text-sm text-amber-800">
-                      Stripe confirmed your payment and RescueGo is waiting for the secure webhook to assign the request.
-                      Exact customer location and contact details will appear only after assignment is complete.
-                    </p>
-                  </div>
-                  <a
-                    href="/provider/dashboard"
-                    className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
-                  >
-                    Refresh status
-                  </a>
-                </div>
-              </CardBody>
-            </Card>
-          )}
-
-          {recentCustomerCancellation && isRecentOperationalNotice(recentCustomerCancellation.cancelled_at) && (
-            <Card className="mb-6 border-slate-200 bg-white shadow-sm">
-              <CardBody>
-                <div className="flex flex-col gap-1">
-                  <h2 className="font-semibold text-slate-900">Customer cancelled this request.</h2>
-                  <p className="text-sm text-slate-600">
-                    {recentCustomerCancellation.problem_type
-                      ? `${getProblemLabel(recentCustomerCancellation.problem_type)} was cancelled by the customer.`
-                      : 'A recently assigned request was cancelled by the customer.'}
-                    {' '}Any eligible PPJ recovery credit or subscription usage restoration is handled automatically.
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
-          )}
-
-          {activeRequest && (
-            <Card className="mb-6 overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
-              <CardHeader className="border-slate-200 bg-white">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned now</p>
-                  <h2 className="mt-1 text-xl font-medium text-slate-950">Active Job</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Customer contact and exact location are visible because this job is assigned to you.
-                  </p>
-                </div>
-              </CardHeader>
-              <CardBody>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-slate-800">{getProblemLabel(activeRequest.problem_type)}</div>
-                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0F6E56]" aria-hidden="true" />
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-800">
-                            {activeLocation?.label ?? 'Location details unavailable'}
-                          </div>
-                          {activeLocation?.detail ? (
-                            <div className="mt-0.5 text-xs text-slate-500">{activeLocation.detail}</div>
-                          ) : null}
-                          <div className="mt-1 text-xs text-slate-500">
-                            {formatApproxDistance(activeRequest.distance_to_provider_m)}
-                          </div>
-                        </div>
-                      </div>
-                      <LocationActions coordinates={activeLocation?.coordinates ?? null} />
-                    </div>
-                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Customer contact</div>
-                      <div className="mt-1 text-sm font-semibold text-slate-800">
-                        {activeRequest.users?.name ?? 'Customer'}
-                      </div>
-                      {activeRequest.users?.phone ? (
-                        <a
-                          href={`tel:${activeRequest.users.phone}`}
-                          className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 sm:w-auto"
-                        >
-                          Call customer
-                        </a>
-                      ) : (
-                        <p className="mt-2 text-sm text-slate-500">Customer phone unavailable. Contact support.</p>
-                      )}
-                    </div>
-                    {activeRequest.note && (
-                      <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Location notes</div>
-                        <p className="mt-1 text-sm text-slate-600">{activeRequest.note}</p>
-                      </div>
-                    )}
-                  </div>
-                  <Badge variant="warning" className="w-fit capitalize">{activeRequest.status}</Badge>
-                </div>
-                <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
-                  <CompleteJobForm requestId={activeRequest.id} />
-                  <ReleaseJobButton requestId={activeRequest.id} providerPlan={provider.plan} />
-                </div>
-              </CardBody>
-            </Card>
-          )}
-
-          <ProviderRequestList
-            key={`${providerIsOnline ? 'nearby' : 'fallback'}-${nearbyOpenRequests.map((request) => request.id).join('-')}`}
-            requests={nearbyOpenRequests}
-            providerStatus={provider.status}
-            providerPlan={provider.plan}
-            providerOnline={providerIsOnline}
-            locationFallback={requestFeedMode !== 'nearby'}
-            requestFeedMode={requestFeedMode}
-            ppjRecoveryCredits={provider.ppj_recovery_credits ?? 0}
-          />
-
-          <Card className="mt-6 overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
-            <CardHeader className="border-slate-100 bg-white">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-[#0F6E56]" aria-hidden="true" />
-                <h2 className="font-medium text-slate-900">Recent Activity</h2>
-              </div>
-              <p className="mt-1 text-sm text-slate-500">Completed jobs, customer cancellations, and released requests.</p>
-            </CardHeader>
-            <CardBody className="p-0">
-              {recentJobs && recentJobs.length > 0 ? (
-                <div className="divide-y divide-slate-100">
-                  {recentJobs.map((job) => {
-                    const activity = recentActivityStatus(job)
-                    const location = safeActivityLocation(job.requests?.location_address)
-
-                    return (
-                      <div key={job.id} className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 first:border-t-0 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-medium text-slate-900">
-                              {job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Service'}
-                            </div>
-                            <Badge variant={activity.badge}>{activity.label}</Badge>
-                          </div>
-                          <div className="mt-1 text-sm text-slate-500 break-words">{location}</div>
-                        </div>
-                        <div className="text-left sm:text-right">
-                          <div className="font-semibold text-slate-800">
-                            {job.completed_at || job.requests?.status === 'completed'
-                              ? job.requests?.final_price ? `${job.requests.final_price} AED` : 'Completed'
-                              : '-'}
-                          </div>
-                          <div className="text-xs text-slate-400">
-                            {activity.date ? new Date(activity.date).toLocaleDateString('en-AE') : 'Date unavailable'}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="px-6 py-14 text-center">
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><BriefcaseBusiness className="h-5 w-5" aria-hidden="true" /></div>
-                  <p className="font-semibold text-slate-800">No recent activity yet</p>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Completed jobs, customer cancellations, and releases will appear here.</p>
                 </div>
               )}
-            </CardBody>
-          </Card>
-          </>
+
+              {/* AVAILABILITY TOGGLE */}
+              <div className="mb-6 block w-full clear-both overflow-visible">
+                <ProviderAvailabilityToggle
+                  providerStatus={provider.status}
+                  initialOnline={providerIsOnline}
+                  initialUpdatedAt={providerLocationUpdatedAt}
+                  disabledReason={availabilityDisabledReason}
+                  hasActiveJob={Boolean(activeRequest)}
+                  activeRequestId={activeRequest?.id ?? null}
+                  providerPlan={provider.plan}
+                />
+              </div>
+              {/* STAT CARDS */}
+              <ProviderStatsGrid
+                jobsThisMonth={provider.jobs_this_month}
+                planLabel={getPlanLabel(provider.plan)}
+                isPayPerJob={allowance.isPayPerJob}
+                isUnlimited={allowance.isUnlimited}
+                remainingJobs={allowance.remaining}
+                totalEarnings={totalEarnings}
+              />
+
+              {/* UPGRADE BANNER */}
+              {upgradePrompt && (
+                <ProviderUpgradeNotice
+                  title={upgradePrompt.title}
+                  subtitle={upgradePrompt.subtitle}
+                  creditNote={upgradePrompt.creditNote}
+                  href={upgradePrompt.href}
+                  label={upgradePrompt.label}
+                />
+              )}
+
+              {/* BUSINESS PLAN NOTICE */}
+              {provider.plan === 'business' && (
+                <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-semibold text-slate-800">You are on the highest plan.</p>
+                  <p className="mt-0.5 text-xs text-slate-500">Business includes unlimited jobs, highest priority, and no premium commission.</p>
+                </div>
+              )}
+
+              {/* PPJ RECOVERY CREDITS */}
+              {provider.plan === 'pay_per_job' && (provider.ppj_recovery_credits ?? 0) > 0 && (
+                <Card className="mb-6 border-green-200 bg-green-50 shadow-sm">
+                  <CardBody>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="font-semibold text-green-900">
+                          {provider.ppj_recovery_credits === 1
+                            ? 'You have 1 recovery credit from a customer cancellation.'
+                            : `You have ${provider.ppj_recovery_credits} recovery credits available.`}
+                        </h2>
+                        <p className="mt-1 text-sm text-green-800">
+                          These credits automatically replace future PPJ acceptance payments.
+                        </p>
+                        <p className="mt-1 text-xs text-green-700">
+                          Your next PPJ acceptance will use an available credit automatically.
+                        </p>
+                      </div>
+                      <Badge variant="success" className="w-fit">
+                        {provider.ppj_recovery_credits} credit{provider.ppj_recovery_credits === 1 ? '' : 's'}
+                      </Badge>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* PAYMENT FINALIZING */}
+              {paymentFinalizing && (
+                <Card className="mb-6 border-amber-200 bg-amber-50 shadow-sm">
+                  <CardBody>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="font-semibold text-amber-900">Payment received. Finalizing job assignment...</h2>
+                        <p className="mt-1 text-sm text-amber-800">
+                          Stripe confirmed your payment and RescueGo is waiting for the secure webhook to assign the request.
+                          Exact customer location and contact details will appear only after assignment is complete.
+                        </p>
+                      </div>
+                      <a
+                        href="/provider/dashboard"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+                      >
+                        Refresh status
+                      </a>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* CUSTOMER CANCELLATION NOTICE */}
+              {recentCustomerCancellation && isRecentOperationalNotice(recentCustomerCancellation.cancelled_at) && (
+                <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+                  <CardBody>
+                    <div className="flex flex-col gap-1">
+                      <h2 className="font-semibold text-slate-900">Customer cancelled this request.</h2>
+                      <p className="text-sm text-slate-600">
+                        {recentCustomerCancellation.problem_type
+                          ? `${getProblemLabel(recentCustomerCancellation.problem_type)} was cancelled by the customer.`
+                          : 'A recently assigned request was cancelled by the customer.'}
+                        {' '}Any eligible PPJ recovery credit or subscription usage restoration is handled automatically.
+                      </p>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* ACTIVE JOB */}
+              {activeRequest && (
+                <Card className="mb-6 overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
+                  <CardHeader className="border-slate-200 bg-white">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned now</p>
+                      <h2 className="mt-1 text-xl font-medium text-slate-950">Active Job</h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Customer contact and exact location are visible because this job is assigned to you.
+                      </p>
+                    </div>
+                  </CardHeader>
+                  <CardBody>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-800">{getProblemLabel(activeRequest.problem_type)}</div>
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+                          <div className="flex items-start gap-2">
+                            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0F6E56]" aria-hidden="true" />
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-slate-800">
+                                {activeLocation?.label ?? 'Location details unavailable'}
+                              </div>
+                              {activeLocation?.detail ? (
+                                <div className="mt-0.5 text-xs text-slate-500">{activeLocation.detail}</div>
+                              ) : null}
+                              <div className="mt-1 text-xs text-slate-500">
+                                {formatApproxDistance(activeRequest.distance_to_provider_m)}
+                              </div>
+                            </div>
+                          </div>
+                          <LocationActions coordinates={activeLocation?.coordinates ?? null} />
+                        </div>
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Customer contact</div>
+                          <div className="mt-1 text-sm font-semibold text-slate-800">
+                            {activeRequest.users?.name ?? 'Customer'}
+                          </div>
+                          {activeRequest.users?.phone ? (
+                            <a
+                              href={`tel:${activeRequest.users.phone}`}
+                              className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 sm:w-auto"
+                            >
+                              Call customer
+                            </a>
+                          ) : (
+                            <p className="mt-2 text-sm text-slate-500">Customer phone unavailable. Contact support.</p>
+                          )}
+                        </div>
+                        {activeRequest.note && (
+                          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Location notes</div>
+                            <p className="mt-1 text-sm text-slate-600">{activeRequest.note}</p>
+                          </div>
+                        )}
+                      </div>
+                      <Badge variant="warning" className="w-fit capitalize">{activeRequest.status}</Badge>
+                    </div>
+                    <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+                      <CompleteJobForm requestId={activeRequest.id} />
+                      <ReleaseJobButton requestId={activeRequest.id} providerPlan={provider.plan} />
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* REQUEST LIST */}
+              <ProviderRequestList
+                key={`${providerIsOnline ? 'nearby' : 'fallback'}-${nearbyOpenRequests.map((request) => request.id).join('-')}`}
+                requests={nearbyOpenRequests}
+                providerStatus={provider.status}
+                providerPlan={provider.plan}
+                providerOnline={providerIsOnline}
+                locationFallback={requestFeedMode !== 'nearby'}
+                requestFeedMode={requestFeedMode}
+                ppjRecoveryCredits={provider.ppj_recovery_credits ?? 0}
+              />
+
+              {/* RECENT ACTIVITY */}
+              <ProviderRecentActivitySection items={recentActivityItems} />
+            </>
           )}
         </div>
       </main>
     </>
   )
 }
-

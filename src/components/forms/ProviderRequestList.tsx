@@ -279,15 +279,15 @@ export default function ProviderRequestList({
         : PAY_PER_JOB_FEE_NEAR_AED
 
   return (
-    <Card className="overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
-      <CardHeader className="border-slate-100 bg-white">
+    <Card className="overflow-hidden rounded-xl border-slate-200 bg-white shadow-sm">
+      <CardHeader className="border-slate-200 bg-white px-5 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <MapPin className="h-4 w-4 text-[#0F6E56]" aria-hidden="true" />
-              <h2 className="text-xl font-medium text-slate-950">Nearby Roadside Requests</h2>
-              <span className="rounded-full bg-[#E1F5EE] px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-[#0F6E56]">
-                Request intake
+              <MapPin className="h-5 w-5 text-[#0F6E56]" aria-hidden="true" />
+              <h2 className="text-lg font-semibold text-slate-950">Nearby Roadside Requests</h2>
+              <span className="rounded-full bg-[#E1F5EE] px-2 py-0.5 text-xs font-medium text-[#0F6E56]">
+                Request Intake
               </span>
             </div>
             <p className="mt-2 text-sm text-slate-500">
@@ -300,7 +300,7 @@ export default function ProviderRequestList({
                 : 'Open requests will appear here as customers submit them.'}
             </p>
           </div>
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200">
             <span className={`h-2 w-2 rounded-full ${providerOnline ? 'bg-[#1D9E75]' : 'bg-slate-400'}`} />
             Auto updates
           </span>
@@ -329,11 +329,11 @@ export default function ProviderRequestList({
             </p>
           </div>
         ) : (
-          <div className="space-y-3 p-4 sm:p-5">
+          <div className="space-y-3 p-5">
             {requestItems.map((req) => {
               const Icon = problemIcons[req.problem_type] ?? HelpCircle
               return (
-              <div key={req.id} className="flex flex-col gap-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-[#9FE1CB] sm:flex-row sm:items-start sm:justify-between sm:p-5">
+              <div key={req.id} className="flex flex-col gap-5 rounded-lg border border-slate-200 bg-slate-50/50 p-4 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#E1F5EE] text-[#0F6E56] ring-1 ring-[#9FE1CB]">
                     <Icon className="h-5 w-5" aria-hidden="true" />
