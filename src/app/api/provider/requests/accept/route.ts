@@ -25,6 +25,13 @@ type RequestLockRow = {
   locked_until: string
 }
 
+type AcceptRpcResult = {
+  success: boolean
+  reason: string | null
+  jobs_this_month: number | null
+  ppj_recovery_credits: number | null
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const parsed = acceptSchema.safeParse(body)
@@ -149,47 +156,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Request is temporarily locked by another provider' }, { status: 409 })
   }
 
-  const { data: updatedRequest, error: requestError } = await admin
-    .from('requests')
-    .update({ status: 'accepted', accepted_by: user.id })
-    .eq('id', parsed.data.request_id)
-    .eq('status', 'open')
-    .select('id')
-    .single()
+  const { data: acceptedRows, error: acceptError } = await admin.rpc('accept_provider_request_atomic', {
+    p_provider_id: user.id,
+    p_request_id: parsed.data.request_id,
+    p_increment_jobs: true,
+    p_consume_ppj_credit: false,
+  })
 
-  if (requestError || !updatedRequest) {
+  const accepted = (acceptedRows as AcceptRpcResult[] | null)?.[0] ?? null
+
+  if (acceptError || !accepted?.success) {
     logger.warn({
       event: 'accept_request_failed',
       provider_id: user.id,
       request_id: parsed.data.request_id,
-      error: requestError?.message ?? 'Request is no longer available',
+      error: acceptError?.message ?? accepted?.reason ?? 'Request is no longer available',
     })
+
+    if (accepted?.reason === 'active_job_exists') {
+      return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
+    }
+
+    if (accepted?.reason === 'locked_by_another_provider') {
+      return NextResponse.json({ error: 'Request is temporarily locked by another provider' }, { status: 409 })
+    }
+
     return NextResponse.json({ error: 'Request is no longer available' }, { status: 409 })
   }
-
-  await Promise.all([
-    admin
-      .from('providers')
-      .update({ jobs_this_month: provider.jobs_this_month + 1 })
-      .eq('id', user.id),
-    admin
-      .from('jobs')
-      .upsert({
-        request_id: parsed.data.request_id,
-        provider_id: user.id,
-      }, { onConflict: 'request_id' }),
-    admin
-      .from('request_locks')
-      .delete()
-      .eq('request_id', parsed.data.request_id),
-  ])
 
   logger.info({
     event: 'accept_request_success',
     provider_id: user.id,
     request_id: parsed.data.request_id,
     plan: provider.plan,
-    jobs_this_month: provider.jobs_this_month + 1,
+    jobs_this_month: accepted.jobs_this_month ?? provider.jobs_this_month + 1,
   })
 
   return NextResponse.json({ success: true, request_id: parsed.data.request_id })

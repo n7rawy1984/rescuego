@@ -27,6 +27,13 @@ type ProviderSubscriptionRow = {
   last_upgrade_bonus_key: string | null
 }
 
+type AcceptRpcResult = {
+  success: boolean
+  reason: string | null
+  jobs_this_month: number | null
+  ppj_recovery_credits: number | null
+}
+
 const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000
 
 const PLAN_BY_PRICE_ID = new Map<string, SubscriptionPlan>(
@@ -222,59 +229,24 @@ function handledStripeEventType(type: string): boolean {
   ].includes(type)
 }
 
-async function incrementProviderJobCount(
-  supabase: SupabaseClient,
-  providerId: string
-): Promise<void> {
-  const { data: provider, error: providerError } = await supabase
-    .from('providers')
-    .select('jobs_this_month')
-    .eq('id', providerId)
-    .single<{ jobs_this_month: number | null }>()
-
-  throwIfError(providerError, 'Failed to read provider job count')
-
-  const { error } = await supabase
-    .from('providers')
-    .update({ jobs_this_month: (provider?.jobs_this_month ?? 0) + 1 })
-    .eq('id', providerId)
-
-  throwIfError(error, 'Failed to increment provider job count')
-}
-
 async function finalizeAcceptedRequest(
   supabase: SupabaseClient,
   providerId: string,
   requestId: string
 ): Promise<boolean> {
-  const { data: updatedRequest, error: updateError } = await supabase
-    .from('requests')
-    .update({ status: 'accepted', accepted_by: providerId })
-    .eq('id', requestId)
-    .eq('status', 'open')
-    .select('id')
-    .maybeSingle<{ id: string }>()
+  const { data, error } = await supabase.rpc('accept_provider_request_atomic', {
+    p_provider_id: providerId,
+    p_request_id: requestId,
+    p_increment_jobs: true,
+    p_consume_ppj_credit: false,
+  })
 
-  if (updateError) {
-    throw new Error(`Failed to accept request: ${updateError.message}`)
+  if (error) {
+    throw new Error(`Failed to accept request atomically: ${error.message}`)
   }
 
-  if (!updatedRequest) return false
-
-  const { error: jobError } = await supabase
-    .from('jobs')
-    .upsert({ request_id: requestId, provider_id: providerId }, { onConflict: 'request_id' })
-  throwIfError(jobError, 'Failed to upsert job')
-
-  const { error: lockError } = await supabase
-    .from('request_locks')
-    .delete()
-    .eq('request_id', requestId)
-  throwIfError(lockError, 'Failed to clear request lock')
-
-  await incrementProviderJobCount(supabase, providerId)
-
-  return true
+  const result = (data as AcceptRpcResult[] | null)?.[0] ?? null
+  return Boolean(result?.success)
 }
 
 async function processPaymentIntentSucceeded(
