@@ -42,9 +42,11 @@ export async function POST(req: NextRequest) {
 
   const dueProviders = (providers ?? []).filter(shouldResetProvider)
   let resetCount = 0
+  let skippedCount = 0
+  let failedCount = 0
 
   for (const provider of dueProviders) {
-    const { error: updateError } = await supabase
+    let updateQuery = supabase
       .from('providers')
       .update({
         jobs_this_month: 0,
@@ -54,11 +56,30 @@ export async function POST(req: NextRequest) {
       .eq('id', provider.id)
       .eq('stripe_current_period_start', provider.stripe_current_period_start)
 
+    updateQuery = provider.jobs_reset_at
+      ? updateQuery.eq('jobs_reset_at', provider.jobs_reset_at)
+      : updateQuery.is('jobs_reset_at', null)
+
+    const { data: updatedProvider, error: updateError } = await updateQuery
+      .select('id')
+      .maybeSingle<{ id: string }>()
+
     if (updateError) {
+      failedCount += 1
       logger.error({
         event: 'monthly_allowance_reset_provider_failed',
         provider_id: provider.id,
         error: updateError.message,
+      })
+      continue
+    }
+
+    if (!updatedProvider) {
+      skippedCount += 1
+      logger.warn({
+        event: 'monthly_allowance_reset_provider_skipped',
+        provider_id: provider.id,
+        reason: 'Provider period was already reset or changed before update',
       })
       continue
     }
@@ -69,12 +90,33 @@ export async function POST(req: NextRequest) {
   logger.info({
     event: 'monthly_allowance_reset_completed',
     providers_checked: providers?.length ?? 0,
+    providers_due: dueProviders.length,
     providers_reset: resetCount,
+    providers_skipped: skippedCount,
+    providers_failed: failedCount,
   })
+
+  if (failedCount > 0) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Some provider allowance resets failed',
+        providers_checked: providers?.length ?? 0,
+        providers_due: dueProviders.length,
+        providers_reset: resetCount,
+        providers_skipped: skippedCount,
+        providers_failed: failedCount,
+      },
+      { status: 500 }
+    )
+  }
 
   return NextResponse.json({
     success: true,
     providers_checked: providers?.length ?? 0,
+    providers_due: dueProviders.length,
     providers_reset: resetCount,
+    providers_skipped: skippedCount,
+    providers_failed: failedCount,
   })
 }
