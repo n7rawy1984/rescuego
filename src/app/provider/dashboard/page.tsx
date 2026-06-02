@@ -106,6 +106,13 @@ type PaymentProcessingRow = {
   recovery_credit_restored_at: string | null
 }
 
+type OveragePaymentProcessingRow = {
+  id: string
+  request_id: string
+  status: string
+  created_at: string
+}
+
 type CancelledRequestNoticeRow = {
   id: string
   problem_type: ProblemType | null
@@ -315,13 +322,33 @@ export default async function ProviderDashboardPage({
     })
   }
 
+  const { data: recentOveragePayment, error: recentOveragePaymentError } = operationalReady && returnedFromPayment && !activeRequest && !recentPpjPayment
+    ? await admin
+      .from('overage_payments')
+      .select('id, request_id, status, created_at')
+      .eq('provider_id', user.id)
+      .in('status', ['pending', 'paid'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle<OveragePaymentProcessingRow>()
+    : { data: null, error: null }
+
+  if (recentOveragePaymentError) {
+    logger.warn({
+      event: 'provider_dashboard_overage_processing_lookup_failed',
+      provider_id: user.id,
+      error: recentOveragePaymentError.message,
+    })
+  }
+
   const paymentFinalizing = Boolean(
     returnedFromPayment
       && !activeRequest
       && !recentCustomerCancellation
-      && recentPpjPayment
-      && !recentPpjPayment.recovery_credit_restored_at
-      && isRecentPaymentAttempt(recentPpjPayment.created_at)
+      && (
+        (recentPpjPayment && !recentPpjPayment.recovery_credit_restored_at && isRecentPaymentAttempt(recentPpjPayment.created_at))
+        || (recentOveragePayment && isRecentPaymentAttempt(recentOveragePayment.created_at))
+      )
   )
 
   const protectedCancelledPayment = Boolean(
@@ -335,8 +362,9 @@ export default async function ProviderDashboardPage({
     logger.info({
       event: 'provider_dashboard_payment_finalizing_state',
       provider_id: user.id,
-      request_id: recentPpjPayment?.request_id,
-      payment_status: recentPpjPayment?.status,
+      request_id: recentPpjPayment?.request_id ?? recentOveragePayment?.request_id,
+      payment_status: recentPpjPayment?.status ?? recentOveragePayment?.status,
+      payment_kind: recentPpjPayment ? 'ppj' : 'overage',
     })
   }
 
@@ -594,8 +622,9 @@ export default async function ProviderDashboardPage({
                       <div>
                         <h2 className="font-semibold text-amber-900">Payment received. Finalizing job assignment...</h2>
                         <p className="mt-1 text-sm text-amber-800">
-                          This payment is protected. If the customer cancels before assignment finishes, a recovery credit
-                          will be added automatically. Exact customer location and contact details appear only after assignment.
+                          {recentPpjPayment
+                            ? 'This payment is protected. If the customer cancels before assignment finishes, a recovery credit will be added automatically. Exact customer location and contact details appear only after assignment.'
+                            : 'RescueGo is assigning this request now. Exact customer location and contact details appear only after assignment.'}
                         </p>
                       </div>
                       <a

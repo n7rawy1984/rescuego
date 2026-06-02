@@ -15,6 +15,13 @@ type JobRow = {
   provider_id: string
 }
 
+type CompleteJobResult = {
+  success: boolean
+  reason: string | null
+  job_id: string | null
+  completed_at: string | null
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const parsed = completeJobSchema.safeParse(body)
@@ -57,57 +64,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Job record not found' }, { status: 404 })
   }
 
-  const completedAt = new Date().toISOString()
+  const { data: completedRows, error: completionError } = await admin.rpc('complete_provider_job_atomic', {
+    p_provider_id: user.id,
+    p_request_id: parsed.data.request_id,
+    p_final_price: parsed.data.final_price,
+  })
 
-  const { data: completedRequest, error: requestUpdateError } = await admin
-    .from('requests')
-    .update({ status: 'completed', final_price: parsed.data.final_price })
-    .eq('id', parsed.data.request_id)
-    .eq('accepted_by', user.id)
-    .in('status', ['accepted', 'in_progress'])
-    .select('id')
-    .maybeSingle<{ id: string }>()
+  const completed = (completedRows as CompleteJobResult[] | null)?.[0] ?? null
 
-  if (requestUpdateError || !completedRequest) {
+  if (completionError || !completed?.success) {
     logger.warn({
       event: 'complete_job_rejected',
       provider_id: user.id,
       request_id: parsed.data.request_id,
       job_id: job.id,
-      error: requestUpdateError?.message ?? 'Request was cancelled, released, or already completed',
+      error: completionError?.message ?? completed?.reason ?? 'Request was cancelled, released, or already completed',
     })
     return NextResponse.json({ error: 'Job is not available for completion' }, { status: 409 })
-  }
-
-  const { error: jobUpdateError } = await admin
-    .from('jobs')
-    .update({
-      commission_rate: 0,
-      commission_amount: 0,
-      completed_at: completedAt,
-    })
-    .eq('id', job.id)
-    .eq('provider_id', user.id)
-    .is('completed_at', null)
-
-  if (jobUpdateError) {
-    logger.error({
-      event: 'complete_job_failed',
-      provider_id: user.id,
-      request_id: parsed.data.request_id,
-      job_id: job.id,
-      job_error: jobUpdateError?.message,
-    })
-    return NextResponse.json({ error: 'Failed to complete job' }, { status: 500 })
   }
 
   logger.info({
     event: 'complete_job_success',
     provider_id: user.id,
     request_id: parsed.data.request_id,
-    job_id: job.id,
+    job_id: completed.job_id ?? job.id,
     final_price_aed: parsed.data.final_price,
   })
 
-  return NextResponse.json({ success: true, job_id: job.id })
+  return NextResponse.json({ success: true, job_id: completed.job_id ?? job.id })
 }
