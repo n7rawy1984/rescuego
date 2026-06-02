@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BatteryCharging, HelpCircle, MapPin, Search, Truck, Wrench } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -68,7 +68,7 @@ export default function ProviderRequestList({
   ppjRecoveryCredits = 0,
 }: Props) {
   const router = useRouter()
-  const [requestItems, setRequestItems] = useState<ProviderRequestCard[]>(requests)
+  const [hiddenRequestIds, setHiddenRequestIds] = useState<Set<string>>(() => new Set())
   const [accepting, setAccepting] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -79,6 +79,11 @@ export default function ProviderRequestList({
   const refreshRequests = useCallback(async () => {
     router.refresh()
   }, [router])
+
+  const requestItems = useMemo(
+    () => requests.filter((request) => !hiddenRequestIds.has(request.id)),
+    [hiddenRequestIds, requests]
+  )
 
   useEffect(() => {
     const supabase = createClient()
@@ -95,6 +100,22 @@ export default function ProviderRequestList({
 
     return () => {
       supabase.removeChannel(channel)
+    }
+  }, [refreshRequests])
+
+  useEffect(() => {
+    function refreshOnReturn() {
+      if (document.visibilityState === 'visible') {
+        void refreshRequests()
+      }
+    }
+
+    window.addEventListener('online', refreshRequests)
+    document.addEventListener('visibilitychange', refreshOnReturn)
+
+    return () => {
+      window.removeEventListener('online', refreshRequests)
+      document.removeEventListener('visibilitychange', refreshOnReturn)
     }
   }, [refreshRequests])
 
@@ -159,7 +180,7 @@ export default function ProviderRequestList({
 
       if (result.credit_applied) {
         setNotice(result.message ?? 'One PPJ recovery credit was applied to this request.')
-        setRequestItems((current) => current.filter((request) => request.id !== requestId))
+        setHiddenRequestIds((current) => new Set(current).add(requestId))
         router.refresh()
         setAccepting(null)
         setConfirmRequestId(null)
@@ -210,7 +231,7 @@ export default function ProviderRequestList({
         setConfirmRequestId(null)
         return
       }
-      setRequestItems((current) => current.filter((request) => request.id !== requestId))
+      setHiddenRequestIds((current) => new Set(current).add(requestId))
       router.refresh()
       setAccepting(null)
       setConfirmRequestId(null)

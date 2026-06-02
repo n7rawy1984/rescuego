@@ -180,6 +180,24 @@ export default function RequestPage() {
     }
   }, [activeRequest, completedUnratedRequest, loadRequestState])
 
+  useEffect(() => {
+    if (!activeRequest && !completedUnratedRequest) return
+
+    function refreshOnReturn() {
+      if (document.visibilityState === 'visible') {
+        void loadRequestState().catch(() => undefined)
+      }
+    }
+
+    window.addEventListener('online', refreshOnReturn)
+    document.addEventListener('visibilitychange', refreshOnReturn)
+
+    return () => {
+      window.removeEventListener('online', refreshOnReturn)
+      document.removeEventListener('visibilitychange', refreshOnReturn)
+    }
+  }, [activeRequest, completedUnratedRequest, loadRequestState])
+
   async function retryInitialRequestLoad() {
     setActiveRequestLoading(true)
     setInitialRequestError('')
