@@ -103,6 +103,7 @@ type PaymentProcessingRow = {
   request_id: string
   status: string
   created_at: string
+  recovery_credit_restored_at: string | null
 }
 
 type CancelledRequestNoticeRow = {
@@ -298,7 +299,7 @@ export default async function ProviderDashboardPage({
   const { data: recentPpjPayment, error: recentPpjPaymentError } = operationalReady && returnedFromPayment && !activeRequest
     ? await admin
       .from('ppj_payments')
-      .select('id, request_id, status, created_at')
+      .select('id, request_id, status, created_at, recovery_credit_restored_at')
       .eq('provider_id', user.id)
       .in('status', ['pending', 'paid'])
       .order('created_at', { ascending: false })
@@ -317,8 +318,17 @@ export default async function ProviderDashboardPage({
   const paymentFinalizing = Boolean(
     returnedFromPayment
       && !activeRequest
+      && !recentCustomerCancellation
       && recentPpjPayment
+      && !recentPpjPayment.recovery_credit_restored_at
       && isRecentPaymentAttempt(recentPpjPayment.created_at)
+  )
+
+  const protectedCancelledPayment = Boolean(
+    returnedFromPayment
+      && !activeRequest
+      && recentPpjPayment?.recovery_credit_restored_at
+      && isRecentOperationalNotice(recentPpjPayment.recovery_credit_restored_at)
   )
 
   if (paymentFinalizing) {
@@ -584,8 +594,8 @@ export default async function ProviderDashboardPage({
                       <div>
                         <h2 className="font-semibold text-amber-900">Payment received. Finalizing job assignment...</h2>
                         <p className="mt-1 text-sm text-amber-800">
-                          Stripe confirmed your payment and RescueGo is waiting for the secure webhook to assign the request.
-                          Exact customer location and contact details will appear only after assignment is complete.
+                          This payment is protected. If the customer cancels before assignment finishes, a recovery credit
+                          will be added automatically. Exact customer location and contact details appear only after assignment.
                         </p>
                       </div>
                       <a
@@ -594,6 +604,23 @@ export default async function ProviderDashboardPage({
                       >
                         Refresh status
                       </a>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* PROTECTED CANCELLED PAYMENT */}
+              {protectedCancelledPayment && (
+                <Card className="mb-6 border-green-200 bg-green-50 shadow-sm">
+                  <CardBody>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="font-semibold text-green-900">Customer cancelled. Your payment was protected.</h2>
+                        <p className="mt-1 text-sm text-green-800">
+                          A PPJ recovery credit was restored automatically and will replace your next eligible acceptance payment.
+                        </p>
+                      </div>
+                      <Badge variant="success" className="w-fit">Credit restored</Badge>
                     </div>
                   </CardBody>
                 </Card>
@@ -609,7 +636,10 @@ export default async function ProviderDashboardPage({
                         {recentCustomerCancellation.problem_type
                           ? `${getProblemLabel(recentCustomerCancellation.problem_type)} was cancelled by the customer.`
                           : 'A recently assigned request was cancelled by the customer.'}
-                        {' '}Any eligible PPJ recovery credit or subscription usage restoration is handled automatically.
+                        {' '}
+                        {provider.plan === 'pay_per_job'
+                          ? 'Your payment was protected, and any eligible recovery credit is handled automatically.'
+                          : 'Any eligible usage restoration is handled automatically.'}
                       </p>
                     </div>
                   </CardBody>

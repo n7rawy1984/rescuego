@@ -34,6 +34,12 @@ type AcceptRpcResult = {
   ppj_recovery_credits: number | null
 }
 
+type PpjProtectionResult = {
+  success: boolean
+  reason: string | null
+  ppj_recovery_credits: number | null
+}
+
 const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000
 
 const PLAN_BY_PRICE_ID = new Map<string, SubscriptionPlan>(
@@ -249,6 +255,44 @@ async function finalizeAcceptedRequest(
   return Boolean(result?.success)
 }
 
+async function protectCancelledPaidPpjRequest(
+  supabase: SupabaseClient,
+  providerId: string,
+  requestId: string,
+  paymentIntentId: string
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('restore_ppj_credit_for_cancelled_paid_request', {
+    p_provider_id: providerId,
+    p_request_id: requestId,
+    p_payment_intent_id: paymentIntentId,
+  })
+
+  if (error) {
+    throw new Error(`Failed to restore PPJ cancellation protection: ${error.message}`)
+  }
+
+  const result = (data as PpjProtectionResult[] | null)?.[0] ?? null
+  if (!result?.success) {
+    logger.warn({
+      event: 'ppj_cancelled_payment_protection_not_applied',
+      provider_id: providerId,
+      request_id: requestId,
+      payment_intent_id: paymentIntentId,
+      reason: result?.reason ?? 'not eligible',
+    })
+    return false
+  }
+
+  logger.info({
+    event: 'ppj_cancelled_payment_credit_restored',
+    provider_id: providerId,
+    request_id: requestId,
+    payment_intent_id: paymentIntentId,
+    credits: result.ppj_recovery_credits,
+  })
+  return true
+}
+
 async function processPaymentIntentSucceeded(
   supabase: SupabaseClient,
   stripeEvent: Stripe.Event,
@@ -276,6 +320,7 @@ async function processPaymentIntentSucceeded(
         fee_aed: paymentIntent.amount / 100,
       })
     } else {
+      await protectCancelledPaidPpjRequest(supabase, provider_id, request_id, paymentIntent.id)
       logger.warn({
         event: 'ppj_payment_request_already_taken',
         provider_id,

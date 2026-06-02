@@ -29,6 +29,12 @@ type CustomerCounterRow = {
   late_cancellation_count: number | null
 }
 
+type PpjProtectionResult = {
+  success: boolean
+  reason: string | null
+  ppj_recovery_credits: number | null
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const parsed = cancelSchema.safeParse(body)
@@ -191,6 +197,44 @@ export async function POST(req: NextRequest) {
         compensation_type: compensationType,
         error: compensationMarkError.message,
       })
+    }
+  }
+
+  if (!isLateCancellation) {
+    const { data: paidPpjPayment } = await admin
+      .from('ppj_payments')
+      .select('provider_id, stripe_payment_intent_id')
+      .eq('request_id', request.id)
+      .eq('status', 'paid')
+      .is('recovery_credit_restored_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle<{ provider_id: string; stripe_payment_intent_id: string | null }>()
+
+    if (paidPpjPayment?.provider_id) {
+      const { data: protectionRows, error: protectionError } = await admin.rpc('restore_ppj_credit_for_cancelled_paid_request', {
+        p_provider_id: paidPpjPayment.provider_id,
+        p_request_id: request.id,
+        p_payment_intent_id: paidPpjPayment.stripe_payment_intent_id,
+      })
+      const protection = (protectionRows as PpjProtectionResult[] | null)?.[0] ?? null
+
+      if (protectionError || !protection?.success) {
+        logger.warn({
+          event: 'customer_cancel_paid_ppj_protection_skipped',
+          provider_id: paidPpjPayment.provider_id,
+          request_id: request.id,
+          reason: protectionError?.message ?? protection?.reason ?? 'PPJ protection not applied',
+        })
+      } else {
+        compensationType = 'ppj_recovery_credit'
+        logger.info({
+          event: 'customer_cancel_paid_ppj_credit_restored',
+          provider_id: paidPpjPayment.provider_id,
+          request_id: request.id,
+          credits: protection.ppj_recovery_credits,
+        })
+      }
     }
   }
 

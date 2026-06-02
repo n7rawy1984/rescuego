@@ -5,9 +5,15 @@ import { PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
 
 interface PaymentElementFormProps {
   returnPath?: string
+  successTitle?: string
+  successDetail?: string
 }
 
-export default function PaymentElementForm({ returnPath = '/provider/dashboard' }: PaymentElementFormProps) {
+export default function PaymentElementForm({
+  returnPath = '/provider/dashboard',
+  successTitle = 'Payment confirmed. Assigning your request...',
+  successDetail = 'You will be redirected to your dashboard shortly.',
+}: PaymentElementFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const router = useRouter()
@@ -59,8 +65,8 @@ export default function PaymentElementForm({ returnPath = '/provider/dashboard' 
   if (success) {
     return (
       <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center" role="status" aria-live="polite">
-        <div className="font-semibold text-green-800">Payment successful. Your request is being assigned...</div>
-        <p className="mt-1 text-xs text-green-700">You will be redirected to your dashboard shortly.</p>
+        <div className="font-semibold text-green-800">{successTitle}</div>
+        <p className="mt-1 text-xs text-green-700">{successDetail}</p>
       </div>
     )
   }

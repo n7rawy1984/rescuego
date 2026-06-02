@@ -78,13 +78,18 @@ function PpjPayContent() {
         </p>
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 text-sm text-amber-800 text-left">
           Once payment is confirmed, the request will be automatically assigned to you and appear as your active job.
-          Exact customer location is shown only after payment and assignment.
+          Exact customer location is shown only after payment and assignment. If the customer cancels before assignment
+          finishes, a recovery credit will be added automatically.
         </div>
         <p className="mb-6 rounded-2xl bg-slate-50 px-4 py-3 text-left text-xs leading-5 text-slate-500">
           Secure payment powered by Stripe. Your card details are encrypted and never stored by RescueGo.
         </p>
         <StripeElementsProvider clientSecret={clientSecret}>
-          <PaymentElementForm returnPath="/provider/dashboard?payment=processing" />
+          <PaymentElementForm
+            returnPath="/provider/dashboard?payment=processing"
+            successTitle="Payment confirmed. Assigning your request..."
+            successDetail="This payment is protected while assignment finishes."
+          />
         </StripeElementsProvider>
         <a
           href="/provider/dashboard"
