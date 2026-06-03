@@ -10,246 +10,145 @@ RescueGo — UAE roadside recovery marketplace (two-sided SaaS).
 - Payments: Stripe (subscriptions + Payment Intents + webhooks)
 - Deployment: Vercel
 
+---
+
+## قواعد Session — إلزامية
+
+### في بداية كل session
+1. اقرأ CLAUDE.md و SESSION_LOG.md بس
+2. لخص في جملة واحدة وقفنا فين
+3. استنى instructions قبل ما تبدأ
+
+### في نهاية كل session — تلقائي بدون طلب
+قبل أي compact أو إغلاق:
+1. حدّث SESSION_LOG.md بـ:
+   - إيه اللي اتعمل النهارده
+   - الـ findings المهمة
+   - الـ next task بالتفصيل
+   - أي deferred issues
+2. قول للـ user: "Session log updated — ready for git push"
+
+### Context Management
+When context reaches 90%, stop immediately and:
+1. Update SESSION_LOG.md with full session summary
+2. Tell user: "Context at 90% — please git push and start new session"
+3. Do not start any new task after this point
+
+### لما يسألك A or B
+Present options clearly and wait for user choice.
+Never pick an option yourself without explicit user instruction.
+
+### Migrations — إلزامي
+Never run migrations automatically.
+Always show the SQL first and tell user:
+"Run this manually in Supabase SQL Editor"
+Never apply schema changes without user confirmation.
+
+### ENV Variables — إلزامي
+Never add env vars to code.
+Always tell user to add them in Vercel dashboard.
+Never hardcode secrets anywhere.
+
+### لما تلاقي Bug
+Always report first — never fix silently.
+Format:
+- Bug found: [وصف]
+- Location: [الملف والسطر]
+- Impact: [التأثير]
+- Proposed fix: [الحل]
+- Wait for user approval before fixing
+
+### Git — إلزامي
+Never run git commands.
+Always tell user to run from terminal:
+git add . && git commit -m "..." && git push
+
+### Lint & Build — إلزامي
+Never run npm run lint or npm run build yourself.
+Always tell user to run from terminal.
+
+---
+
 ## القاعدة الذهبية قبل أي تغيير
 1. اقرأ الملف كامل قبل ما تلمسه
 2. اشرح إيه اللي هتغيره وليه
 3. لا تكسر: Stripe flows / Supabase RLS / auth/session / request lifecycle semantics
-4. بعد كل تغيير: npm run lint && npm run build لازم يعديوا
+4. بعد كل تغيير: قول للـ user يشغل lint && build من terminal
 5. لو في شك — اسأل قبل ما تنفذ
 
 ---
 
-## الحالة الحالية للمشروع (آخر تحديث)
+## الحالة الحالية للمشروع
 
-### ✅ مكتمل بالكامل
-- **Phase 0** — QA-FINAL: request lifecycle / PPJ / subscription / overage / rating / release / cancellation / mobile smoke test
-- **Phase 1** — Security hardening: rate limiting / input validation / secure headers / CSP Report-Only / Stripe webhook idempotency / Sentry baseline / RLS audit / route guards + Sentry smoke verification ✅ + all env vars on Vercel ✅
-- **Phase 1B.4** — Realtime & polling stability audit (ProviderRequestList + customer request page)
-- **Phase 1B.5** — Lifecycle recovery hardening (migration 014: complete_provider_job_atomic RPC)
-- **Phase 2A.1** — Customer request UX upgrade (mobile-first redesign)
-- **Migrations** — وصلت لـ 015_ppj_credit_accept_complete_job_fix.sql
+### مكتمل بالكامل
+- Phase 0 — QA-FINAL
+- Phase 1 — Security hardening + Sentry verified
+- Phase 1B.4 — Realtime & polling stability
+- Phase 1B.5 — Lifecycle recovery hardening (migration 014)
+- Phase 2A.1 — Admin UI polish
+- Phase 2A.2 — Customer/Provider UI polish
+- Phase 2A.4 — Pricing & Subscription UI polish
+- Phase 2B.1 — Design System foundation
+- Phase 1A Task 1 — Auth/login performance audit + proxy.ts DB call fix
+- Migrations: 001 → 015
 
-### 📋 المراحل القادمة بالترتيب
+### الجاي — Phase 1A Task 2
+logout lag investigation
+- Navbar.tsx handleLogout function
+- supabase.auth.signOut() timing
+- router.replace('/') before signOut resolves
 
-**Phase 1A — Monitoring, Performance & Stability**
-- auth/login performance audit
-- logout lag investigation
-- dashboard loading optimization
-- Supabase query profiling
-- polling reduction
-- Core Web Vitals baseline
-- bundle size review
-- production slow-query identification
-
-**Phase 1B (المتبقي) — Critical Architecture**
-- ⚠️ accept flow atomicity — migration 011 اتعمل بالفعل (accept_request_atomic RPC) — تأكد إنه مطبق على production
-- cron monitoring + retry/failure handling
-- DB indexes audit (migration 013 موجود)
-- LAUNCH_PROMO → env/DB config (مش hardcoded)
-- PPJ fee config → server-side configurable
-- ops routes reliability review
-
-**Phase 1C — Deep RLS Hardening**
-- ⚠️ policy واحدة كل مرة + smoke test بعدها فوراً
-- الجداول: requests / providers / provider_locations / request_locks / ratings
-- لا تكسر: dashboards / realtime / assignment / PPJ / provider visibility
-
-**Phase 2A (المتبقي) — UI System Pass**
-- design tokens file
-- loading skeletons
-- empty states
-- error states
-- button/card/badge consistency
-- provider dashboard visual upgrade
-
-**Phase 2B — RTL & Arabic Foundation**
-- إصلاح mojibake في layout.tsx keywords
-- dir="rtl" strategy
-- Arabic font fallback
-- RTL spacing/layout
-- Tailwind RTL utilities
-
-**Phase 2C — Mobile/PWA Strategy**
-- ⚠️ قرار استراتيجي: Web PWA أم native app؟ لازم يتحسم أول
-- provider field workflow audit
-- push readiness assessment
-
-**Phase 3 — Realtime & Notifications**
-- Supabase realtime cleanup
-- lightweight notification layer
-- customer/provider scoped channels
-- polling reduction where realtime is safe
-
-**Phase 4 — Operations & Trust V1**
-- provider states: accepted → en_route → arrived → completed
-- customer progress timeline UI
-- no-show tracking
-- auto-release rules
-
-**Phase 4B — Admin Operations Center**
-- live requests dashboard
-- stuck jobs view
-- no-show alerts
-- revenue overview
-
-**Phase 5 — Provider KYC & UAE Compliance**
-- admin document viewer
-- Emirates ID / trade license review
-- provider agreement checkbox
-
-**Phase 6 — Dispatch Logic V2**
-- ⚠️ Prerequisite: Google Maps API key + HTTP referrer restrictions + billing alerts
-- Business/Pro/Starter/PPJ priority tiers
-- PostGIS dashboard integration
-
-**Phase 7 — Pricing Engine V2**
-- PPJ launch fee = 15 AED (server-side)
-- distance-based pricing بعد اللانش
-- server-side distance calculation
-
-**Phase 8 — Quote Approval & Commission Integrity**
-- provider sends quote → customer approves
-- final_price = approved quote (source of truth)
-- commission بعد quote approval فقط
-
-**Phase 9 — Premium Jobs & Commission**
-- server-side commission calculation
-- Premium: approved quote > 400 AED
-- Starter 15% / Pro 10% / Business 0%
-
-**Phase 10 — Billing Integrity**
-- jobs_this_month integrity
-- cron reliability
-- Stripe refund API integration
-- billing reconciliation
-
-**Phase 11 — Fraud Detection**
-**Phase 12 — Legal & UAE Compliance**
-**Phase 13 — SEO Domination**
-**Phase 14 — Growth & Provider Acquisition**
-**Phase 15 — Scale Architecture**
-
----
-
-## بنية المشروع المهمة
-
-```
-src/
-  app/
-    api/
-      provider/
-        requests/accept/route.ts     ← يستخدم accept_request_atomic RPC
-        jobs/complete/route.ts       ← يستخدم complete_provider_job_atomic RPC
-        jobs/release/route.ts        ← release flow
-        location/route.ts            ← GPS location updates
-        ppj-checkout/route.ts        ← PPJ Stripe payment
-        overage-checkout/route.ts    ← overage Stripe payment
-      requests/route.ts              ← customer creates request
-      requests/cancel/route.ts       ← customer cancellation
-      stripe/webhook/route.ts        ← all Stripe events
-      ops/
-        expire-requests/route.ts     ← cron: expire stale requests
-        monthly-allowance-reset/route.ts ← cron: reset jobs_this_month
-    admin/                           ← admin dashboard pages
-    customer/                        ← customer pages
-    provider/                        ← provider pages
-    recovery/                        ← UAE emirate SEO pages
-  components/
-    forms/
-      ProviderRequestList.tsx        ← realtime request list (updated in 1B.4)
-    provider/
-      ProviderAvailabilityToggle.tsx
-      dashboard/                     ← provider dashboard components
-    ui/                              ← Button, Card, Badge, Input, etc.
-  lib/
-    supabase/
-      server.ts                      ← server client
-      admin.ts                       ← service role client
-    rate-limit.ts                    ← Upstash-ready rate limiter
-    logger.ts                        ← structured logger with redaction
-
-supabase/
-  migrations/
-    001 → 015                        ← كل الـ migrations بالترتيب
-    014: complete_provider_job_atomic RPC
-    015: ppj_credit_accept_complete_job_fix
-```
+### المراحل القادمة بالترتيب
+- Phase 1A: tasks 2-8 (logout / dashboard / queries / polling / CWV / bundle / slow-query)
+- Phase 1B remaining: cron reliability / DB indexes / LAUNCH_PROMO config
+- Phase 1C: Deep RLS hardening
+- Phase 2B: RTL & Arabic foundation
+- Phase 2C: Mobile/PWA strategy
+- Phase 3: Realtime & Notifications
+- Phase 4: Operations & Trust V1
+- Phase 4B: Admin Operations Center
+- Phase 5: Provider KYC & UAE Compliance
+- Phase 6: Dispatch Logic V2
+- Phase 7: Pricing Engine V2
+- Phase 8: Quote Approval
+- Phase 9: Premium Jobs & Commission
+- Phase 10: Billing Integrity
+- Phase 11: Fraud Detection
+- Phase 12: Legal & UAE Compliance
+- Phase 13: SEO Domination
+- Phase 14: Growth & Provider Acquisition
+- Phase 15: Scale Architecture
 
 ---
 
 ## قواعد لا تتكسر أبداً
 
 ### Stripe
-- لا تعمل payment logic في client components
-- webhook signature verification لازم يبقى
+- لا payment logic في client components
+- webhook signature verification لازم تبقى
 - idempotency keys لازم تبقى
-- لا تحذف Stripe event logging
 
 ### Supabase
 - service_role key = server-side فقط
-- لا تعمل direct DB calls بدون RLS من browser
 - RLS policies: تغيير واحد بالمرة + smoke test فوراً
 
-### Auth
-- middleware.ts / proxy.ts يحمي الـ routes — لا تغيرهم إلا بحذر شديد
-- JWT role checks لازم تبقى
-
 ### Commission
-- commission_rate و commission_amount حالياً = 0 في complete route
-- ده intentional حتى يتنفذ Phase 8 (Quote Approval)
+- commission_rate و commission_amount = 0 حالياً — intentional حتى Phase 8
 - لا تحسب commission قبل Phase 8
 
-### Environment Variables الحساسة
-```
-SUPABASE_SERVICE_ROLE_KEY     ← server only
-STRIPE_SECRET_KEY              ← server only
-STRIPE_WEBHOOK_SECRET          ← server only
-OPS_CRON_SECRET                ← server only
-```
-
----
-
-## أول حاجة تعملها في كل session جديد
-```
-1. اقرأ هذا الملف (CLAUDE.md)
-2. اقرأ PROJECT_HANDOFF.md
-3. افهم الـ task المطلوب
-4. اشرح خطتك قبل ما تبدأ
-5. نفذ خطوة بخطوة
-6. npm run lint && npm run build بعد كل تغيير
-```
-
----
-
-## Google Maps — تحذير مهم
+### Google Maps
 - حالياً: links فقط — لا Maps SDK
-- لا تضيف Maps SDK أو Geocoding أو Distance Matrix إلا في Phase 6
-- لما تضيفهم: API key + HTTP referrer restrictions + quota monitoring + billing alerts أولاً
+- لا تضيف Maps SDK إلا في Phase 6
 
 ---
 
-## Sentry — الخطوة الأولى المطلوبة
-```
-1. أضف SENTRY_DSN على Vercel
-2. أضف NEXT_PUBLIC_SENTRY_DSN على Vercel
-3. Vercel redeploy
-4. POST /api/admin/sentry-verify (كـ admin)
-5. تأكد الـ event ظهر في Sentry
-6. SENTRY_VERIFICATION_ENABLED=false
-```
-
----
-
-## UI Prompt Templates — جاهزة للنسخ
+## UI Prompt Templates
 
 ### قالب UI Polish Pass
 ```
 RescueGo UAE — [Phase Name] UI Polish — Safe Pass
 
-[اذكر الـ phases المكتملة قبلها]
-
-Goal:
-[هدف واضح — visual only]
+Goal: [هدف واضح — visual only]
 
 Do NOT change billing logic.
 Do NOT change Stripe flows.
@@ -268,108 +167,60 @@ Tasks:
 1. [task محدد]
 2. [task محدد]
 
-Shared components rule:
-- If shared component NOT used by admin → apply change directly
-- If shared by admin too → extract variant, don't touch original
-- Document any shared component touched
-
 Validation:
-Run:
-- npm run lint
-- npm run build
+- npm run lint (user runs from terminal)
+- npm run build (user runs from terminal)
 
 Return:
 - files changed
 - UI improvements applied
-- mobile improvements
-- shared components touched
 - confirmation no logic/query/API changes
 - deferred UI issues
-- lint/build status
-
-Final rule:
-If any change risks operational stability → defer and document, don't implement.
 ```
-
----
 
 ### قالب Bug Fix
 ```
 BUG — [وصف المشكلة]
 
-[سياق المشكلة]
-
-Do NOT change [حاجة 1].
-Do NOT change [حاجة 2].
-Do NOT change billing, lifecycle, Stripe, auth, dashboards, or request logic.
+Do NOT change billing, lifecycle, Stripe, auth, or request logic.
 
 Goal: [الهدف المحدد]
 
 Required fix:
-- [التغيير المطلوب بالظبط]
-
-Validation:
-- npm run lint
-- npm run build
+- [التغيير المطلوب]
 
 Return:
 - files changed
 - fix applied
 - confirmation no other logic changed
-- lint/build status
 ```
 
----
-
-### قالب Audit + Safe Fixes
+### قالب Audit
 ```
-RescueGo UAE — [Phase] Audit & Safe Fixes
-
-[الـ phases المكتملة]
+RescueGo UAE — [Phase] Audit
 
 Goal: [هدف الـ audit]
 
-Do NOT change:
-- billing logic
-- Stripe flows
-- request lifecycle
-- auth/session
-- Supabase RLS
-- UI redesign
-- admin behavior
+Do NOT change anything yet.
+Report findings only.
 
 Scope:
 - [الملفات المحددة]
 
-Tasks:
-1. Audit [موضوع]
-   Review: [النقاط]
-2. Apply only low-risk fixes if clearly safe
-   Prefer: [نوع الإصلاحات المقبولة]
-   Avoid: [نوع التغييرات الممنوعة]
-
-Validation:
-- npm run lint
-- npm run build
-
 Return:
-- files reviewed
-- risks identified
-- fixes applied
-- deferred risks
-- lint/build status
+- findings with severity
+- recommended fix order
+- wait for user approval before any changes
 ```
 
 ---
 
 ## قواعد كتابة الـ Prompt
-
-1. **ابدأ بـ context** — إيه اللي اتعمل قبل الـ task دي
-2. **Goal واحد واضح** — مش أهداف متعددة
-3. **"Do NOT" list صريحة** — الحاجات اللي ميتلمسوش
-4. **Scope محدد** — الملفات بالاسم مش "كل الكود"
-5. **Tasks مرقمة** — كل task في سطر
-6. **Validation دايماً** — lint + build
-7. **Return محدد** — إيه اللي تريده يرجعه
-8. **Final rule** — لو في شك → defer مش implement
-
+1. ابدأ بـ context — إيه اللي اتعمل قبل الـ task
+2. Goal واحد واضح
+3. "Do NOT" list صريحة
+4. Scope محدد — الملفات بالاسم
+5. Tasks مرقمة
+6. Validation — user يشغله من terminal
+7. Return محدد
+8. لو في شك → defer مش implement

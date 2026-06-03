@@ -128,7 +128,7 @@ export default function Navbar() {
     setOpen(false)
     router.replace('/')
     void supabase.auth
-      .signOut()
+      .signOut({ scope: 'local' })
       .catch(() => undefined)
       .finally(() => {
         localLogoutRef.current = false
