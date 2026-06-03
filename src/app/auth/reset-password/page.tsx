@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { CheckCircle2, ShieldCheck } from 'lucide-react'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -41,37 +42,41 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="rg-page-shell flex items-center justify-center">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
-            <div className="w-10 h-10 bg-[#1D9E75] rounded-xl flex items-center justify-center" aria-hidden="true">
+    <div className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+      <div className="mx-auto w-full max-w-md">
+        <div className="mb-6 text-center">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2" aria-label="RescueGo home">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1D9E75]" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
-            <span className="font-bold text-2xl text-slate-900">RescueGo</span>
+            <span className="text-2xl font-bold text-slate-900">RescueGo</span>
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Set New Password</h1>
-          <p className="mt-1 text-sm text-slate-500">Choose a new password for your account</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Set new password</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Choose a new password for your account.</p>
         </div>
 
-        <div className="rg-card p-6 sm:p-8">
+        <div className="rounded-3xl border border-[#DDE7EE] bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
           {success ? (
             <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
+                <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
               </div>
-              <h2 className="text-lg font-bold text-slate-900 mb-2">Password updated</h2>
-              <p className="text-sm text-slate-500 mb-6">
+              <h2 className="mb-2 text-lg font-semibold text-slate-950">Password updated</h2>
+              <p className="mb-6 text-sm leading-6 text-slate-500">
                 Your password has been changed successfully. You can now sign in with the new password.
               </p>
-              <Link href="/auth/login" className="text-[#1D9E75] font-semibold hover:underline text-sm">
+              <Link href="/auth/login" className="text-sm font-semibold text-[#1D9E75] hover:underline">
                 Back to Sign In
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-sm text-[#0F6E56]">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  <p>Use at least 8 characters. Longer passwords with words and numbers are stronger.</p>
+                </div>
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -82,7 +87,6 @@ export default function ResetPasswordPage() {
                 minLength={8}
                 placeholder="Min 8 characters"
               />
-              <p className="-mt-2 text-xs text-slate-500">Use at least 8 characters. A longer password with a mix of words and numbers is stronger.</p>
               <Input
                 id="confirm-password"
                 type="password"
@@ -93,8 +97,8 @@ export default function ResetPasswordPage() {
                 minLength={8}
                 placeholder="Repeat new password"
               />
-              {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-              <Button type="submit" loading={loading} size="lg" className="w-full mt-2">
+              {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
+              <Button type="submit" loading={loading} size="lg" className="mt-2 min-h-12 w-full">
                 Update Password
               </Button>
             </form>

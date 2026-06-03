@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { ShieldCheck } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -65,27 +66,33 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="rg-page-shell flex items-center justify-center">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6" aria-label="RescueGo home">
-            <div className="w-10 h-10 bg-[#1D9E75] rounded-xl flex items-center justify-center" aria-hidden="true">
+    <div className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+      <div className="mx-auto w-full max-w-md">
+        <div className="mb-6 text-center">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2" aria-label="RescueGo home">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1D9E75]" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
-            <span className="font-bold text-2xl text-slate-900">RescueGo</span>
+            <span className="text-2xl font-bold text-slate-900">RescueGo</span>
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Create Account</h1>
-          <p className="mt-1 text-sm text-slate-500">Free for drivers - no credit card needed</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Create account</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Free for drivers. No credit card needed.</p>
         </div>
-        <div className="rg-card p-6 sm:p-8">
+        <div className="rounded-3xl border border-[#DDE7EE] bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+          <div className="mb-5 rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-sm text-[#0F6E56]">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+              <p>Your contact details are shared with an assigned provider only when you request help.</p>
+            </div>
+          </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input id="name" label="Full Name" value={form.name} onChange={e => update('name', e.target.value)} required placeholder="Ahmed Al Rashid" />
             <Input id="phone" type="tel" label="Phone Number" value={form.phone} onChange={e => update('phone', e.target.value)} required placeholder="+971 50 000 0000" />
             <Input id="email" type="email" label="Email" value={form.email} onChange={e => update('email', e.target.value)} required placeholder="you@example.com" />
             <Input id="password" type="password" label="Password" value={form.password} onChange={e => update('password', e.target.value)} required placeholder="Min 8 characters" minLength={8} />
             <p className="-mt-2 text-xs text-slate-500">Use at least 8 characters. A longer password with a mix of words and numbers is stronger.</p>
-            {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-            <Button type="submit" loading={loading} size="lg" className="w-full mt-2">
+            {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
+            <Button type="submit" loading={loading} size="lg" className="mt-2 min-h-12 w-full">
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
           </form>
