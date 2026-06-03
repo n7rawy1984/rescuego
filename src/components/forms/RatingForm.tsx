@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
+import { CheckCircle2, Star } from 'lucide-react'
 
 interface Props {
   jobId: string
@@ -62,25 +63,25 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
 
   if (submitted) {
     return (
-      <div className="py-6 text-center">
-        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 ring-1 ring-green-200">
-          <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+      <div className="rounded-3xl border border-[#9FE1CB] bg-[#E1F5EE] px-5 py-8 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#0F6E56] ring-1 ring-[#9FE1CB]">
+          <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
         </div>
-        <p className="font-semibold text-slate-900">Rating submitted - thank you!</p>
-        <p className="text-sm text-slate-500 mt-1">Your feedback keeps RescueGo providers accountable.</p>
+        <p className="font-semibold text-slate-950">Rating submitted. Thank you!</p>
+        <p className="mt-1 text-sm text-[#0F6E56]">Your feedback keeps RescueGo providers accountable.</p>
       </div>
     )
   }
 
   return (
     <div>
-      <p className="mb-6 rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">How was your recovery provider? Your rating helps other drivers.</p>
+      <p className="mb-6 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+        How was your recovery provider? Your rating helps other drivers choose confidently.
+      </p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">Rating <span className="text-red-500">*</span></p>
-          <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-2" role="group" aria-label="Star rating">
+          <div className="flex justify-center gap-1 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:justify-start" role="group" aria-label="Star rating">
             {[1, 2, 3, 4, 5].map((star) => {
               const isFilled = star <= (hoveredStar || stars)
               return (
@@ -92,27 +93,19 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
                   onMouseLeave={() => setHoveredStar(0)}
                   aria-label={`Rate ${star} out of 5 stars`}
                   aria-pressed={stars === star}
-                  className="rounded-lg p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
+                  className="rounded-xl p-1.5 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
                 >
-                  <svg
-                    className={`w-8 h-8 transition-colors ${isFilled ? 'text-amber-400 fill-amber-400' : 'text-slate-300 fill-none'}`}
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={isFilled ? 0 : 1.5}
+                  <Star
+                    className={`h-9 w-9 transition-colors ${isFilled ? 'fill-amber-400 text-amber-400' : 'fill-none text-slate-300'}`}
+                    strokeWidth={isFilled ? 0 : 1.6}
                     aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
-                    />
-                  </svg>
+                  />
                 </button>
               )
             })}
           </div>
           {stars > 0 && (
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="mt-2 text-center text-sm font-medium text-slate-600 sm:text-left">
               {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][stars]}
             </p>
           )}
@@ -124,11 +117,11 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
             value={comment}
             onChange={e => setComment(e.target.value)}
             placeholder="Tell others about your experience..."
-            className="min-h-[96px] w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
+            className="min-h-[112px] w-full resize-none rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
           />
         </div>
-        {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-        <Button type="submit" loading={loading} size="lg" className="w-full">
+        {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
+        <Button type="submit" loading={loading} size="lg" className="min-h-12 w-full">
           {loading ? 'Submitting...' : 'Submit Rating'}
         </Button>
       </form>
