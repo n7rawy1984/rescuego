@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BatteryCharging, HelpCircle, History, LocateFixed, PhoneCall, Truck, Wrench } from 'lucide-react'
+import { BatteryCharging, CheckCircle2, Clock3, HelpCircle, History, LocateFixed, MapPin, PhoneCall, ShieldCheck, Truck, Wrench } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -11,11 +11,11 @@ import { getProblemLabel } from '@/lib/utils'
 import type { ProblemType, RequestStatus } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
-const PROBLEM_OPTIONS: { type: ProblemType; label: string; Icon: LucideIcon }[] = [
-  { type: 'flat_tire', label: 'Flat Tire', Icon: Wrench },
-  { type: 'battery', label: 'Battery Issue', Icon: BatteryCharging },
-  { type: 'tow', label: 'Tow Required', Icon: Truck },
-  { type: 'other', label: 'Other Issue', Icon: HelpCircle },
+const PROBLEM_OPTIONS: { type: ProblemType; label: string; description: string; Icon: LucideIcon }[] = [
+  { type: 'flat_tire', label: 'Flat Tire', description: 'Tyre change or repair support', Icon: Wrench },
+  { type: 'battery', label: 'Battery Issue', description: 'Jump start or battery help', Icon: BatteryCharging },
+  { type: 'tow', label: 'Tow Required', description: 'Recovery truck needed', Icon: Truck },
+  { type: 'other', label: 'Other Issue', description: 'Tell the provider what happened', Icon: HelpCircle },
 ]
 
 type SubmitResponse = {
@@ -394,11 +394,20 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="rg-page-shell flex items-center justify-center">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#1D9E75]" aria-hidden="true" />
-            <p className="font-semibold text-slate-800">Checking your active request...</p>
-            <p className="mt-1 text-sm text-slate-500">This prevents duplicate roadside requests.</p>
+        <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+          <div className="mx-auto w-full max-w-lg rounded-3xl border border-[#DDE7EE] bg-white p-6 text-center shadow-xl shadow-slate-200/60 sm:p-8">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
+              <Clock3 className="h-6 w-6 animate-pulse" aria-hidden="true" />
+            </div>
+            <p className="text-lg font-semibold text-slate-950">Checking your current request</p>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
+              RescueGo is making sure you do not accidentally create a duplicate roadside request.
+            </p>
+            <div className="mt-6 space-y-3 text-left">
+              <div className="h-3 w-full animate-pulse rounded-full bg-slate-100" />
+              <div className="h-3 w-4/5 animate-pulse rounded-full bg-slate-100" />
+              <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-100" />
+            </div>
           </div>
         </main>
       </>
@@ -409,11 +418,14 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="rg-page-shell flex items-center justify-center">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-xl font-bold text-slate-900">We couldn&apos;t load your current request</h1>
-            <p className="mt-2 text-sm text-slate-500">{initialRequestError}</p>
-            <Button className="mt-6" onClick={retryInitialRequestLoad}>
+        <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+          <div className="mx-auto w-full max-w-lg rounded-3xl border border-red-100 bg-white p-6 text-center shadow-xl shadow-slate-200/60 sm:p-8">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
+              <HelpCircle className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h1 className="text-xl font-semibold text-slate-950">We couldn&apos;t load your current request</h1>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">{initialRequestError}</p>
+            <Button className="mt-6 min-h-11 w-full sm:w-auto" onClick={retryInitialRequestLoad}>
               Try again
             </Button>
           </div>
@@ -439,17 +451,20 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="rg-page-shell">
-          <div className="rg-container-narrow">
-            <div className="rg-page-header mb-6">
-              <p className="text-sm font-medium text-slate-500">Job completed</p>
-              <h1 className="rg-title mt-1">Rate Your Recovery Service</h1>
-              <p className="rg-body-muted mt-1">Please rate your completed job before submitting another request.</p>
+        <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Job completed</p>
+              <h1 className="mt-1 text-2xl font-semibold text-slate-950">Rate your recovery service</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-500">Please rate your completed job before submitting another request.</p>
             </div>
 
-            <div className="rg-card p-5 sm:p-6">
-              <div className="mb-5 rounded-xl bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">{getProblemLabel(completedUnratedRequest.request.problem_type)}</div>
+            <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
+              <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-center gap-2 font-semibold text-slate-950">
+                  <CheckCircle2 className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
+                  {getProblemLabel(completedUnratedRequest.request.problem_type)}
+                </div>
                 <p className="mt-1 text-sm text-slate-500">
                   Provider: {completedUnratedRequest.provider_name ?? 'Recovery provider'}
                 </p>
@@ -487,68 +502,96 @@ export default function RequestPage() {
     return (
       <>
         <Navbar />
-        <main className="rg-page-shell flex items-center justify-center">
-          <div className="w-full max-w-md">
-            <div className="rg-card p-6 text-center sm:p-8">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+        <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+          <div className="mx-auto w-full max-w-2xl">
+            <div className="overflow-hidden rounded-3xl border border-[#DDE7EE] bg-white shadow-xl shadow-slate-200/60">
+              <div className="border-b border-slate-100 bg-white p-5 text-center sm:p-7">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
+                  {isOpen ? (
+                    <Clock3 className="h-7 w-7 animate-pulse" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+                  )}
+                </div>
+                <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#0F6E56]">
+                  <span className="h-2 w-2 rounded-full bg-[#1D9E75]" aria-hidden="true" />
+                  {isOpen ? 'Searching for provider' : 'Provider assigned'}
+                </div>
+                <h1 className="text-2xl font-semibold text-slate-950">{title}</h1>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{description}</p>
+                <p className="mt-3 text-xs font-medium text-slate-400">Request #{visibleRequest.id.slice(0, 8).toUpperCase()}</p>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">{title}</h1>
-              <p className="text-slate-600 mb-1">{description}</p>
-              <p className="text-xs text-slate-400 mb-4 font-mono">ID: {visibleRequest.id.slice(0, 8).toUpperCase()}</p>
-              <div className="mb-6 rounded-xl bg-slate-50 p-3 text-left">
-                <div className="text-sm font-semibold text-slate-800">{getProblemLabel(visibleRequest.problem_type)}</div>
-                <div className="mt-0.5 text-xs text-slate-500">{visibleRequest.location_address ?? 'Location not recorded'}</div>
+
+              <div className="space-y-5 p-5 sm:p-6">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0F6E56] ring-1 ring-[#DDE7EE]">
+                    <MapPin className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-950">{getProblemLabel(visibleRequest.problem_type)}</div>
+                    <div className="mt-1 break-words text-sm text-slate-500">{visibleRequest.location_address ?? 'Location not recorded'}</div>
+                  </div>
+                </div>
               </div>
 
               {!isOpen && (
-                <div className="mb-6 rounded-xl border border-[#DDE7EE] bg-[#E1F5EE] p-4 text-left">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned provider</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                    {visibleRequest.provider_name ?? 'Recovery provider assigned'}
+                <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-left">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned provider</div>
+                      <div className="mt-1 text-base font-semibold text-slate-950">
+                        {visibleRequest.provider_name ?? 'Recovery provider assigned'}
+                      </div>
+                      <p className="mt-1 text-xs text-[#0F6E56]">Keep your phone nearby. Your provider may call for exact access details.</p>
+                    </div>
+                    {visibleRequest.provider_phone ? (
+                      <a
+                        href={`tel:${visibleRequest.provider_phone}`}
+                        className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 sm:w-auto"
+                      >
+                        <PhoneCall className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Call provider
+                      </a>
+                    ) : null}
                   </div>
-                  {visibleRequest.provider_phone ? (
-                    <a
-                      href={`tel:${visibleRequest.provider_phone}`}
-                      className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 sm:w-auto"
-                    >
-                      <PhoneCall className="mr-2 h-4 w-4" aria-hidden="true" />
-                      Call provider
-                    </a>
-                  ) : (
-                    <p className="mt-2 text-xs text-slate-600">Your provider will call you directly using the phone number on this request.</p>
-                  )}
                 </div>
               )}
 
-              <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left space-y-3">
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-950">Request progress</h2>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                    {visibleRequest.status.replace('_', ' ')}
+                  </span>
+                </div>
+                <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-[#1D9E75] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">1</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Provider notified</p>
                     <p className="text-xs text-slate-500">Nearby providers can see and accept your request now</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'accepted' || visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${visibleRequest.status === 'accepted' || visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Provider accepts</p>
                     <p className="text-xs text-slate-500">You&apos;ll receive a call from the provider directly</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Pay provider directly</p>
-                    <p className="text-xs text-slate-500">Cash or card - RescueGo never charges drivers</p>
+                    <p className="text-xs text-slate-500">Cash or card. RescueGo never charges drivers.</p>
                   </div>
+                </div>
                 </div>
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-left">
-                <p className="text-xs text-amber-800">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left">
+                <p className="text-sm text-amber-800">
                   <strong>Tip:</strong> Keep your phone nearby. Your provider will call you once they accept.
                 </p>
               </div>
@@ -564,6 +607,7 @@ export default function RequestPage() {
                 <p className="text-sm text-slate-400">
                   Complete or cancel this request before submitting another.
                 </p>
+              </div>
               </div>
             </div>
           </div>
@@ -615,26 +659,31 @@ export default function RequestPage() {
   return (
     <>
       <Navbar />
-        <main className="rg-page-shell">
-        <div className="rg-container-narrow">
+      <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+        <div className="mx-auto w-full max-w-3xl">
           {statusMessage && (
-            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-800">
+            <div className="mb-6 rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-sm font-medium text-[#0F6E56] shadow-sm">
               {statusMessage}
             </div>
           )}
 
           {unratedJobsCount > 0 && (
-            <div className="mb-6 rounded-xl border border-[#DDE7EE] bg-[#E1F5EE] p-4">
+            <div className="mb-6 rounded-3xl border border-[#9FE1CB] bg-white p-4 shadow-sm sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold text-[#0F6E56]">You have a completed job waiting for rating.</p>
-                  <p className="mt-1 text-sm text-[#0F6E56]">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#0F6E56]">
+                    <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-950">You have a completed job waiting for rating.</p>
+                    <p className="mt-1 text-sm text-slate-500">
                     Please rate your provider to keep RescueGo quality high.
-                  </p>
+                    </p>
+                  </div>
                 </div>
                 <Link
                   href="/customer/ratings"
-                  className="inline-flex h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56]"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
                 >
                   Rate now
                 </Link>
@@ -642,69 +691,111 @@ export default function RequestPage() {
             </div>
           )}
 
-          <div className="rg-page-header mb-8">
+          <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Customer request</p>
-                <h1 className="text-2xl font-bold text-slate-900">Request Roadside Help</h1>
-                <p className="mt-1 text-sm text-slate-500">No active request right now. Start a new request or review past jobs.</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Customer request</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Request roadside help</h1>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                  Tell us what happened, share where you are, and nearby verified providers can accept your request.
+                </p>
               </div>
               <Link
                 href="/customer/history"
-                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#DDE7EE] bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
                 <History className="mr-2 h-4 w-4" aria-hidden="true" />
                 Request history
               </Link>
             </div>
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-800">Ready when you need help</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Tell us what happened, share your location, and nearby verified providers can accept your request.
-              </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <ShieldCheck className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
+                <p className="mt-2 text-sm font-semibold text-slate-800">Verified providers</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Your exact details are shared only after assignment.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <MapPin className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
+                <p className="mt-2 text-sm font-semibold text-slate-800">Location supported</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Use GPS or enter a clear landmark manually.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <PhoneCall className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
+                <p className="mt-2 text-sm font-semibold text-slate-800">Direct contact</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">The assigned provider can call to coordinate access.</p>
+              </div>
             </div>
-            <div className="mt-5 flex gap-2" aria-label={`Step ${step} of 3`}>
-              {[1, 2, 3].map((s) => (
-                <div key={s} className={`flex-1 h-1.5 rounded-full ${step >= s ? 'bg-[#1D9E75]' : 'bg-slate-200'}`} />
-              ))}
+            <div className="mt-6 grid gap-2 sm:grid-cols-3" aria-label={`Step ${step} of 3`}>
+              {[
+                ['1', 'Issue'],
+                ['2', 'Location'],
+                ['3', 'Confirm'],
+              ].map(([value, label], index) => {
+                const current = step === index + 1
+                const complete = step > index + 1
+                return (
+                  <div
+                    key={value}
+                    className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm ${
+                      current || complete
+                        ? 'border-[#9FE1CB] bg-[#E1F5EE] text-[#0F6E56]'
+                        : 'border-slate-100 bg-slate-50 text-slate-500'
+                    }`}
+                  >
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                      complete ? 'bg-[#1D9E75] text-white' : current ? 'bg-white text-[#0F6E56]' : 'bg-white text-slate-400'
+                    }`}>
+                      {complete ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : value}
+                    </span>
+                    <span className="font-semibold">{label}</span>
+                  </div>
+                )
+              })}
             </div>
-            <p className="text-xs text-slate-500 mt-2">Step {step} of 3</p>
           </div>
 
           {step === 1 && (
-            <div className="rg-card p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-slate-800 mb-4">What is the problem?</h2>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-5">
+                <h2 className="text-xl font-semibold text-slate-950">What happened?</h2>
+                <p className="mt-1 text-sm text-slate-500">Choose the closest match so providers can quickly understand the job.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
                 {PROBLEM_OPTIONS.map((opt) => {
                   const Icon = opt.Icon
                   return (
                     <button
                       key={opt.type}
                       onClick={() => setProblemType(opt.type)}
-                      className={`min-h-32 rounded-xl border-2 p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75] ${problemType === opt.type ? 'border-[#1D9E75] bg-[#E1F5EE] shadow-sm' : 'border-slate-200 bg-white hover:border-[#9FE1CB] hover:bg-[#E1F5EE]/30'}`}
+                      className={`min-h-32 rounded-2xl border p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75] ${problemType === opt.type ? 'border-[#1D9E75] bg-[#E1F5EE] shadow-sm' : 'border-slate-200 bg-white hover:border-[#9FE1CB] hover:bg-[#E1F5EE]/30'}`}
                     >
-                      <div className="mb-2 text-[#0F6E56]">
+                      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#0F6E56]">
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
                       <div className="font-semibold text-slate-800">{opt.label}</div>
+                      <p className="mt-1 text-sm leading-5 text-slate-500">{opt.description}</p>
                     </button>
                   )
                 })}
               </div>
               {problemType && (
-                <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
                   <p>
                     <strong>How pricing works:</strong> Your recovery provider will agree a price with you directly before starting the job. RescueGo never charges drivers.
                   </p>
                 </div>
               )}
-              <Button className="w-full mt-6" disabled={!problemType} onClick={() => setStep(2)}>Continue</Button>
+              <Button className="mt-6 min-h-12 w-full" disabled={!problemType} onClick={() => setStep(2)}>Continue</Button>
             </div>
           )}
 
           {step === 2 && (
-            <div className="rg-card flex flex-col gap-4 p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-slate-800">Contact and location details</h2>
+            <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-5">
+                <h2 className="text-xl font-semibold text-slate-950">Where should help go?</h2>
+                <p className="mt-1 text-sm text-slate-500">Add a phone number and clear location details for the assigned provider.</p>
+              </div>
+              <div className="flex flex-col gap-4">
               <Input
                 id="phone"
                 type="tel"
@@ -717,13 +808,15 @@ export default function RequestPage() {
               <p className="-mt-2 text-xs text-slate-500">
                 Your assigned provider will use this number to call you after accepting the request.
               </p>
-              <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="min-h-11 w-full">
-                <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
-                Use my current location
-              </Button>
-              <p className="text-xs text-slate-500">
-                RescueGo requests your location once and only uses it to find nearby providers for this recovery request.
-              </p>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="min-h-11 w-full bg-white">
+                  <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Use my current location
+                </Button>
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  RescueGo requests your location once and only uses it to find nearby providers for this recovery request.
+                </p>
+              </div>
               <Input
                 ref={addressInputRef}
                 id="address"
@@ -760,46 +853,50 @@ export default function RequestPage() {
                 </div>
               )}
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button variant="ghost" onClick={() => setStep(1)} className="flex-1">Back</Button>
-                <Button className="flex-1" disabled={!phone.trim() || !address.trim()} onClick={() => setStep(3)}>Continue</Button>
+                <Button variant="ghost" onClick={() => setStep(1)} className="min-h-11 flex-1">Back</Button>
+                <Button className="min-h-11 flex-1" disabled={!phone.trim() || !address.trim()} onClick={() => setStep(3)}>Continue</Button>
+              </div>
               </div>
             </div>
           )}
 
           {step === 3 && (
-            <div className="rg-card flex flex-col gap-4 p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-slate-800">Confirm Your Request</h2>
-              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 text-sm">Problem</span>
-                  <span className="font-semibold text-slate-800 capitalize">{problemType?.replace('_', ' ')}</span>
+            <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-5">
+                <h2 className="text-xl font-semibold text-slate-950">Confirm your request</h2>
+                <p className="mt-1 text-sm text-slate-500">Review the details before sending them to nearby providers.</p>
+              </div>
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm text-slate-500">Problem</span>
+                  <span className="font-semibold capitalize text-slate-800">{problemType?.replace('_', ' ')}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 text-sm">Location</span>
-                  <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{address}</span>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <span className="text-sm text-slate-500">Location</span>
+                  <span className="max-w-full break-words font-semibold text-slate-800 sm:max-w-[65%] sm:text-right">{address}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 text-sm">Phone</span>
-                  <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{phone}</span>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm text-slate-500">Phone</span>
+                  <span className="font-semibold text-slate-800 sm:text-right">{phone}</span>
                 </div>
-                <div className="flex justify-between items-start gap-2">
-                  <span className="text-slate-500 text-sm">Payment</span>
-                  <span className="text-sm font-medium text-slate-700 text-right">Agreed directly with provider</span>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <span className="text-sm text-slate-500">Payment</span>
+                  <span className="text-sm font-medium text-slate-700 sm:text-right">Agreed directly with provider</span>
                 </div>
                 {note && (
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="text-slate-500 text-sm">Note</span>
-                    <span className="font-medium text-slate-700 text-right max-w-[60%]">{note}</span>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                    <span className="text-sm text-slate-500">Note</span>
+                    <span className="max-w-full break-words font-medium text-slate-700 sm:max-w-[65%] sm:text-right">{note}</span>
                   </div>
                 )}
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <p className="text-sm text-amber-800">Payment is made directly to the provider after service. RescueGo does not charge you.</p>
+              <div className="my-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm leading-6 text-amber-800">Payment is made directly to the provider after service. RescueGo does not charge you.</p>
               </div>
               {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button variant="ghost" onClick={() => setStep(2)} className="flex-1">Back</Button>
-                <Button className="flex-1" loading={loading} onClick={handleSubmit}>
+                <Button variant="ghost" onClick={() => setStep(2)} className="min-h-11 flex-1">Back</Button>
+                <Button className="min-h-11 flex-1" loading={loading} onClick={handleSubmit}>
                   {loading ? 'Submitting...' : 'Submit Request'}
                 </Button>
               </div>
