@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { createClient } from '@/lib/supabase/server'
+import { CheckCircle2, CreditCard, ShieldCheck, Sparkles } from 'lucide-react'
 import {
   LAUNCH_PROMO,
   PAY_PER_JOB_PROMO_FEE_AED,
@@ -135,78 +136,88 @@ export default async function PricingPage() {
   return (
     <>
       <Navbar />
-      <main className="pt-16">
+      <main className="bg-[#F8FAFC] pt-16">
         {LAUNCH_PROMO && (
-          <div className="bg-[#1D9E75] text-white text-center py-3 px-4 text-sm font-semibold">
-            Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat - Limited time only!
+          <div className="mx-auto mt-5 max-w-6xl rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-center text-sm font-semibold text-[#0F6E56] shadow-sm">
+            Launch Offer: Pay Per Job at just {PAY_PER_JOB_PROMO_FEE_AED} AED flat. Limited time only.
           </div>
         )}
-        <section className="bg-slate-950 text-white px-4 py-16 text-center">
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">Simple, Transparent Pricing</h1>
-          <p className="text-slate-300 text-lg max-w-2xl mx-auto mb-8">
-            For recovery providers. Customers always use RescueGo for free.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="/provider/register?plan=pay_per_job"
-              className="inline-flex h-11 items-center justify-center rounded-lg bg-[#1D9E75] px-6 text-sm font-semibold text-white transition hover:bg-[#0F6E56]"
-            >
-              Join as Provider
-            </a>
-            <a
-              href="/customer/request"
-              className="inline-flex h-11 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-6 text-sm font-semibold text-white transition hover:bg-white/15"
-            >
-              Request Recovery (Free)
-            </a>
+
+        <section className="px-4 py-14 text-center sm:py-16">
+          <div className="mx-auto max-w-3xl">
+            <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-[#9FE1CB] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#0F6E56] shadow-sm">
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Provider pricing
+            </div>
+            <h1 className="mb-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">Simple, transparent pricing</h1>
+            <p className="mx-auto mb-8 max-w-2xl text-lg leading-8 text-slate-600">
+              For recovery providers. Customers always use RescueGo for free.
+            </p>
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a
+                href="/provider/register?plan=pay_per_job"
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#1D9E75] px-6 text-sm font-semibold text-white shadow-md shadow-[#DCFCE7] transition hover:bg-[#0F6E56] sm:w-auto"
+              >
+                Join as Provider
+              </a>
+              <a
+                href="/customer/request"
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-[#DDE7EE] bg-white px-6 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
+              >
+                Request Recovery (Free)
+              </a>
+            </div>
           </div>
         </section>
 
-        <section className="py-16 px-4 bg-white">
-          <div className="max-w-6xl mx-auto">
+        <section className="px-4 pb-16">
+          <div className="mx-auto max-w-6xl">
             {isSubscribedProvider ? (
-              <div className="mb-10 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+              <div className="mb-8 rounded-3xl border border-[#DDE7EE] bg-white p-6 shadow-sm md:p-8">
                 <div className="max-w-3xl">
-                  <h2 className="text-2xl font-bold text-slate-900">Manage or upgrade your subscription</h2>
+                  <h2 className="text-2xl font-semibold text-slate-950">Manage or upgrade your subscription</h2>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     You are already subscribed to RescueGo. Compare the subscription plans below, then open Stripe Billing to manage upgrades securely without creating a duplicate subscription.
                   </p>
                 </div>
               </div>
             ) : (
-            <div className="mb-12 rounded-2xl border border-[#DDE7EE] bg-[#E1F5EE] p-6 md:p-8">
-              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                <div className="max-w-2xl">
-                  <h2 className="text-2xl font-bold text-slate-900">Start free with Pay Per Job</h2>
-                  <p className="mt-3 text-sm leading-6 text-slate-700">
-                    Accept roadside assistance requests without a monthly commitment. Pay only a flat acceptance fee when you take a job.
-                  </p>
-                  <ul className="mt-5 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                    {[
-                      'No monthly subscription',
-                      'No percentage commission',
-                      `Launch promo: ${PAY_PER_JOB_PROMO_FEE_AED} AED per accepted request`,
-                      'Upgrade anytime when you are ready for more predictable monthly growth',
-                    ].map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <span className="font-bold text-green-600">✓</span>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+              <div className="mb-8 rounded-3xl border border-[#9FE1CB] bg-white p-6 shadow-xl shadow-slate-200/50 md:p-8">
+                <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                  <div className="max-w-2xl">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
+                      <CreditCard className="h-6 w-6" aria-hidden="true" />
+                    </div>
+                    <h2 className="text-2xl font-semibold text-slate-950">Start free with Pay Per Job</h2>
+                    <p className="mt-3 text-sm leading-6 text-slate-700">
+                      Accept roadside assistance requests without a monthly commitment. Pay only a flat acceptance fee when you take a job.
+                    </p>
+                    <ul className="mt-5 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                      {[
+                        'No monthly subscription',
+                        'No percentage commission',
+                        `Launch promo: ${PAY_PER_JOB_PROMO_FEE_AED} AED per accepted request`,
+                        'Upgrade anytime when you are ready for more predictable monthly growth',
+                      ].map((feature) => (
+                        <li key={feature} className="flex items-start gap-2">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1D9E75]" aria-hidden="true" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <Link
+                    href={payPerJobHref(viewer)}
+                    className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[#1D9E75] px-6 text-sm font-semibold text-white shadow-md shadow-[#DCFCE7] transition-colors hover:bg-[#0F6E56]"
+                  >
+                    {payPerJobLabel(viewer)}
+                  </Link>
                 </div>
-                <Link
-                  href={payPerJobHref(viewer)}
-                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-[#1D9E75] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56]"
-                >
-                  {payPerJobLabel(viewer)}
-                </Link>
               </div>
-            </div>
             )}
 
-            <div className="mb-10 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
-              <h2 className="text-2xl font-bold text-slate-900">Ready to grow faster?</h2>
+            <div className="mb-8 rounded-3xl border border-[#DDE7EE] bg-white p-6 shadow-sm md:p-8">
+              <h2 className="text-2xl font-semibold text-slate-950">Ready to grow faster?</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                 Our subscription plans are built for recovery providers who want more visibility, more monthly jobs, and a clearer path to predictable revenue.
               </p>
@@ -217,31 +228,35 @@ export default async function PricingPage() {
                   'Reduce costs as you scale',
                   'Unlock better growth potential',
                 ].map((item) => (
-                  <li key={item} className="rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">{item}</li>
+                  <li key={item} className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                    <Sparkles className="h-4 w-4 shrink-0 text-[#1D9E75]" aria-hidden="true" />
+                    {item}
+                  </li>
                 ))}
               </ul>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {PLANS.map((plan) => {
                 const isCurrentPlan = viewer.currentPlan === plan.id
                 return (
-                  <div key={plan.id} className={`relative rounded-2xl border-2 p-6 md:p-8 ${isCurrentPlan ? 'border-green-500 shadow-xl shadow-green-100' : plan.highlight ? 'border-[#1D9E75] shadow-xl shadow-[#DCFCE7]' : 'border-slate-200'}`}>
+                  <div key={plan.id} className={`relative rounded-3xl border bg-white p-6 shadow-sm md:p-8 ${isCurrentPlan ? 'border-[#1D9E75] ring-2 ring-[#DCFCE7]' : plan.highlight ? 'border-[#1D9E75] shadow-xl shadow-[#DCFCE7]' : 'border-[#DDE7EE]'}`}>
                     {isCurrentPlan ? (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white text-sm font-bold px-4 py-1 rounded-full">Active Plan</div>
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#1D9E75] px-4 py-1 text-sm font-bold text-white">Active Plan</div>
                     ) : plan.highlight ? (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#1D9E75] text-white text-sm font-bold px-4 py-1 rounded-full">Most Popular</div>
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#1D9E75] px-4 py-1 text-sm font-bold text-white">Most Popular</div>
                     ) : null}
-                    <div className="font-bold text-xl text-slate-900 mb-2">{plan.name}</div>
+                    <div className="mb-2 text-xl font-semibold text-slate-950">{plan.name}</div>
                     <p className="mb-4 text-sm leading-6 text-slate-600">{plan.positioning}</p>
-                    <div className="flex items-end gap-1 mb-6">
-                      <span className="text-4xl font-bold text-slate-900">{plan.price}</span>
-                      <span className="text-slate-500 mb-1">AED{plan.period}</span>
+                    <div className="mb-6 flex items-end gap-1">
+                      <span className="text-4xl font-semibold text-slate-950">{plan.price}</span>
+                      <span className="mb-1 text-slate-500">AED{plan.period}</span>
                     </div>
-                    <ul className="flex flex-col gap-2.5 mb-8">
+                    <ul className="mb-8 flex flex-col gap-2.5">
                       {plan.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
-                          <span className="text-green-500 font-bold mt-0.5">✓</span>{feature}
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1D9E75]" aria-hidden="true" />
+                          <span>{feature}</span>
                         </li>
                       ))}
                     </ul>
@@ -254,7 +269,7 @@ export default async function PricingPage() {
                         Current Plan
                       </button>
                     ) : (
-                      <Link href={subscriptionPlanHref(viewer, plan.id)} className={`block text-center py-3 rounded-xl font-semibold transition-colors ${plan.highlight ? 'bg-[#1D9E75] hover:bg-[#0F6E56] text-white' : 'border-2 border-[#1D9E75] text-[#1D9E75] hover:bg-[#E1F5EE]'}`}>
+                      <Link href={subscriptionPlanHref(viewer, plan.id)} className={`block rounded-xl py-3 text-center font-semibold transition-colors ${plan.highlight ? 'bg-[#1D9E75] text-white shadow-md shadow-[#DCFCE7] hover:bg-[#0F6E56]' : 'border border-[#1D9E75] text-[#1D9E75] hover:bg-[#E1F5EE]'}`}>
                         {planButtonLabel(plan.id)}
                       </Link>
                     )}
@@ -265,12 +280,12 @@ export default async function PricingPage() {
           </div>
         </section>
 
-        <section className="py-12 px-4 bg-slate-50">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Subscription Plan Comparison</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden bg-white">
-                <thead className="bg-slate-800 text-white">
+        <section className="bg-white px-4 py-12">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="mb-8 text-center text-2xl font-semibold text-slate-950">Subscription plan comparison</h2>
+            <div className="overflow-x-auto rounded-3xl border border-[#DDE7EE] bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-950 text-white">
                   <tr>
                     {['Feature', 'Starter', 'Pro', 'Business'].map(heading => (
                       <th key={heading} className="px-4 py-3 text-left font-semibold">{heading}</th>

@@ -63,14 +63,21 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
   return (
     <>
       <Navbar />
-      <main className="rg-page-shell">
-        <div className="rg-container">
-          <div className="mb-8 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200 sm:p-7">
-            <p className="text-sm font-semibold text-[#9FE1CB]">Subscription upgrade</p>
-            <h1 className="mt-1 text-3xl font-bold text-white sm:text-4xl">Choose your subscription plan</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-              Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower premium commissions.
-            </p>
+      <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="mb-8 overflow-hidden rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Subscription upgrade</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Choose your subscription plan</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+                  Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower premium commissions.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-sm font-semibold text-[#0F6E56]">
+                Secure checkout by Stripe
+              </div>
+            </div>
           </div>
           <SubscribePlans
             providerId={user.id}

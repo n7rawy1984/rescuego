@@ -116,7 +116,7 @@ export default function SubscribePlans({
   return (
     <div>
       {(hasSubscription || selectedPlan || returnedFromBillingPortal || planWasAlreadyCurrent) && (
-        <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-md shadow-slate-200/70">
+        <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold text-slate-900">
             You are currently on {planName(currentPlan)}.
           </p>
@@ -131,12 +131,12 @@ export default function SubscribePlans({
             </p>
           )}
           {returnedFromBillingPortal && selectedPlan && selectedPlan !== currentPlan && (
-            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               If you just changed plans in Stripe, it may take a moment for the webhook to update your RescueGo account.
             </p>
           )}
           {planWasAlreadyCurrent && (
-            <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+            <p className="mt-3 rounded-xl border border-[#9FE1CB] bg-[#E1F5EE] px-3 py-2 text-xs text-[#0F6E56]">
               Your subscription page has been refreshed to remove a stale upgrade target.
             </p>
           )}
@@ -155,17 +155,17 @@ export default function SubscribePlans({
           const isCurrent = currentPlan === plan.id
 
           return (
-            <article key={plan.id} className={`relative overflow-hidden rounded-3xl border bg-white p-6 shadow-lg shadow-slate-200/70 ${isCurrent ? 'border-green-500 ring-2 ring-green-100' : isSelected ? 'border-amber-300 ring-2 ring-amber-100' : 'border-slate-200'}`}>
+            <article key={plan.id} className={`relative overflow-hidden rounded-3xl border bg-white p-6 shadow-sm ${isCurrent ? 'border-[#1D9E75] ring-2 ring-[#DCFCE7]' : isSelected ? 'border-amber-300 ring-2 ring-amber-100' : 'border-[#DDE7EE]'}`}>
             {plan.id === 'pro' && !isCurrent && (
               <div className="absolute right-5 top-5 rounded-full bg-[#1D9E75] px-3 py-1 text-xs font-bold text-white shadow-sm">
                 Popular
               </div>
             )}
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
+              <h2 className="text-xl font-semibold text-slate-950">{plan.name}</h2>
               <div className="flex flex-wrap justify-end gap-2">
                 {isCurrent && (
-                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Current Plan</span>
+                  <span className="rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#0F6E56]">Current Plan</span>
                 )}
                 {isSelected && !isCurrent && (
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Upgrade Target</span>
@@ -178,11 +178,11 @@ export default function SubscribePlans({
               </p>
             )}
             <div className="mt-5 flex items-end gap-2">
-              <span className="text-4xl font-bold text-slate-950">{plan.price_aed}</span>
+              <span className="text-4xl font-semibold text-slate-950">{plan.price_aed}</span>
               <span className="pb-1 text-sm text-slate-500">AED/mo</span>
             </div>
 
-            <dl className="mt-6 space-y-3 rounded-2xl bg-slate-50 p-4 text-sm">
+            <dl className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
               <div className="flex justify-between gap-4">
                 <dt className="text-slate-500">Monthly jobs</dt>
                 <dd className="font-semibold text-slate-800">{plan.monthly_jobs ?? 'Unlimited'}</dd>
@@ -202,11 +202,11 @@ export default function SubscribePlans({
             </dl>
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="text-sm font-semibold text-slate-900">What you get</h3>
+              <h3 className="text-sm font-semibold text-slate-950">What you get</h3>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 {planValueCopy(plan.id).map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-hidden="true" />
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1D9E75]" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}
