@@ -3,19 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { requireEnv } from '@/lib/env'
 
 const PROTECTED_PREFIXES = [
-  '/provider/dashboard',
-  '/provider/subscribe',
+  '/provider',
   '/admin',
-  '/admin/dashboard',
-  '/admin/providers',
-  '/admin/requests',
-  '/admin/revenue',
-  '/customer/history',
-  '/customer/ratings',
-  '/customer/request',
+  '/customer',
 ]
-
-const PROVIDER_PREFIXES = ['/provider/dashboard', '/provider/subscribe']
 
 function getSafeRedirectTarget(request: NextRequest): string {
   const { pathname, search } = request.nextUrl
@@ -53,26 +44,6 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', getSafeRedirectTarget(request))
     return NextResponse.redirect(loginUrl)
-  }
-
-  if (user && isProtected) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (pathname.startsWith('/admin') && profile?.role !== 'admin') {
-      return NextResponse.redirect(new URL(profile?.role === 'provider' ? '/provider/dashboard' : '/', request.url))
-    }
-
-    if (PROVIDER_PREFIXES.some((prefix) => pathname.startsWith(prefix)) && profile?.role !== 'provider') {
-      return NextResponse.redirect(new URL(profile?.role === 'customer' ? '/customer/request' : '/', request.url))
-    }
-
-    if (pathname.startsWith('/customer') && profile?.role !== 'customer') {
-      return NextResponse.redirect(new URL(profile?.role === 'provider' ? '/provider/dashboard' : '/', request.url))
-    }
   }
 
   return supabaseResponse
