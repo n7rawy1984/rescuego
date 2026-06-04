@@ -363,6 +363,25 @@ Pending user decisions before Task 8:
 
 ---
 
+## Session: June 5, 2026 — VERDENT_HANDOFF.md created
+
+### What was done
+1. **VERDENT_HANDOFF.md** — created (project root). Complete 15-section handoff document for another AI or engineer. Covers: business model, architecture, all phases, business logic, schema, env vars, API routes, known issues, technical decisions, constraints, deployment, testing, next steps.
+2. **README.md** — updated to reflect current project status and link to all documentation files.
+3. **`src/proxy.ts`** — inline comments added explaining middleware role, why no DB role check, cookie dance requirement.
+4. **`src/app/api/provider/requests/accept/route.ts`** — inline comments added explaining rate limit, parallelized pre-flight checks, overage guard logic, pre-flight lock check advisory nature, atomic RPC purpose.
+5. **`src/app/api/stripe/webhook/route.ts`** — inline comments added explaining force-dynamic, idempotency claim pattern, PROCESSING_TIMEOUT_MS, PLAN_BY_PRICE_ID, payment intent handler, subscription sync, raw body requirement.
+
+### Files changed (June 5)
+- `VERDENT_HANDOFF.md` — created
+- `README.md` — updated
+- `src/proxy.ts` — comments added
+- `src/app/api/provider/requests/accept/route.ts` — comments added
+- `src/app/api/stripe/webhook/route.ts` — comments added
+- `SESSION_LOG.md` — this update
+
+---
+
 ### Files changed — full session log (June 4, all sessions)
 
 **Session 1 (June 4):**

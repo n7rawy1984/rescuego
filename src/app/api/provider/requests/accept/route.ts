@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Rate limit: 60 attempts per 60s per provider. Prevents accept-spamming.
   const rateLimit = await checkRateLimitAsync(`provider-accept:${user.id}`, 60, 60 * 1000, 'provider_request_accept')
   if (!rateLimit.allowed) {
     return NextResponse.json(
@@ -59,8 +60,11 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+  // "Online" = provider_locations row updated within last PROVIDER_STALE_MINUTES (5 min).
   const onlineSince = new Date(Date.now() - PROVIDER_STALE_MINUTES * 60 * 1000).toISOString()
 
+  // All four pre-flight checks only need user.id — fire them in parallel.
+  // Guard order below must stay: role → 404 → status → offline → active job.
   const [
     { data: profile },
     { data: provider, error: providerError },
@@ -93,7 +97,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
   }
 
-  // Overage guard - subscribed providers only
+  // Overage guard: subscribed providers (starter/pro) who have exhausted their
+  // monthly allowance (including any job_credit_balance from upgrades) must pay
+  // the 12 AED overage fee before the accept can proceed. Returns HTTP 402 with
+  // code OVERAGE_REQUIRED so the client can redirect to /provider/overage-pay.
+  // Business plan providers are unlimited — this block is skipped for them.
+  // PPJ plan providers never reach this guard (hasMonthlyAllowance = false).
   const allowance = getProviderAllowance({
     plan: provider.plan,
     jobsThisMonth: provider.jobs_this_month,
@@ -131,6 +140,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Pre-flight lock check: if another provider is mid-payment (PPJ or overage),
+  // they hold a 60-second lock on this request. Fail fast here rather than
+  // reaching the atomic RPC, which would also reject but with a DB round-trip.
+  // This check is advisory — the RPC does a second authoritative lock check
+  // inside the transaction to prevent TOCTOU races.
   const { data: activeLock } = await admin
     .from('request_locks')
     .select('provider_id, locked_until')
@@ -142,6 +156,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Request is temporarily locked by another provider' }, { status: 409 })
   }
 
+  // Atomic RPC: locks the provider row (FOR UPDATE), checks for active jobs,
+  // checks the request lock, updates the request to 'accepted', inserts a job
+  // record, increments jobs_this_month, and deletes the lock — all in one
+  // Postgres transaction. Returns success=false + reason on any conflict.
+  // p_consume_ppj_credit=false here because PPJ credit consumption is handled
+  // via the payment webhook flow (payment_intent.succeeded), not here.
   const { data: acceptedRows, error: acceptError } = await admin.rpc('accept_provider_request_atomic', {
     p_provider_id: user.id,
     p_request_id: parsed.data.request_id,

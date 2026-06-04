@@ -8,6 +8,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
 import type { ProviderPlan } from '@/types'
 
+// force-dynamic prevents Next.js from caching this route. Stripe webhooks
+// must always hit the live handler, never a cached response.
 export const dynamic = 'force-dynamic'
 
 type StripeEventStatus = 'processing' | 'processed' | 'failed'
@@ -40,8 +42,12 @@ type PpjProtectionResult = {
   ppj_recovery_credits: number | null
 }
 
+// If a webhook event is still marked 'processing' after this window, it is
+// considered stale and can be re-claimed. Protects against crashed handlers.
 const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000
 
+// Maps Stripe price IDs → internal plan names. Built at module load from env
+// vars so the mapping is always in sync with the configured price IDs.
 const PLAN_BY_PRICE_ID = new Map<string, SubscriptionPlan>(
   [
     [process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID, 'starter'],
@@ -55,6 +61,10 @@ function isProcessingStale(startedAt: string | null): boolean {
   return Date.now() - new Date(startedAt).getTime() > PROCESSING_TIMEOUT_MS
 }
 
+// Idempotency guard: before processing any event, attempt to claim it by
+// writing status='processing' to stripe_events. Returns a NextResponse to
+// return immediately (duplicate or concurrent), or null to proceed.
+// Pattern: insert on first delivery, update on retry (handles Stripe retries).
 async function claimStripeEvent(
   supabase: SupabaseClient,
   event: Stripe.Event
@@ -293,6 +303,11 @@ async function protectCancelledPaidPpjRequest(
   return true
 }
 
+// Handles payment_intent.succeeded for two fee types, identified by metadata:
+//   fee_type='pay_per_job'  — PPJ acceptance fee; finalizes the accept atomically.
+//   fee_type='overage'      — Overage fee; marks overage_cleared then finalizes.
+// In both cases, if the request was already taken (race condition), the PPJ
+// protection credit is restored so the provider is not charged for nothing.
 async function processPaymentIntentSucceeded(
   supabase: SupabaseClient,
   stripeEvent: Stripe.Event,
@@ -424,6 +439,10 @@ async function processStripeEvent(
     event_type: event.type,
   })
 
+  // Subscription sync: maps Stripe status → provider status:
+  //   active → active, past_due → suspended, anything else → pending.
+  // Also handles plan resolution (price ID → 'starter'/'pro'/'business') and
+  // upgrade job credit bonuses. See resolveSubscriptionPlan() + planTier().
   if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
     const sub = event.data.object as Stripe.Subscription
     const stripeCustomerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
@@ -599,6 +618,8 @@ async function processStripeEvent(
 }
 
 export async function POST(req: NextRequest) {
+  // req.text() — must read body as raw text for Stripe signature verification.
+  // Any JSON parse before constructEvent would invalidate the signature check.
   const body = await req.text()
   const signature = req.headers.get('stripe-signature')
   const webhookSecret = requireEnv('STRIPE_WEBHOOK_SECRET')
