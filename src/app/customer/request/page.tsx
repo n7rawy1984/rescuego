@@ -42,6 +42,7 @@ type ActiveRequestResponse = {
   completed_unrated_request?: CompletedUnratedRequest | null
   customer_phone?: string | null
   late_cancellations_24h?: number
+  unrated_jobs_count?: number
   error?: string
 }
 
@@ -120,16 +121,9 @@ export default function RequestPage() {
     setActiveRequest(nextActiveRequest)
     setRequestId(nextActiveRequest?.id ?? '')
     setLateCancellations24h(activeData?.late_cancellations_24h ?? 0)
+    setUnratedJobsCount(activeData?.unrated_jobs_count ?? 0)
     if (activeData?.customer_phone) setPhone(activeData.customer_phone)
     setInitialRequestError('')
-  }, [])
-
-  const loadUnratedJobsCount = useCallback(async () => {
-    const unratedRes = await fetch('/api/customers/unrated-jobs')
-    if (!unratedRes.ok || !mountedRef.current) return
-
-    const unratedData = await unratedRes.json().catch(() => null) as { count?: number } | null
-    if (mountedRef.current) setUnratedJobsCount(unratedData?.count ?? 0)
   }, [])
 
   useEffect(() => {
@@ -161,12 +155,6 @@ export default function RequestPage() {
       cancelled = true
     }
   }, [loadRequestState])
-
-  useEffect(() => {
-    if (activeRequestLoading || activeRequest || completedUnratedRequest) return
-
-    void loadUnratedJobsCount().catch(() => undefined)
-  }, [activeRequest, activeRequestLoading, completedUnratedRequest, loadUnratedJobsCount])
 
   useEffect(() => {
     if (!activeRequest || completedUnratedRequest) return

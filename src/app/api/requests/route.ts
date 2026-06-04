@@ -135,13 +135,13 @@ export async function GET() {
     : { data: [] }
 
   const ratedJobIds = new Set((ratings ?? []).map((rating) => rating.job_id))
-  const unratedJob = (completedJobs ?? [])
-    .filter((job) => !ratedJobIds.has(job.id))
-    .sort((a, b) => {
-      const aCreated = a.requests?.created_at ? new Date(a.requests.created_at).getTime() : 0
-      const bCreated = b.requests?.created_at ? new Date(b.requests.created_at).getTime() : 0
-      return bCreated - aCreated
-    })[0]
+  const unratedJobs = (completedJobs ?? []).filter((job) => !ratedJobIds.has(job.id))
+  const unratedJobsCount = unratedJobs.length
+  const unratedJob = unratedJobs.sort((a, b) => {
+    const aCreated = a.requests?.created_at ? new Date(a.requests.created_at).getTime() : 0
+    const bCreated = b.requests?.created_at ? new Date(b.requests.created_at).getTime() : 0
+    return bCreated - aCreated
+  })[0]
 
   if (unratedJob?.requests) {
     return NextResponse.json({
@@ -162,6 +162,7 @@ export async function GET() {
       active_request: null,
       customer_phone: profile.phone ?? null,
       late_cancellations_24h: lateCancellations?.length ?? 0,
+      unrated_jobs_count: unratedJobsCount,
     })
   }
 
@@ -198,6 +199,7 @@ export async function GET() {
     active_request: activeRequestWithProvider ?? null,
     customer_phone: profile.phone ?? null,
     late_cancellations_24h: lateCancellations?.length ?? 0,
+    unrated_jobs_count: unratedJobsCount,
   })
 }
 
