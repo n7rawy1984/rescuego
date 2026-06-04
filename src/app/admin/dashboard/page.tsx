@@ -21,8 +21,13 @@ export default async function AdminDashboardPage() {
   const [
     { count: totalCustomers },
     { count: totalProviders },
-    { data: providersByStatus },
-    { data: requestsByStatus },
+    { count: activeProvidersCount },
+    { count: pendingProvidersCount },
+    { count: suspendedProvidersCount },
+    { count: openRequestsCount },
+    { count: completedRequestsCount },
+    { count: expiredRequestsCount },
+    { count: totalRequestsCount },
     { data: recentEvents },
     { data: recentPayouts },
     { count: activeSubscriptions },
@@ -31,8 +36,13 @@ export default async function AdminDashboardPage() {
   ] = await Promise.all([
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'provider'),
-    supabase.from('providers').select('status'),
-    supabase.from('requests').select('status'),
+    supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'suspended'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'expired'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }),
     supabase.from('stripe_events').select('id, type, status, processed_at, error_message').order('updated_at', { ascending: false }).limit(10),
     supabase.from('payout_log').select('*').order('created_at', { ascending: false }).limit(5),
     supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'active').not('stripe_subscription_id', 'is', null),
@@ -40,14 +50,13 @@ export default async function AdminDashboardPage() {
     supabase.from('overage_payments').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
   ])
 
-  const activeProviders = providersByStatus?.filter(p => p.status === 'active').length ?? 0
-  const pendingProviders = providersByStatus?.filter(p => p.status === 'pending').length ?? 0
-  const suspendedProviders = providersByStatus?.filter(p => p.status === 'suspended').length ?? 0
-
-  const openRequests = requestsByStatus?.filter(r => r.status === 'open').length ?? 0
-  const completedRequests = requestsByStatus?.filter(r => r.status === 'completed').length ?? 0
-  const expiredRequests = requestsByStatus?.filter(r => r.status === 'expired').length ?? 0
-  const totalRequests = requestsByStatus?.length ?? 0
+  const activeProviders = activeProvidersCount ?? 0
+  const pendingProviders = pendingProvidersCount ?? 0
+  const suspendedProviders = suspendedProvidersCount ?? 0
+  const openRequests = openRequestsCount ?? 0
+  const completedRequests = completedRequestsCount ?? 0
+  const expiredRequests = expiredRequestsCount ?? 0
+  const totalRequests = totalRequestsCount ?? 0
 
   return (
     <>
