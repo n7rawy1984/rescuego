@@ -159,9 +159,10 @@ export default function RequestPage() {
   useEffect(() => {
     if (!activeRequest || completedUnratedRequest) return
 
+    const pollMs = activeRequest.status === 'open' ? 20000 : 12000
     const interval = window.setInterval(() => {
       void loadRequestState().catch(() => undefined)
-    }, 12000)
+    }, pollMs)
 
     return () => {
       window.clearInterval(interval)
