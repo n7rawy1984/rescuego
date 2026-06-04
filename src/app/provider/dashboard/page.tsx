@@ -291,28 +291,32 @@ export default async function ProviderDashboardPage({
     ? { ...activeRequestData, users: activeCustomer ?? null }
     : null
 
-  const { data: recentCustomerCancellation } = operationalReady && !activeRequest
-    ? await admin
-      .from('requests')
-      .select('id, problem_type, cancelled_at')
-      .eq('accepted_by', user.id)
-      .eq('status', 'cancelled')
-      .eq('cancellation_actor', 'customer')
-      .order('cancelled_at', { ascending: false })
-      .limit(1)
-      .maybeSingle<CancelledRequestNoticeRow>()
-    : { data: null }
-
-  const { data: recentPpjPayment, error: recentPpjPaymentError } = operationalReady && returnedFromPayment && !activeRequest
-    ? await admin
-      .from('ppj_payments')
-      .select('id, request_id, status, created_at, recovery_credit_restored_at')
-      .eq('provider_id', user.id)
-      .in('status', ['pending', 'paid'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle<PaymentProcessingRow>()
-    : { data: null, error: null }
+  const [
+    { data: recentCustomerCancellation },
+    { data: recentPpjPayment, error: recentPpjPaymentError },
+  ] = await Promise.all([
+    operationalReady && !activeRequest
+      ? admin
+        .from('requests')
+        .select('id, problem_type, cancelled_at')
+        .eq('accepted_by', user.id)
+        .eq('status', 'cancelled')
+        .eq('cancellation_actor', 'customer')
+        .order('cancelled_at', { ascending: false })
+        .limit(1)
+        .maybeSingle<CancelledRequestNoticeRow>()
+      : Promise.resolve({ data: null }),
+    operationalReady && returnedFromPayment && !activeRequest
+      ? admin
+        .from('ppj_payments')
+        .select('id, request_id, status, created_at, recovery_credit_restored_at')
+        .eq('provider_id', user.id)
+        .in('status', ['pending', 'paid'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle<PaymentProcessingRow>()
+      : Promise.resolve({ data: null, error: null }),
+  ])
 
   if (recentPpjPaymentError) {
     logger.warn({
