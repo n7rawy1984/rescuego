@@ -1,5 +1,5 @@
 # RescueGo — Deployment Status
-آخر تحديث: 3 يونيو 2026
+آخر تحديث: 4 يونيو 2026
 
 ---
 
@@ -106,6 +106,7 @@
 | 013_query_performance_indexes | ✅ |
 | 014_complete_job_transaction_hardening | ✅ |
 | 015_ppj_credit_accept_complete_job_fix | ✅ |
+| 016_task4_query_indexes | ✅ |
 
 ---
 
@@ -119,10 +120,11 @@
 **Phase 1A — Monitoring, Performance & Stability**
 
 Tasks:
-- [ ] auth/login performance audit
-- [ ] logout lag investigation
-- [ ] dashboard loading optimization
-- [ ] Supabase query profiling
+- [x] auth/login performance audit (proxy.ts DB call removed)
+- [x] logout lag investigation (signOut local scope)
+- [x] dashboard loading optimization (Findings 1–4 fixed)
+- [x] Supabase query profiling (migration 016 applied)
+- [ ] Phase 1A Task 4 code fixes — location route + accept route Promise.all
 - [ ] polling reduction
 - [ ] Core Web Vitals baseline
 - [ ] bundle size review
