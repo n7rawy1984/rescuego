@@ -37,21 +37,14 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { data: profile } = await admin
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single<{ role: string | null }>()
+  const [{ data: profile }, { data: provider }] = await Promise.all([
+    admin.from('users').select('role').eq('id', user.id).single<{ role: string | null }>(),
+    admin.from('providers').select('id, status').eq('id', user.id).single<{ id: string; status: string }>(),
+  ])
 
   if (profile?.role !== 'provider') {
     return NextResponse.json({ error: 'Only providers can update dispatch availability' }, { status: 403 })
   }
-
-  const { data: provider } = await admin
-    .from('providers')
-    .select('id, status')
-    .eq('id', user.id)
-    .single<{ id: string; status: string }>()
 
   if (!provider) {
     return NextResponse.json({ error: 'Provider profile not found' }, { status: 404 })

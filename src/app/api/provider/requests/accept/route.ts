@@ -58,22 +58,24 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const admin = createAdminClient()
+  const onlineSince = new Date(Date.now() - PROVIDER_STALE_MINUTES * 60 * 1000).toISOString()
+
+  const [
+    { data: profile },
+    { data: provider, error: providerError },
+    { data: providerLocation },
+    { data: activeJob },
+  ] = await Promise.all([
+    supabase.from('users').select('role').eq('id', user.id).single(),
+    admin.from('providers').select('id, status, plan, jobs_this_month, job_credit_balance').eq('id', user.id).single<ProviderRow>(),
+    admin.from('provider_locations').select('provider_id').eq('provider_id', user.id).gte('updated_at', onlineSince).maybeSingle(),
+    admin.from('requests').select('id').eq('accepted_by', user.id).in('status', ['accepted', 'in_progress']).limit(1).maybeSingle(),
+  ])
 
   if (profile?.role !== 'provider') {
     return NextResponse.json({ error: 'Only providers can accept requests' }, { status: 403 })
   }
-
-  const admin = createAdminClient()
-  const { data: provider, error: providerError } = await admin
-    .from('providers')
-    .select('id, status, plan, jobs_this_month, job_credit_balance')
-    .eq('id', user.id)
-    .single<ProviderRow>()
 
   if (providerError || !provider) {
     return NextResponse.json({ error: 'Provider profile not found' }, { status: 404 })
@@ -83,25 +85,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Your provider account must be active before accepting requests' }, { status: 403 })
   }
 
-  const onlineSince = new Date(Date.now() - PROVIDER_STALE_MINUTES * 60 * 1000).toISOString()
-  const { data: providerLocation } = await admin
-    .from('provider_locations')
-    .select('provider_id')
-    .eq('provider_id', user.id)
-    .gte('updated_at', onlineSince)
-    .maybeSingle()
-
   if (!providerLocation) {
     return NextResponse.json({ error: 'Go online before accepting requests.' }, { status: 403 })
   }
-
-  const { data: activeJob } = await admin
-    .from('requests')
-    .select('id')
-    .eq('accepted_by', user.id)
-    .in('status', ['accepted', 'in_progress'])
-    .limit(1)
-    .maybeSingle()
 
   if (activeJob) {
     return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
