@@ -710,3 +710,250 @@ npm run build
 15. Set `NEXT_PUBLIC_APP_URL=https://rescuego.ae`.
 16. Configure production Stripe webhook.
 17. Verify Sentry in production (SENTRY_VERIFICATION_ENABLED flow).
+
+---
+
+## 16. PPJ & Subscription Business Logic — Complete Detail
+
+### Stripe Webhook Events Handled
+
+| Event | Handler | Action |
+|---|---|---|
+| `checkout.session.completed` | `processCheckoutSessionCompleted` | Subscription checkout complete: marks provider `active`, sets plan from price ID mapping, syncs `stripe_customer_id` + `stripe_subscription_id` |
+| `customer.subscription.created` | `processSubscriptionChange` | Sync all subscription fields: `stripe_customer_id`, `stripe_subscription_id`, `stripe_current_period_start`, plan, status → `active` |
+| `customer.subscription.updated` | `processSubscriptionChange` | Same as created; also handles plan upgrades — calculates job credit bonus, writes `last_upgrade_bonus_key` to prevent double-crediting |
+| `customer.subscription.deleted` | `processSubscriptionChange` | Sets provider status → `pending`, clears Stripe subscription fields |
+| `invoice.payment_failed` | `processSubscriptionChange` | Sets provider status → `suspended` |
+| `payment_intent.succeeded` | `processPaymentIntentSucceeded` | Two sub-paths: `fee_type=pay_per_job` → PPJ accept; `fee_type=overage` → sets `overage_cleared=true` then calls `accept_provider_request_atomic()`. If request already taken → `restore_ppj_credit_for_cancelled_paid_request()`. |
+| `payment_intent.payment_failed` | `processPaymentIntentFailed` | Deletes request lock, updates payment record status to `failed`, logs failure |
+| `payout.created` | `processPayoutEvent` | Upserts row in `payout_log` with `status='created'` |
+| `payout.paid` | `processPayoutEvent` | Upserts row in `payout_log` with `status='paid'` |
+
+All events use the idempotency claim pattern: `claimStripeEvent()` inserts `status='processing'` on first delivery; duplicate deliveries return early unless stale (>10 min `PROCESSING_TIMEOUT_MS`). On completion, event is updated to `status='processed'`.
+
+### Supabase RPCs — Full Signatures and Contracts
+
+#### `accept_provider_request_atomic(p_provider_id, p_request_id, p_increment_jobs, p_consume_ppj_credit)`
+Returns: `{ success: boolean, reason: string | null, jobs_this_month: number | null, ppj_recovery_credits: number | null }`
+
+Transaction steps (all or nothing, uses `FOR UPDATE` row lock):
+1. `SELECT ... FOR UPDATE` on provider row — prevents concurrent accepts by same provider
+2. Check provider has no active job (`accepted` or `in_progress`)
+3. Check request is still `open` and not locked by another provider
+4. `UPDATE requests SET status='accepted', accepted_by=p_provider_id`
+5. `INSERT INTO jobs (request_id, provider_id, commission_rate=0, commission_amount=0)`
+6. If `p_increment_jobs=true`: `UPDATE providers SET jobs_this_month = jobs_this_month + 1`
+7. If `p_consume_ppj_credit=true`: decrements PPJ recovery credit balance (not used in current flow — credits managed via webhook)
+8. `DELETE FROM request_locks WHERE request_id=p_request_id`
+
+Failure reasons: `active_job_exists`, `locked_by_another_provider`, `request_not_open`.
+
+`p_consume_ppj_credit` is always `false` in the API route — PPJ credit consumption happens only via the `payment_intent.succeeded` webhook path.
+
+#### `complete_provider_job_atomic(p_provider_id, p_request_id, p_final_price)`
+Returns: `{ success: boolean, reason: string | null }`
+
+Transaction steps:
+1. Verify job belongs to this provider and status is `accepted` or `in_progress`
+2. `UPDATE requests SET status='completed'`
+3. `UPDATE jobs SET final_price=p_final_price, completed_at=now()`
+4. `DELETE FROM provider_locations WHERE provider_id=p_provider_id` — forces provider offline after job
+
+#### `get_nearby_open_requests(p_provider_lng, p_provider_lat, p_radius_km)`
+Returns: open requests within radius, ordered by distance ASC, then `created_at` ASC.
+
+PostGIS query on `requests.location` (geometry Point, SRID 4326). Returns only `status='open'` requests with no active lock or with expired lock. Used by provider dashboard to list available jobs.
+
+#### `restore_ppj_credit_for_cancelled_paid_request(p_provider_id, p_request_id, p_payment_intent_id)`
+PPJ edge case protection. Called when a provider paid but the request was accepted by someone else during payment processing. Increments `ppj_recovery_credits` on the provider row — can be used on the next accept attempt.
+
+### PPJ Payment Intent — Creation Steps
+
+Route: `POST /api/provider/ppj-checkout`
+
+1. Verify provider is authenticated + `status='active'` + `plan='pay_per_job'`
+2. Verify request is `open` and no active lock exists
+3. Calculate fee: `LAUNCH_PROMO ? 15 AED : (distance < 10 km ? 30 AED : 70 AED)` — server-side only
+4. Create Stripe Payment Intent with:
+   - `amount`: fee × 100 (fils), `currency: 'aed'`
+   - `metadata.fee_type: 'pay_per_job'`
+   - `metadata.provider_id`, `metadata.request_id`
+5. Insert `ppj_payments` row (`status='pending'`)
+6. Insert `request_locks` row (`locked_until = now + 60s`)
+7. Return `{ client_secret }` to client — client-side Stripe Elements completes payment
+
+### Overage Payment Intent — Creation Steps
+
+Route: `POST /api/provider/overage-checkout`
+
+1. Verify provider is authenticated + on `starter` or `pro` plan
+2. Verify request is `open` and no active lock
+3. Amount: fixed `OVERAGE_FEE_AED = 12` (1200 fils)
+4. Create Stripe Payment Intent with `metadata.fee_type: 'overage'`
+5. Insert `overage_payments` row, insert `request_locks` row
+6. Return `{ client_secret }`
+
+### Subscription Plan → Stripe Price ID Mapping
+
+Built at module load from env vars in webhook handler (`PLAN_BY_PRICE_ID` map):
+```
+NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID  → 'starter'   (249 AED/month)
+NEXT_PUBLIC_STRIPE_PRO_PRICE_ID      → 'pro'        (449 AED/month)
+NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID → 'business'   (849 AED/month)
+```
+Plan names are the internal `ProviderPlan` type. Price IDs must come from env vars — never hardcoded.
+
+### RLS Rules — Per Table
+
+| Table | SELECT | INSERT | UPDATE | DELETE |
+|---|---|---|---|---|
+| `users` | Own row only | Supabase Auth trigger | Own row only | None |
+| `providers` | Own row + active providers (authenticated users) | Own row (registration) | Own row | None |
+| `provider_locations` | Active providers' locations (authenticated) | Own row | Own row | Own row |
+| `requests` | Customer: own. Provider: `open` + own `accepted_by`. Admin: all | Customer: own | Customer: cancel own. Admin: all | None |
+| `jobs` | Provider: own. Admin: all | Service role (via RPC) only | Service role (via RPC) only | None |
+| `ratings` | Everyone (public read) | Customer: verified via job ownership | None | None |
+| `request_locks` | Service role only | Service role only | Service role only | Service role only |
+| `stripe_events` | Admin only | Service role only | Service role only | None |
+| `payout_log` | Admin only | Service role only | Service role only | None |
+| `ppj_payments` | Own provider row | Service role only | Service role only | None |
+| `overage_payments` | Own provider row | Service role only | Service role only | None |
+| `price_estimates` | Everyone (public) | None (seeded in migration) | None | None |
+
+Admin bypasses all RLS via `is_admin()` SECURITY DEFINER function. `request_locks`, `stripe_events`, and `payout_log` are accessed exclusively through `createAdminClient()` in API routes.
+
+---
+
+## 17. AI Agent Rules — Mandatory for Any AI Working on This Project
+
+### Session Start (every session, no exceptions)
+1. Read `CLAUDE.md` and `SESSION_LOG.md` only.
+2. Summarize in one sentence where work last stopped.
+3. Wait for user instructions before starting any task.
+
+### Session End (automatic — before any compact or close)
+1. Update `SESSION_LOG.md` with:
+   - What was done this session
+   - Important findings
+   - Next task in full detail
+   - Any deferred issues
+2. Tell user: "Session log updated — ready for git push"
+
+### Context Management
+When context reaches 90%: **stop immediately.**
+1. Update `SESSION_LOG.md` with full session summary.
+2. Tell user: "Context at 90% — please git push and start new session."
+3. Do NOT start any new task after this point.
+
+### Commands — Never Run Automatically
+
+| Never run | Instead do |
+|---|---|
+| `git add / commit / push` | Tell user: `git add . && git commit -m "..." && git push` |
+| `npm run lint` | Tell user to run from terminal |
+| `npm run build` | Tell user to run from terminal |
+| Any SQL migration | Show full SQL first. Say: "Run this manually in Supabase SQL Editor." Wait for user confirmation. |
+| Add env vars to code | Tell user to add in Vercel dashboard. Never hardcode. Never add to `.env` files in the repo. |
+
+### Bug Reporting Format (mandatory — never fix silently)
+```
+Bug found: [description]
+Location: [file:line]
+Impact: [what breaks / who is affected]
+Proposed fix: [the change]
+[Wait for user approval before fixing]
+```
+
+### A vs B Decisions
+When the user asks to choose between options:
+- Present both with clear trade-offs.
+- Wait for explicit user choice.
+- Never pick unilaterally.
+
+### Golden Rule Before Any File Change
+1. Read the entire file first.
+2. Explain what will change and why.
+3. Do not break: Stripe flows / Supabase RLS / auth+session / request lifecycle semantics.
+4. After every change: tell user to run `npm run lint && npm run build` from terminal.
+5. When in doubt — ask, do not implement.
+
+---
+
+## 18. Deferred Items — Exact Locations
+
+### High Priority (required before launch)
+| Item | Location | Action |
+|---|---|---|
+| `NEXT_PUBLIC_SITE_URL` missing from Vercel | Vercel dashboard → Environment Variables | Add `https://rescuego.ae` |
+| Storage bucket `provider-documents` has 0 RLS policies | Supabase → Storage → Buckets → provider-documents | Follow SETUP.md §4 to add SELECT/INSERT policies |
+| Stripe on Test/Sandbox keys | Vercel env vars: `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, all price IDs | Switch to live keys at Phase 10 only |
+
+### Medium Priority (Phase 1B–1C)
+| Item | Location | Action |
+|---|---|---|
+| `LAUNCH_PROMO = true` hardcoded | `src/types/index.ts:55` | Move to `NEXT_PUBLIC_LAUNCH_PROMO` env var before promo ends |
+| `SUBSCRIPTION_PLANS` defined in 3 places | `src/types/index.ts`, `src/app/provider/register/page.tsx`, `src/app/api/stripe/create-checkout/route.ts` | Deduplicate — single export from `types/index.ts` |
+| No `server-only` guards on server lib modules | `src/lib/stripe.ts`, `src/lib/logger.ts`, `src/lib/env.ts`, `src/lib/notifications.ts`, `src/lib/rate-limit.ts`, `src/lib/ops-auth.ts` | Add `import 'server-only'` at top of each |
+| `bundlePagesRouterDependencies: true` redundant | `next.config.ts` | Remove — pure App Router project, flag has no effect |
+| CSP in report-only mode | `next.config.ts` — `Content-Security-Policy-Report-Only` header | Review violation reports, switch to enforced `Content-Security-Policy` before launch |
+| 12 unused Radix UI + form packages | `package.json` | Safe to remove; zero code uses them. See Section 10 for the exact `npm uninstall` command. |
+
+### Low Priority (deferred to specific phases)
+| Item | Location | Phase | Impact |
+|---|---|---|---|
+| Provider dashboard fallback sequential query | `src/app/provider/dashboard/page.tsx:378` | 1B | Extra DB round-trip when nearby RPC returns 0 results — LOW |
+| Loading skeletons incomplete | `src/app/provider/dashboard/loading.tsx`, `src/app/admin/dashboard/loading.tsx` | 2A | Visual flash on load — LOW |
+| Navbar CLS skeleton shift | `src/components/layout/Navbar.tsx` | 2B | Skeleton→content layout shift on every page; requires architectural change |
+| `removeTracing: true` decision | `next.config.ts:108` | 1A | Blocks CWV capture via Sentry `browserTracingIntegration`; keep or remove |
+| Login sequential role fetch | `src/app/auth/login/page.tsx:135` | 1A | 50–100ms extra latency — LOW |
+| `router.refresh()` + 1200ms fallback | `src/app/auth/login/page.tsx:57` | 1A | Race condition workaround, not a real fix — LOW |
+| Navbar duplicates auth + role check | `src/components/layout/Navbar.tsx` | 1A | Redundant DB call on every page — LOW |
+| Navbar prefetches all 3 dashboards | `src/components/layout/Navbar.tsx` | 1A | Wasted bandwidth for single-role users — LOW |
+| Logout navigates to `/` not `/auth/login` | `src/components/layout/Navbar.tsx` | 1A | UX annoyance, no functional impact — LOW |
+
+---
+
+## 19. Critical Business Rules — NEVER Change
+
+### Commission — Always Zero Until Phase 8
+- `commission_rate = 0` and `commission_amount = 0` in all `jobs` inserts — **intentional**
+- Commission calculation is Phase 8 (Quote Approval). Do NOT add any commission logic before Phase 8.
+- The columns exist in the schema and `Job` TypeScript type but are never computed.
+
+### PPJ Fees — Server-Side Only
+- Fee amounts are defined in `src/types/index.ts` and read only in server-side API routes.
+- `PAY_PER_JOB_FEE_NEAR_AED = 30`, `PAY_PER_JOB_FEE_FAR_AED = 70`, `PAY_PER_JOB_PROMO_FEE_AED = 15`, `OVERAGE_FEE_AED = 12`
+- Never accept fee amounts from the request body or URL params — always compute server-side.
+- `LAUNCH_PROMO = true` currently means flat 15 AED PPJ fee. When turned off, fee becomes distance-based.
+
+### Google Maps — Links Only Until Phase 6
+- No Maps SDK anywhere in the codebase. Do NOT add `@googlemaps/js-api-loader` or any Maps library until Phase 6.
+- All map links open the native maps app via `https://www.google.com/maps?q=lat,lng` links only.
+- Provider locations are stored as PostGIS `geometry(Point, 4326)` — the schema is ready for Phase 6 without changes.
+
+### Stripe — Test Mode Until Phase 10
+- All `STRIPE_*` env vars are currently test/sandbox keys.
+- Live traffic will be rejected by test keys. Switch at Phase 10 (Billing Integrity) only.
+- Webhook: `https://rescuego.ae/api/stripe/webhook` — Active, 0% error rate (as of June 2026).
+- Webhook signature verification via `stripe.webhooks.constructEvent()` — **must never be removed**.
+- Idempotency via `stripe_events` table claim pattern — **must never be bypassed**.
+- Raw body requirement: `req.text()` MUST be called before any JSON parsing. Parsing first invalidates the HMAC signature check and breaks all webhook processing.
+- No payment logic in client components. No fee amounts in client props. All payment initiation is server-side.
+
+### Atomic RPCs — Never Bypass
+- `accept_provider_request_atomic()` — never replace with direct `UPDATE requests`. The RPC prevents race conditions via row-level locking. Any bypass risks two providers accepting the same request.
+- `complete_provider_job_atomic()` — same rule. Validates ownership, updates both `requests` and `jobs`, and clears provider location atomically.
+- Both RPCs are `SECURITY DEFINER` and `GRANT`ed to `service_role` only — anon/authenticated roles cannot call them.
+- Never rewrite these RPCs without a full Postgres transaction. Any partial-write approach will introduce race conditions.
+
+### RLS — Change Process
+- Change **one policy at a time** only.
+- Apply the change, then immediately smoke-test: verify the policy works as intended, then verify it does not grant excess access.
+- Never use `createAdminClient()` in client components, `'use client'` files, or anywhere accessible from the browser.
+- `SUPABASE_SERVICE_ROLE_KEY` must never appear in client-side code or be passed to any client-facing function.
+
+### Migrations — Strict Process
+- Migrations 001–016 are applied in production. Next migration number: **017**.
+- Always: (1) write the SQL, (2) show it to the user, (3) wait for explicit confirmation, (4) user runs it manually in Supabase SQL Editor.
+- Never alter or drop existing columns without a migration and user approval.
+- Never apply a migration to production without first testing on a staging project.

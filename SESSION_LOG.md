@@ -418,3 +418,28 @@ Pending user decisions before Task 8:
 - Phase 1A Task 7: `LAUNCH_PROMO = true` hardcoded — move to `NEXT_PUBLIC_LAUNCH_PROMO` env var before promo ends
 - Phase 1A Task 8: production slow-query identification (next)
 - `npm uninstall @radix-ui/react-avatar @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-toast react-hook-form @hookform/resolvers date-fns` — safe to run any time (12 unused dependencies, zero bundle impact)
+
+---
+
+## Session: June 5, 2026 (session 2 — VERDENT_HANDOFF.md expanded)
+
+### What was done
+1. **VERDENT_HANDOFF.md** — expanded with 4 new sections (16–19). No duplicate content added; all sections are additive to the existing 15.
+   - **Section 16 — PPJ & Subscription Business Logic (Complete Detail):** Full Stripe webhook event table (all 9 events + handler + action), full RPC signatures with transaction step-by-step contracts (`accept_provider_request_atomic`, `complete_provider_job_atomic`, `get_nearby_open_requests`, `restore_ppj_credit`), per-table RLS matrix (all 12 tables), PPJ payment intent creation steps, overage payment intent creation steps, `PLAN_BY_PRICE_ID` mapping pattern.
+   - **Section 17 — AI Agent Rules (mandatory):** Session start/end rules, context management at 90%, commands never-run list, bug reporting format, A-vs-B decision rule, golden rule before file changes.
+   - **Section 18 — Deferred Items (exact locations):** 3 high-priority pre-launch items, 6 medium-priority (with exact `file:line` references), 10 low-priority items (with exact `file:line` references) organized by phase.
+   - **Section 19 — Critical Business Rules (NEVER change):** Commission always 0, PPJ fees server-side only with exact type constants, Google Maps links-only until Phase 6, Stripe TEST mode until Phase 10, webhook URL + current status, atomic RPC inviolable rule, RLS change process, migration process.
+
+### Files changed
+- `VERDENT_HANDOFF.md` — 4 sections added (Sections 16–19)
+- `SESSION_LOG.md` — this update
+
+### Next Task: Phase 1A Task 8 — Production Slow-Query Identification
+Goal: identify which queries are slow in production using Supabase `pg_stat_statements` dashboard.
+Scope: review all API routes + server pages against indexes from migrations 013 + 016. Audit-only, no code changes expected.
+
+Pending before Task 8:
+- `npm run lint && npm run build` — user runs from terminal
+- `git add . && git commit -m "Phase 1A complete + VERDENT_HANDOFF.md expanded (sections 16–19)" && git push`
+- Decision: `removeTracing: true` vs CWV capture (can defer)
+- Optional: `npm uninstall` for 12 dead dependencies (safe, no code impact)
