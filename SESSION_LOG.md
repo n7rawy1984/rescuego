@@ -188,47 +188,98 @@ Merged role query into the main `Promise.all` — fires in parallel with all 14 
 
 ---
 
-### Next Task: Migration 016
+### Phase 1A Task 4 Code Fixes: Location + Accept Route
 
-**Goal:** Add the 4 missing indexes from Task 4 profiling.
+**Files changed:**
+- `src/app/api/provider/location/route.ts` — Finding 5: 2 sequential PK lookups → `Promise.all([users.role, providers.status])`. Saves 1 round-trip per location ping.
+- `src/app/api/provider/requests/accept/route.ts` — Finding 6: 4 sequential checks → `Promise.all([users.role, providers, provider_locations, active job])`. `admin` client + `onlineSince` moved above the await. Guard order preserved: role → 404 → status → offline → active job. Saves 3 round-trips per accept attempt.
 
-SQL to run manually in Supabase SQL Editor:
-
-```sql
--- Phase 1A Task 4 — Missing query performance indexes
-
--- Admin dashboard user count queries (full table scan on users.role)
-CREATE INDEX IF NOT EXISTS idx_users_role
-  ON users (role);
-
--- Overage payment dashboard + admin count queries
-CREATE INDEX IF NOT EXISTS idx_overage_payments_provider_status_created
-  ON overage_payments (provider_id, status, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_overage_payments_status
-  ON overage_payments (status);
-
--- Admin dashboard recent payouts
-CREATE INDEX IF NOT EXISTS idx_payout_log_created
-  ON payout_log (created_at DESC);
-
--- update_provider_rating() trigger (fires on every rating INSERT)
-CREATE INDEX IF NOT EXISTS idx_ratings_provider_created
-  ON ratings (provider_id, created_at DESC);
-```
-
-After running: create `supabase/migrations/016_task4_query_indexes.sql` with the same SQL and update `DEPLOYMENT_STATUS.md`.
-
-Then: Phase 1A Task 4 code fixes — location route (Finding 5) and accept route (Finding 6) `Promise.all` parallelization.
+**Note from audit:** location route is button-triggered only (not auto-polled). `MIN_UPDATE_INTERVAL_MS = 2min`, `MIN_MOVEMENT_METERS = 250m` throttle on client side. The "30–60s" estimate in the Task 4 report was wrong — parallelization still correct.
 
 ---
 
-### Files changed this session (June 4)
+### Migration 016 Applied
 
-- `src/app/admin/dashboard/page.tsx` — Finding 1 (count queries) + Finding 4 (role check parallelized)
-- `src/app/provider/dashboard/page.tsx` — Finding 2 (sequential cascade parallelized)
-- `src/app/api/requests/route.ts` — Finding 3 (unrated count merged into response)
-- `src/app/customer/request/page.tsx` — Finding 3 (second fetch removed)
+- `supabase/migrations/016_task4_query_indexes.sql` created and applied in Supabase SQL Editor.
+- `DEPLOYMENT_STATUS.md` updated: migration 016 ✅, Tasks 1–4 marked complete, date updated to June 4.
+- 5 indexes applied: `idx_users_role`, `idx_overage_payments_provider_status_created`, `idx_overage_payments_status`, `idx_payout_log_created`, `idx_ratings_provider_created`.
+
+---
+
+### Phase 1A Task 5: Polling Reduction Audit + Fix
+
+**Audit finding:** Only ONE active polling loop in the entire app — customer request page 12s `setInterval`. Location updates are manual/button-triggered only. No other background polling.
+
+**Fix applied:** `src/app/customer/request/page.tsx:162`
+- Added `const pollMs = activeRequest.status === 'open' ? 20000 : 12000`
+- `open` status: 20s (waiting for any provider — infrequent state changes)
+- `accepted` / `in_progress`: 12s (provider en route — more time-sensitive)
+- `visibilitychange` + `online` listeners (lines 171–187) already handle immediate refresh on tab return — makes longer background interval safe
+- Saves ~40% polls/hour for requests in `open` state
+
+---
+
+### Phase 1A Task 6: Core Web Vitals Baseline Audit
+
+**6 findings:**
+
+| # | Finding | Metric | Severity |
+|---|---|---|---|
+| 1 | Sentry client config missing — no production CWV data | All | HIGH |
+| 2 | Navbar CLS: skeleton→content shift on every page | CLS | HIGH |
+| 3 | Home page LCP blocked by sequential getViewerState() | LCP/TTFB | MEDIUM |
+| 4 | customer/request/loading.tsx unreachable (page is 'use client') | FCP | MEDIUM |
+| 5 | Provider dashboard skeleton: rough match only | CLS | LOW |
+| 6 | No preconnect for client-side Supabase auth calls | LCP/Navbar | LOW |
+
+**Finding 2 note:** Navbar is 'use client'. Server renders skeleton (`loading: true`), then client-side auth resolves (`getUser()` + `users.select('role')`), causing CLS on every page. Requires architectural change — defer to Phase 2B.
+
+**Finding 3 note:** `getViewerState()` in `src/app/page.tsx:150–204` has 3 sequential DB queries for provider users. Blocks entire home page HTML stream. Deferred — Task 2 carry-over.
+
+**Fix applied (Finding 6):** `src/app/layout.tsx`
+```tsx
+{process.env.NEXT_PUBLIC_SUPABASE_URL && (
+  <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
+)}
+```
+`crossOrigin="anonymous"` required — Supabase browser calls use `Authorization: Bearer` headers (CORS, not cookies). Without it, browser won't reuse the preconnected socket for CORS fetch pool.
+
+---
+
+### Phase 1A Task 6 — Finding 1: sentry.client.config.ts ✅ DONE Jun 4 (session 2)
+
+**File created:** `sentry.client.config.ts` (project root)
+
+Matches `sentry.server.config.ts` exactly except:
+- `NEXT_PUBLIC_SENTRY_DSN` instead of `SENTRY_DSN` (only public env var is accessible in browser bundle)
+- `NEXT_PUBLIC_VERCEL_ENV` instead of `VERCEL_ENV` (same reason — public system var Vercel auto-sets to "production"/"preview"/"development")
+- No `profilesSampleRate` line (client-side Sentry SDK doesn't support profiling)
+
+Privacy rules preserved:
+- `sendDefaultPii: false`
+- `scrubSentryErrorEvent` + `scrubSentryTransactionEvent` hooks — same pipeline as server/edge
+- No replay (webpack config already excludes all replay modules)
+- `tracesSampleRate: 0` — matches server
+
+**Important finding — CWV capture deferred:**
+`next.config.ts:108` has `removeTracing: true` in the Sentry webpack config. This tree-shakes all tracing code from the bundle, making `browserTracingIntegration` (needed for INP/LCP/CLS) a no-op at build time. CWV capture via Sentry requires removing that flag — flagged as a follow-up for Task 7 or a dedicated CWV pass.
+
+### Next Task: Phase 1A Task 7 — Bundle Size Review
+
+Audit the production bundle for oversized chunks, unnecessary imports, and opportunities to reduce JS payload.
+Entry points to examine: `next.config.ts` (Sentry webpack flags including `removeTracing`), `package.json` (dependencies), page-level bundle splits.
+
+---
+
+### Files changed this session (June 4 — continued)
+
+- `supabase/migrations/016_task4_query_indexes.sql` — created (5 indexes, applied in Supabase)
+- `DEPLOYMENT_STATUS.md` — migration 016 added, Phase 1A tasks 1–4 checked off; Task 4 code fixes + Task 5 + Task 6 Finding 1 checked off in session 2
+- `src/app/api/provider/location/route.ts` — Task 4 Finding 5 (2 sequential → Promise.all)
+- `src/app/api/provider/requests/accept/route.ts` — Task 4 Finding 6 (4 sequential → Promise.all)
+- `src/app/customer/request/page.tsx` — Task 5 (adaptive polling interval)
+- `src/app/layout.tsx` — Task 6 Finding 6 (Supabase preconnect)
+- `sentry.client.config.ts` — created (Task 6 Finding 1: client-side Sentry)
 - `SESSION_LOG.md` — updated (this file)
 
 ---

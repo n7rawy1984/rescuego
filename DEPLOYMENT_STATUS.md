@@ -1,5 +1,5 @@
 # RescueGo — Deployment Status
-آخر تحديث: 4 يونيو 2026
+آخر تحديث: 4 يونيو 2026 (session 2)
 
 ---
 
@@ -124,9 +124,9 @@ Tasks:
 - [x] logout lag investigation (signOut local scope)
 - [x] dashboard loading optimization (Findings 1–4 fixed)
 - [x] Supabase query profiling (migration 016 applied)
-- [ ] Phase 1A Task 4 code fixes — location route + accept route Promise.all
-- [ ] polling reduction
-- [ ] Core Web Vitals baseline
+- [x] Phase 1A Task 4 code fixes — location route + accept route Promise.all
+- [x] polling reduction (adaptive interval, customer request page)
+- [x] Core Web Vitals baseline audit — Finding 6 fix (preconnect) + Finding 1 fix (sentry.client.config.ts)
 - [ ] bundle size review
 - [ ] production slow-query identification
 

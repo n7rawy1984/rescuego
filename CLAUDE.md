@@ -90,13 +90,18 @@ Always tell user to run from terminal.
 - Phase 2A.4 — Pricing & Subscription UI polish
 - Phase 2B.1 — Design System foundation
 - Phase 1A Task 1 — Auth/login performance audit + proxy.ts DB call fix
-- Migrations: 001 → 015
+- Phase 1A Task 2 — Logout lag fix (signOut local scope)
+- Phase 1A Task 3 — Dashboard loading audit (Findings 1–4 fixed)
+- Phase 1A Task 4 — Supabase query profiling + migration 016 + location/accept route parallelization
+- Phase 1A Task 5 — Polling audit + adaptive interval fix (customer request page)
+- Phase 1A Task 6 — CWV baseline audit + preconnect fix (layout.tsx)
+- Migrations: 001 → 016
 
-### الجاي — Phase 1A Task 2
-logout lag investigation
-- Navbar.tsx handleLogout function
-- supabase.auth.signOut() timing
-- router.replace('/') before signOut resolves
+### الجاي — Phase 1A Task 6 Finding 1
+Create `sentry.client.config.ts` — client-side Sentry missing entirely.
+Read `sentry.server.config.ts` + `sentry.edge.config.ts` first to match pattern.
+Enables browser error tracking + INP/LCP/CLS in production.
+Then: Task 7 (bundle size review), Task 8 (production slow-query identification).
 
 ### المراحل القادمة بالترتيب
 - Phase 1A: tasks 2-8 (logout / dashboard / queries / polling / CWV / bundle / slow-query)
