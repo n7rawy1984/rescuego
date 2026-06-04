@@ -94,17 +94,16 @@ Always tell user to run from terminal.
 - Phase 1A Task 3 — Dashboard loading audit (Findings 1–4 fixed)
 - Phase 1A Task 4 — Supabase query profiling + migration 016 + location/accept route parallelization
 - Phase 1A Task 5 — Polling audit + adaptive interval fix (customer request page)
-- Phase 1A Task 6 — CWV baseline audit + preconnect fix (layout.tsx)
+- Phase 1A Task 6 — CWV baseline audit + preconnect fix (layout.tsx) + sentry.client.config.ts
+- Phase 1A Task 7 — Bundle size audit complete (see SESSION_LOG.md for findings)
 - Migrations: 001 → 016
 
-### الجاي — Phase 1A Task 6 Finding 1
-Create `sentry.client.config.ts` — client-side Sentry missing entirely.
-Read `sentry.server.config.ts` + `sentry.edge.config.ts` first to match pattern.
-Enables browser error tracking + INP/LCP/CLS in production.
-Then: Task 7 (bundle size review), Task 8 (production slow-query identification).
+### الجاي — Phase 1A Task 8
+Production slow-query identification.
+Tasks 6 + 7 complete — see SESSION_LOG.md for findings.
 
 ### المراحل القادمة بالترتيب
-- Phase 1A: tasks 2-8 (logout / dashboard / queries / polling / CWV / bundle / slow-query)
+- Phase 1A: Task 8 only remaining (slow-query identification) — tasks 1–7 complete
 - Phase 1B remaining: cron reliability / DB indexes / LAUNCH_PROMO config
 - Phase 1C: Deep RLS hardening
 - Phase 2B: RTL & Arabic foundation

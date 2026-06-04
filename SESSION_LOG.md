@@ -264,22 +264,121 @@ Privacy rules preserved:
 **Important finding — CWV capture deferred:**
 `next.config.ts:108` has `removeTracing: true` in the Sentry webpack config. This tree-shakes all tracing code from the bundle, making `browserTracingIntegration` (needed for INP/LCP/CLS) a no-op at build time. CWV capture via Sentry requires removing that flag — flagged as a follow-up for Task 7 or a dedicated CWV pass.
 
-### Next Task: Phase 1A Task 7 — Bundle Size Review
+---
 
-Audit the production bundle for oversized chunks, unnecessary imports, and opportunities to reduce JS payload.
-Entry points to examine: `next.config.ts` (Sentry webpack flags including `removeTracing`), `package.json` (dependencies), page-level bundle splits.
+## Session: June 4, 2026 (session 3)
+
+### What was done
+1. **CLAUDE.md updated** — Task 6 Finding 1 marked complete, Task 7 audit findings added, "الجاي" pointer advanced to Task 8.
+2. **Phase 1A Task 7 — Bundle size audit** (findings only, no code changes).
+3. **Phase 1A Task 7 — Full deep audit completed** — see findings below (session 3 continuation).
 
 ---
 
-### Files changed this session (June 4 — continued)
+### Phase 1A Task 7: Bundle Size Audit — Findings (full, session 3)
 
+Audit scope: `package.json`, `next.config.ts`, all `src/` imports, all UI components, all lib modules.
+
+#### Finding 1 — 11 completely dead dependencies (HIGH)
+All 9 `@radix-ui/*` packages + `react-hook-form` + `@hookform/resolvers` are in `package.json` but have ZERO imports anywhere in `src/`. All UI components (`Button`, `Select`, `Input`, `Accordion`, `Badge`, `Card`) are custom native-HTML + Tailwind — the Radix/RHF stack was installed (likely from shadcn/ui scaffolding) but never wired up.
+- Production bundle impact: **zero** (never imported → webpack excludes)
+- `node_modules` bloat: ~15+ packages with sub-dependencies, slower installs, `npm audit` noise
+- **Proposed fix (terminal):**
+  ```
+  npm uninstall @radix-ui/react-avatar @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-toast react-hook-form @hookform/resolvers
+  ```
+
+#### Finding 2 — `date-fns` unused (LOW)
+`"date-fns": "^4.2.1"` in `package.json`, zero imports anywhere. Production bundle impact: zero.
+- **Proposed fix (terminal):** `npm uninstall date-fns`
+
+#### Finding 3 — `removeTracing: true` blocks CWV capture (MEDIUM, carry-over from Task 6)
+`next.config.ts:108` — Sentry webpack plugin tree-shakes all tracing code out of the bundle.
+`browserTracingIntegration()` (needed for INP/LCP/CLS via Sentry) is a no-op after build.
+- Bundle benefit: tracing code removed from client JS
+- CWV cost: no INP/LCP/CLS data in Sentry production dashboard
+- **Decision required:** keep `removeTracing: true` (errors-only Sentry, smaller bundle) OR remove it + add `browserTracingIntegration` + `tracesSampleRate: 0.05` to `sentry.client.config.ts`
+- Deferred — requires user choice.
+
+#### Finding 4 — `zod` and `stripe` Node SDK correctly isolated (CONFIRMED GOOD)
+`zod` — API routes only. `stripe` Node SDK (`src/lib/stripe.ts`) — API routes only. No client bundle exposure.
+
+#### Finding 5 — No `server-only` guards on server libs (LOW — future risk)
+`src/lib/stripe.ts`, `src/lib/logger.ts`, `src/lib/env.ts`, `src/lib/notifications.ts`, `src/lib/rate-limit.ts`, `src/lib/ops-auth.ts` — none have `import 'server-only'`.
+- Current risk: low (all currently imported server-side only).
+- Future risk: accidental 'use client' import would silently pull Node.js Stripe SDK into client bundle.
+- Deferred to Phase 1C hardening pass.
+
+#### Finding 6 — `SUBSCRIPTION_PLANS` duplicated in 3 places (LOW — maintenance risk)
+- `src/types/index.ts` — canonical source with Stripe price IDs
+- `src/app/provider/register/page.tsx:15` — local `PLANS` array, hardcoded prices, no Stripe IDs
+- `src/app/api/stripe/create-checkout/route.ts:16` — local string array `['starter', 'pro', 'business']`
+- No bundle impact. Risk: plan additions/renames won't propagate to all 3 locations. Deferred.
+
+#### Finding 7 — `LAUNCH_PROMO = true` requires redeploy to toggle (LOW — operational)
+`src/types/index.ts:55`. Should eventually be a `NEXT_PUBLIC_LAUNCH_PROMO` env var. Deferred.
+
+#### Confirmed good (no action needed)
+- `lucide-react` — named imports on all 24 import sites, tree-shaking correct
+- `@stripe/react-stripe-js` / `@stripe/stripe-js` — client-only, payment pages only
+- `clsx` + `tailwind-merge` — used in `utils.ts`, correctly shared
+- `geo.ts`, `utils.ts` — pure functions, safe in client components
+- `logger.ts` — server components + API routes only, zero client exposure
+- `Navbar.tsx` — 'use client', Supabase client auth only, no heavy leaks
+- `@supabase/ssr` — shared client boundary via Navbar, expected
+
+#### Action order
+1. `npm uninstall` the 11 dead deps — safe, immediate (Finding 1)
+2. `npm uninstall date-fns` — safe, immediate (Finding 2)
+3. Decide `removeTracing` / CWV tradeoff (Finding 3) — user decision
+4. `server-only` guards — Phase 1C pass (Finding 5)
+5. `SUBSCRIPTION_PLANS` deduplication — any future cleanup pass
+6. `LAUNCH_PROMO` → env var — before promo ends
+
+---
+
+### Next Task: Phase 1A Task 8 — Production Slow-Query Identification
+
+Goal: identify which DB queries are slow in production using `pg_stat_statements` or Supabase dashboard.
+Scope: review current query patterns in API routes + server pages against the indexes applied in migrations 013 + 016.
+
+---
+
+---
+
+## Session: June 4, 2026 (session 4 — end of day wrap-up)
+
+### What was done
+1. **SESSION_LOG.md + CLAUDE.md** — end-of-session update: CLAUDE.md المراحل القادمة corrected (tasks 1–7 all done, Task 8 only remaining).
+2. No new code changes this session — Tasks 6 and 7 were the work; this entry closes the day.
+
+### Next Task: Phase 1A Task 8 — Production Slow-Query Identification
+Goal: identify which queries are slow in production using Supabase dashboard or `pg_stat_statements`.
+Scope: review all API routes + server pages against indexes from migrations 013 + 016.
+No code changes expected — audit + findings only.
+
+Pending user decisions before Task 8:
+- `removeTracing: true` vs CWV capture — keep or remove?
+- Run `npm uninstall` for 12 dead dependencies? (safe, no code impact)
+
+---
+
+### Files changed — full session log (June 4, all sessions)
+
+**Session 1 (June 4):**
 - `supabase/migrations/016_task4_query_indexes.sql` — created (5 indexes, applied in Supabase)
-- `DEPLOYMENT_STATUS.md` — migration 016 added, Phase 1A tasks 1–4 checked off; Task 4 code fixes + Task 5 + Task 6 Finding 1 checked off in session 2
+- `DEPLOYMENT_STATUS.md` — migration 016 added, Phase 1A tasks 1–4 checked off
 - `src/app/api/provider/location/route.ts` — Task 4 Finding 5 (2 sequential → Promise.all)
 - `src/app/api/provider/requests/accept/route.ts` — Task 4 Finding 6 (4 sequential → Promise.all)
 - `src/app/customer/request/page.tsx` — Task 5 (adaptive polling interval)
 - `src/app/layout.tsx` — Task 6 Finding 6 (Supabase preconnect)
+
+**Session 2 (June 4):**
 - `sentry.client.config.ts` — created (Task 6 Finding 1: client-side Sentry)
+- `DEPLOYMENT_STATUS.md` — Task 4 code fixes + Task 5 + Task 6 Finding 1 checked off
+
+**Sessions 3–4 (June 4):**
+- `CLAUDE.md` — Tasks 6+7 marked complete, "الجاي" → Task 8, "tasks 2-8" → "Task 8 only remaining"
 - `SESSION_LOG.md` — updated (this file)
 
 ---
@@ -294,4 +393,9 @@ Entry points to examine: `next.config.ts` (Sentry webpack flags including `remov
 - Phase 1A Task 1 deferred findings: login sequential role fetch, Navbar duplicated auth, router.refresh() + 1200ms fallback, prefetch all 3 dashboards
 - Phase 1A Task 2 deferred: getViewerState() sequential queries on home page, logout navigates to `/`
 - Phase 1A Task 3 deferred: Finding 5 (provider fallback sequential), Finding 6 (skeleton completeness)
-- Phase 1A Tasks 5–8: polling reduction, Core Web Vitals baseline, bundle size review, production slow-query identification
+- Phase 1A Task 7: `removeTracing: true` vs CWV — decision required before enabling `browserTracingIntegration`
+- Phase 1A Task 7: add `server-only` guards to `stripe.ts`, `logger.ts`, `env.ts`, `notifications.ts`, `rate-limit.ts`, `ops-auth.ts` — Phase 1C hardening pass
+- Phase 1A Task 7: `SUBSCRIPTION_PLANS` defined in 3 places — dedup in cleanup pass
+- Phase 1A Task 7: `LAUNCH_PROMO = true` hardcoded — move to `NEXT_PUBLIC_LAUNCH_PROMO` env var before promo ends
+- Phase 1A Task 8: production slow-query identification (next)
+- `npm uninstall @radix-ui/react-avatar @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-toast react-hook-form @hookform/resolvers date-fns` — safe to run any time (12 unused dependencies, zero bundle impact)
