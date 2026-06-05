@@ -1,4 +1,5 @@
 import { ShieldCheck, Star } from 'lucide-react'
+import Link from 'next/link'
 import type { ProviderStatus } from '@/types'
 
 type Props = {
@@ -47,9 +48,12 @@ export default function ProviderDashboardHeader({
           >
             {status}
           </span>
-          <span className="inline-flex items-center rounded-full bg-[#E6F1FB] px-3 py-1 text-xs font-medium text-[#185FA5]">
+          <Link
+            href="/provider/plan"
+            className="inline-flex items-center rounded-full bg-[#E6F1FB] px-3 py-1 text-xs font-medium text-[#185FA5] hover:bg-[#d0e6f9] transition-colors"
+          >
             {planLabel}
-          </span>
+          </Link>
           {verified && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-medium text-[#0F6E56]">
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
