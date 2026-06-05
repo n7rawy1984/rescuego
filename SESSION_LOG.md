@@ -421,6 +421,38 @@ Pending user decisions before Task 8:
 
 ---
 
+## Session: June 5, 2026 (session 3 — VERDENT_HANDOFF.md expanded to 25 sections)
+
+### What was done
+1. **VERDENT_HANDOFF.md** — expanded with 6 new sections (20–25). Full codebase audit performed: read all 16 migrations, webhook route, accept route, complete route, release route, proxy.ts. Three factual corrections documented. No duplicate content added.
+   - **Section 20**: Complete DB column reference — all 12 tables, all columns from all 16 migrations, full index inventory.
+   - **Section 21**: Dedicated Authentication Flow — registration, login, session handling, role management, logout, admin creation.
+   - **Section 22**: Current Production State — Vercel/Supabase/Stripe/Sentry/Cron/Storage snapshot + launch readiness checklist (~35%).
+   - **Section 23**: Corrections and Clarifications — 3 factual errors corrected from source code audit.
+   - **Section 24**: Ready-to-use Prompt for Next AI — self-contained copy-paste prompt covering all critical rules.
+   - **Section 25**: Final Validation — document stats, files reviewed, files not reviewed, assumptions, missing resources.
+
+### Corrections discovered (from codebase audit)
+1. `complete_provider_job_atomic` does NOT delete provider_locations. Only the release route deletes it. Section 16 had a wrong step 4.
+2. PPJ recovery credit is ONLY for customer-cancelled requests. NOT restored when another provider accepts the request during payment. Sections 6 and 16 both had wrong descriptions.
+3. `checkout.session.completed` is log-only — no DB writes. Provider activation is via `customer.subscription.created`. Section 16 had wrong handler name and wrong action.
+
+### Files changed
+- `VERDENT_HANDOFF.md` — sections 20–25 added
+- `SESSION_LOG.md` — this update
+
+### Next Task: Phase 1A Task 8 — Production Slow-Query Identification
+Goal: identify slow queries in production using Supabase `pg_stat_statements` dashboard.
+Scope: review all API routes + server pages against indexes from migrations 013 + 016. Audit-only, no code changes expected.
+
+Pending before Task 8:
+- `npm run lint && npm run build` — user runs from terminal
+- `git add . && git commit -m "Phase 1A complete + VERDENT_HANDOFF.md expanded (sections 20–25)" && git push`
+- Decision: `removeTracing: true` vs CWV capture (can defer)
+- Optional: `npm uninstall` for 12 dead dependencies (safe, no code impact)
+
+---
+
 ## Session: June 5, 2026 (session 2 — VERDENT_HANDOFF.md expanded)
 
 ### What was done

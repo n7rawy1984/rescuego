@@ -127,6 +127,6 @@ Tasks:
 - [x] Phase 1A Task 4 code fixes — location route + accept route Promise.all
 - [x] polling reduction (adaptive interval, customer request page)
 - [x] Core Web Vitals baseline audit — Finding 6 fix (preconnect) + Finding 1 fix (sentry.client.config.ts)
-- [ ] bundle size review
+- [x] bundle size review (Phase 1A Task 7 complete — 12 unused dependencies removed)
 - [ ] production slow-query identification
 

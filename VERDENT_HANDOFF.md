@@ -957,3 +957,500 @@ When the user asks to choose between options:
 - Always: (1) write the SQL, (2) show it to the user, (3) wait for explicit confirmation, (4) user runs it manually in Supabase SQL Editor.
 - Never alter or drop existing columns without a migration and user approval.
 - Never apply a migration to production without first testing on a staging project.
+
+---
+
+## 20. Complete Database Column Reference — All 16 Migrations
+
+This section documents every column in every table including additions from later migrations. Section 7 is a summary only. Use this section when writing queries, migrations, or TypeScript types.
+
+### `users`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK | 001 | `uuid_generate_v4()` |
+| `name` | TEXT | 001 | |
+| `phone` | TEXT UNIQUE | 001 | |
+| `email` | TEXT UNIQUE | 001 | |
+| `role` | TEXT CHECK IN ('customer','provider','admin') | 001 | |
+| `created_at` | TIMESTAMPTZ | 001 | |
+| `cancellation_count` | INTEGER DEFAULT 0 | 009 | Incremented on customer cancel |
+| `late_cancellation_count` | INTEGER DEFAULT 0 | 009 | Incremented on late cancel (not yet used) |
+
+### `providers`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK → users(id) CASCADE | 001 | Same UUID as users.id |
+| `plan` | TEXT CHECK IN ('starter','pro','business','pay_per_job') | 001 | |
+| `status` | TEXT CHECK IN ('pending','active','suspended') DEFAULT 'pending' | 001 | |
+| `rating` | NUMERIC(3,2) DEFAULT 5.00 | 001 | Rolling avg of last 50 ratings (trigger) |
+| `jobs_this_month` | INTEGER DEFAULT 0 | 001 | Incremented by accept RPC; reset by ops cron |
+| `verified_badge` | BOOLEAN DEFAULT false | 001 | Admin-set, no automated logic yet |
+| `documents` | JSONB | 001 | Document upload URLs |
+| `stripe_customer_id` | TEXT | 001 | Set on checkout.session.completed / subscription.created |
+| `stripe_subscription_id` | TEXT | 001 | Active subscription ID |
+| `created_at` | TIMESTAMPTZ | 001 | |
+| `stripe_current_period_start` | TIMESTAMPTZ | 007 | Used by ops cron to check if reset is due |
+| `stripe_current_period_end` | TIMESTAMPTZ | 007 | |
+| `jobs_reset_at` | TIMESTAMPTZ | 007 | Timestamp of last jobs_this_month reset |
+| `job_credit_balance` | INTEGER DEFAULT 0 CHECK ≥0 | 008 | Extra jobs from subscription upgrade bonus |
+| `last_upgrade_bonus_key` | TEXT | 008 | Idempotency key: `sub_id:period_start:old→new` |
+| `ppj_recovery_credits` | INTEGER DEFAULT 0 CHECK ≥0 | 009 | Usage-only credits for customer-cancelled paid PPJ jobs |
+| `release_count` | INTEGER DEFAULT 0 CHECK ≥0 | 009 | Total jobs voluntarily released |
+| `unable_to_complete_count` | INTEGER DEFAULT 0 CHECK ≥0 | 009 | Incremented when provider marks unable to complete |
+| `provider_side_cancellation_count` | INTEGER DEFAULT 0 CHECK ≥0 | 009 | Same as release_count (incremented together in release route) |
+
+### `provider_locations`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `provider_id` | UUID PK → providers(id) CASCADE | 001 | Deleted on job release; not deleted on job completion |
+| `location` | GEOMETRY(Point,4326) NOT NULL | 001 | PostGIS — `ST_DWithin` queries |
+| `updated_at` | TIMESTAMPTZ | 001 | Staleness threshold: 5 minutes (`PROVIDER_STALE_MINUTES`) |
+
+### `requests`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK | 001 | |
+| `customer_id` | UUID → users(id) | 001 | |
+| `location` | GEOMETRY(Point,4326) NOT NULL | 001 | Customer GPS at submit time |
+| `location_address` | TEXT | 001 | Human-readable address (optional) |
+| `problem_type` | TEXT CHECK IN ('flat_tire','battery','tow','other') | 001 | |
+| `note` | TEXT | 001 | Optional customer note |
+| `status` | TEXT CHECK IN ('open','accepted','in_progress','completed','cancelled','expired') | 001+007 | 'expired' added in migration 007 |
+| `accepted_by` | UUID → providers(id) | 001 | NULL until accepted |
+| `price_estimate_min` | INTEGER | 001 | AED. Set from price_estimates seed data |
+| `price_estimate_max` | INTEGER | 001 | AED |
+| `final_price` | INTEGER | 001 | AED. Set by provider on completion |
+| `created_at` | TIMESTAMPTZ | 001 | |
+| `distance_to_provider_m` | INTEGER | 005 | Metres. Stored at accept time for reference |
+| `overage_cleared` | BOOLEAN DEFAULT FALSE | 005 | Set by overage webhook before atomic accept |
+| `cancelled_at` | TIMESTAMPTZ | 009 | |
+| `cancelled_by` | UUID → users(id) | 009 | User who cancelled |
+| `cancellation_actor` | TEXT CHECK IN ('customer','provider','admin') | 009 | Role string of canceller |
+| `cancellation_compensated_at` | TIMESTAMPTZ | 009 | When PPJ credit was restored (if applicable) |
+| `cancellation_compensation_type` | TEXT CHECK IN ('ppj_recovery_credit','subscription_usage_restore','none') | 009 | Set by restore_ppj_credit RPC |
+
+### `jobs`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK | 001 | |
+| `request_id` | UUID UNIQUE → requests(id) | 001 | UNIQUE — one job per request. ON CONFLICT DO UPDATE used in accept RPC to handle re-accept after release |
+| `provider_id` | UUID → providers(id) | 001 | |
+| `commission_rate` | NUMERIC(5,2) | 001 | Always NULL/0 until Phase 8 |
+| `commission_amount` | INTEGER | 001 | Always NULL/0 until Phase 8 |
+| `stripe_payment_intent_id` | TEXT | 001 | Cleared (set NULL) on job release |
+| `completed_at` | TIMESTAMPTZ | 001 | Cleared (set NULL) on re-accept after release |
+
+### `ratings`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK | 001 | |
+| `job_id` | UUID UNIQUE → jobs(id) | 001 | One rating per job |
+| `provider_id` | UUID → providers(id) | 001 | Denormalised for trigger performance |
+| `stars` | INTEGER CHECK BETWEEN 1 AND 5 | 001 | |
+| `comment` | TEXT | 001 | Optional |
+| `created_at` | TIMESTAMPTZ | 001 | |
+
+### `request_locks`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `request_id` | UUID PK → requests(id) CASCADE | 001 | One lock per request max |
+| `provider_id` | UUID → providers(id) | 001 | Who holds the lock |
+| `locked_until` | TIMESTAMPTZ NOT NULL | 001 | TTL = now + 60s (`REQUEST_LOCK_SECONDS`) |
+
+### `stripe_events`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | TEXT PK | 001 | Stripe event ID (evt_xxx) |
+| `type` | TEXT NOT NULL | 001 | e.g. `payment_intent.succeeded` |
+| `processed_at` | TIMESTAMPTZ | 001 | Timestamp of final processing |
+| `payload` | JSONB | 001 | Full Stripe event payload |
+| `status` | TEXT CHECK IN ('processing','processed','failed') DEFAULT 'processed' | 006 | Idempotency state |
+| `processing_started_at` | TIMESTAMPTZ | 006 | For stale-lock detection (10-min timeout) |
+| `error_message` | TEXT | 006 | Last error on failure |
+| `updated_at` | TIMESTAMPTZ | 006 | |
+
+### `payout_log`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK | 001 | |
+| `stripe_payout_id` | TEXT | 001 | Stripe payout ID (po_xxx) |
+| `amount` | INTEGER | 001 | Fils (AED × 100) |
+| `currency` | TEXT DEFAULT 'AED' | 001 | |
+| `arrival_date` | DATE | 001 | |
+| `status` | TEXT | 001 | 'created' or 'paid' (from Stripe payout.status) |
+| `created_at` | TIMESTAMPTZ | 001 | |
+
+### `price_estimates`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `problem_type` | TEXT PK | 001 | |
+| `min_aed` | INTEGER NOT NULL | 001 | |
+| `max_aed` | INTEGER NOT NULL | 001 | |
+
+Seeded values: `flat_tire`(80–200), `battery`(100–250), `tow`(200–800), `other`(150–500)
+
+### `ppj_payments`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK | 005 | |
+| `provider_id` | UUID → providers(id) CASCADE | 005 | |
+| `request_id` | UUID → requests(id) CASCADE | 005 | |
+| `fee_aed` | INTEGER NOT NULL CHECK > 0 | 005 | 15, 30, or 70 AED |
+| `distance_meters` | INTEGER DEFAULT 0 | 005 | Distance at payment creation time |
+| `stripe_payment_intent_id` | TEXT | 005 | |
+| `status` | TEXT CHECK IN ('pending','paid','failed') DEFAULT 'pending' | 005 | |
+| `promo_applied` | BOOLEAN DEFAULT FALSE | 005 | True when LAUNCH_PROMO was active |
+| `created_at` | TIMESTAMPTZ | 005 | |
+| `recovery_credit_restored_at` | TIMESTAMPTZ | 012 | Set when restore_ppj_credit RPC succeeds |
+UNIQUE: `(provider_id, request_id)`
+
+### `overage_payments`
+| Column | Type | Migration | Notes |
+|---|---|---|---|
+| `id` | UUID PK | 006 | |
+| `provider_id` | UUID → providers(id) CASCADE | 006 | |
+| `request_id` | UUID → requests(id) CASCADE | 006 | |
+| `fee_aed` | INTEGER NOT NULL CHECK > 0 | 006 | Always 12 AED (`OVERAGE_FEE_AED`) |
+| `stripe_payment_intent_id` | TEXT | 006 | |
+| `status` | TEXT CHECK IN ('pending','paid','failed') DEFAULT 'pending' | 006 | |
+| `created_at` | TIMESTAMPTZ | 006 | |
+| `updated_at` | TIMESTAMPTZ | 006 | |
+UNIQUE: `(provider_id, request_id)`
+
+### All Indexes (by migration)
+| Index | Table | Columns | Type | Migration |
+|---|---|---|---|---|
+| `idx_requests_location` | requests | location | GIST | 001 |
+| `idx_provider_locations` | provider_locations | location | GIST | 001 |
+| `idx_provider_locations_updated` | provider_locations | updated_at | btree | 001 |
+| `idx_requests_status` | requests | status | btree | 001 |
+| `idx_providers_status` | providers | status | btree | 001 |
+| `idx_requests_cancelled_by` | requests | cancelled_by | btree | 009 |
+| `idx_jobs_request_id` | jobs | request_id | btree | 013 |
+| `idx_requests_customer_id` | requests | customer_id | btree | 013 |
+| `idx_requests_accepted_by` | requests | accepted_by | btree | 013 |
+| `idx_ppj_payments_provider_request` | ppj_payments | (provider_id, request_id) | btree | 013 |
+| `idx_overage_payments_stripe_intent` | overage_payments | stripe_payment_intent_id | btree | 013 |
+| `idx_stripe_events_status` | stripe_events | status | btree | 013 |
+| `idx_users_role` | users | role | btree | 016 |
+| `idx_overage_payments_provider_status_created` | overage_payments | (provider_id, status, created_at DESC) | btree | 016 |
+| `idx_overage_payments_status` | overage_payments | status | btree | 016 |
+| `idx_payout_log_created` | payout_log | created_at DESC | btree | 016 |
+| `idx_ratings_provider_created` | ratings | (provider_id, created_at DESC) | btree | 016 |
+
+---
+
+## 21. Authentication Flow
+
+### Registration
+
+1. User visits `/auth/register`.
+2. Form submits to Supabase `auth.signUp()` with email + password.
+3. The `public.users` row is created by the registration API route (or directly in the page) with the selected `role` ('customer' or 'provider').
+4. For providers: a matching `providers` row is created with `status='pending'`.
+5. Email confirmation is currently DISABLED in Supabase Auth settings (dev mode). Must be enabled before launch.
+6. After registration: customer → `/customer/request`, provider → `/provider/register` (profile completion).
+
+### Login
+
+1. User visits `/auth/login`.
+2. `supabase.auth.signInWithPassword({ email, password })` sets session cookies.
+3. Page reads `users.role` via a DB query (sequential after sign-in — deferred optimization, see Finding 2 in Task 1).
+4. `router.refresh()` + 1200ms fallback forces Next.js router to re-hydrate with the new session.
+5. Redirect: `customer` → `/customer/request`, `provider` → `/provider/dashboard`, `admin` → `/admin/dashboard`.
+
+### Session Handling
+
+- `proxy.ts` runs on every request matching `['/provider/:path*', '/admin/:path*', '/customer/:path*']`.
+- It calls `supabase.auth.getUser()` which triggers a token refresh if the access token has expired.
+- The refreshed token is written back to the browser cookie via the `setAll` cookie dance (required by `@supabase/ssr`).
+- If no valid session exists on a protected route, the user is redirected to `/auth/login?redirect=<current-path>`.
+- Role-based access (customer vs. provider vs. admin) is NOT enforced in `proxy.ts`. It is enforced at the page level.
+
+### Role Management
+
+- `role` is stored in `public.users.role` — never derived from JWT claims directly.
+- `is_admin()` SECURITY DEFINER function checks `users.id = auth.uid() AND role = 'admin'` — used in all RLS policies.
+- Admin bypass: `createAdminClient()` (service_role key) is used in API routes after verifying `users.role = 'provider'` or `'admin'` via the anon client.
+- Role cannot be changed by the user — admin updates via `/api/admin/providers/update`.
+
+### Logout
+
+- `supabase.auth.signOut({ scope: 'local' })` in `Navbar.tsx` — local-only, no server round-trip.
+- Refresh token is NOT invalidated server-side (acceptable trade-off at MVP scale).
+- After logout, user is navigated to `/` (home page). UX improvement deferred: should navigate to `/auth/login`.
+
+### Admin Account Creation
+
+There is no self-service admin registration. To create an admin:
+1. Register as a customer via `/auth/register`.
+2. In Supabase SQL Editor, run: `UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';`
+See `SETUP.md §6` for the full process.
+
+---
+
+## 22. Current Production State
+
+| Item | Status |
+|---|---|
+| **Production URL** | https://rescuego.ae |
+| **Vercel** | Connected to GitHub `main` branch — auto-deploys on push |
+| **Domain** | rescuego.ae — active |
+| **Supabase** | 16 migrations applied (001–016) |
+| **Stripe mode** | **TEST/Sandbox** — NOT live. Switch at Phase 10 only. |
+| **Active webhook** | `https://rescuego.ae/api/stripe/webhook` |
+| **Sentry** | DSN configured on Vercel, verified in production (June 3, 2026). Errors-only. No replay. No tracing. |
+| **Cron jobs** | NOT configured. `vercel.json` crons are absent — must add before launch. |
+| **Storage** | Bucket `provider-documents` exists (private). Has **0 RLS policies** — a known pre-launch blocker. |
+| **CSP** | `Content-Security-Policy-Report-Only` header only — not enforced. Review violations before enforcing. |
+| **NEXT_PUBLIC_SITE_URL** | Missing from Vercel environment variables. Must add. |
+
+### Active Stripe Webhook Events (9)
+```
+customer.subscription.created
+customer.subscription.updated
+customer.subscription.deleted
+invoice.payment_failed
+payment_intent.succeeded
+payment_intent.payment_failed
+payout.created
+payout.paid
+checkout.session.completed
+```
+
+### Launch Readiness Checklist
+
+| Blocker | Status | Phase |
+|---|---|---|
+| Stripe live keys | ❌ Test only | Phase 10 |
+| Storage bucket `provider-documents` RLS | ❌ 0 policies | Phase 1C |
+| `NEXT_PUBLIC_SITE_URL` env var on Vercel | ❌ Missing | Now |
+| `vercel.json` cron configuration | ❌ Missing | Phase 1B |
+| CSP enforcement (not report-only) | ❌ Report-only | Phase 1C |
+| Supabase email confirmation enabled | ❌ Disabled | Before launch |
+| `LAUNCH_PROMO` → env var | ❌ Hardcoded `true` | Phase 1B |
+| 12 unused npm packages uninstalled | ⚠️ Deferred | Now (safe) |
+| `server-only` guards on lib modules | ⚠️ Missing | Phase 1C |
+
+**Estimated launch readiness: ~35%**
+
+The platform is functional in test mode. The primary blockers before accepting real payments are:
+1. Switch Stripe to live keys (Phase 10 deliberate — not before billing is fully audited)
+2. Storage RLS on provider-documents
+3. Cron jobs configured in vercel.json
+
+---
+
+## 23. Corrections and Clarifications — Codebase Audit
+
+These corrections apply to inaccuracies found in sections 6 and 16 after auditing the actual source code and migrations. The codebase is the authoritative source.
+
+---
+
+### Correction 1 — `complete_provider_job_atomic` Does NOT Delete Provider Location
+
+**Incorrect statement in Section 16:**
+> Step 4: `DELETE FROM provider_locations WHERE provider_id=p_provider_id` — forces provider offline after job
+
+**Correct behavior (source: `supabase/migrations/014_complete_job_transaction_hardening.sql` and `015_ppj_credit_accept_complete_job_fix.sql`, `src/app/api/provider/jobs/complete/route.ts`):**
+
+The `complete_provider_job_atomic` RPC does NOT delete `provider_locations`. The complete job API route also does NOT delete it. After a job is completed, the provider remains online and can immediately accept the next request.
+
+Provider location is deleted ONLY in the release route (`src/app/api/provider/jobs/release/route.ts` lines 98–100):
+```typescript
+admin.from('provider_locations').delete().eq('provider_id', user.id)
+```
+
+The existing description in Section 6 is correct: "When a provider releases a job, their `provider_locations` row is deleted." The Section 16 step 4 claim about `complete_provider_job_atomic` is wrong — remove it when revising section 16.
+
+The actual steps of `complete_provider_job_atomic` (from migration 015, the final version):
+1. Validate `p_final_price` (1–10000 AED)
+2. `SELECT ... FOR UPDATE` on jobs — lock the job row
+3. `UPDATE requests SET status='completed', final_price=p_final_price`
+4. `UPDATE jobs SET commission_rate=0, commission_amount=0, completed_at=now()`
+5. Return `{ success, reason, job_id, completed_at }`
+
+No provider_locations deletion. No lock deletion (lock was already deleted at accept time).
+
+---
+
+### Correction 2 — PPJ Recovery Credit Is Only for Customer-Cancelled Requests
+
+**Incorrect statement in Section 6:**
+> PPJ protection edge case: if provider paid but request was already accepted, they receive a `ppj_recovery_credits` credit
+
+**Incorrect statement in Section 16:**
+> If request was taken by another provider while payment was in-flight, `restore_ppj_credit_for_cancelled_paid_request()` RPC credits back the PPJ recovery credit.
+
+**Correct behavior (source: `supabase/migrations/012_ppj_cancelled_payment_protection.sql`):**
+
+The `restore_ppj_credit_for_cancelled_paid_request` RPC has two hard guards at the top:
+```sql
+IF v_request.status <> 'cancelled' OR v_request.cancellation_actor <> 'customer' THEN
+  RETURN QUERY SELECT FALSE, 'request_not_customer_cancelled', NULL::INTEGER;
+```
+
+The credit is ONLY restored when:
+1. The request status is `'cancelled'`
+2. The cancellation actor is `'customer'`
+
+**When another provider accepts the request** during payment (status becomes `'accepted'`), the RPC returns `false, 'request_not_customer_cancelled'`. The webhook logs `'ppj_cancelled_payment_protection_not_applied'` with reason `'request_not_customer_cancelled'`, and **no credit is granted**.
+
+**Correct summary:**
+- PPJ payment (15/30/70 AED) is at financial risk if another provider accepts the request during the ~60-second payment window.
+- Credit IS restored only if the customer explicitly cancels the request before the payment-triggered accept can complete.
+- If another provider beats the payment to the accept, the paying provider loses the fee with no recovery.
+- The 60-second request lock (`REQUEST_LOCK_SECONDS = 60`) is the primary protection against this race condition — it blocks other providers from accepting while payment is processing.
+
+---
+
+### Correction 3 — `checkout.session.completed` Is Log-Only
+
+**Incorrect statement in Section 16:**
+> `checkout.session.completed` | `processCheckoutSessionCompleted` | Subscription checkout complete: marks provider `active`, sets plan from price ID mapping, syncs `stripe_customer_id` + `stripe_subscription_id`
+
+**Correct behavior (source: `src/app/api/stripe/webhook/route.ts` lines 600–609):**
+
+The `checkout.session.completed` handler only logs the event — no DB writes:
+```typescript
+if (event.type === 'checkout.session.completed') {
+  const session = event.data.object as Stripe.Checkout.Session
+  logger.info({ event: 'stripe_checkout_session_completed_observed', ... })
+}
+```
+
+There is no `processCheckoutSessionCompleted` function. Provider activation, plan assignment, and Stripe ID sync all happen via `customer.subscription.created` → `processSubscriptionChange`. Stripe always fires both events on a new subscription checkout; the subscription event carries all the billing data.
+
+---
+
+## 24. Prompt for Next AI
+
+Copy this prompt at the start of a new session to fully brief another AI assistant on this project:
+
+```
+You are continuing development on RescueGo — a UAE roadside recovery marketplace (two-sided SaaS).
+
+MANDATORY SESSION START:
+1. Read CLAUDE.md completely
+2. Read SESSION_LOG.md completely
+3. Read VERDENT_HANDOFF.md (this is the master context document — 25 sections)
+4. Summarize in one sentence where work last stopped
+5. Wait for user instructions before starting any task
+
+PROJECT SUMMARY:
+- Domain: rescuego.ae
+- Stack: Next.js 16.2.6 App Router / React 19 / TypeScript / Tailwind CSS v4
+- Backend: Supabase (Auth + Postgres + PostGIS + Storage + RLS)
+- Payments: Stripe (subscriptions + Payment Intents + webhooks) — currently TEST mode
+- Deployment: Vercel
+- Monitoring: Sentry (errors only, no tracing, no replay)
+- Middleware entry: src/proxy.ts (not middleware.ts — Next.js 16 rename)
+
+CURRENT STATUS (as of June 5, 2026):
+- Phase 1A Tasks 1–7 complete. Task 8 (production slow-query identification) is next.
+- 16 migrations applied in production (001–016). Next migration: 017.
+- Stripe is on test/sandbox keys — live keys at Phase 10 only.
+- commission_rate = 0, commission_amount = 0 — INTENTIONAL. Do NOT compute commission before Phase 8.
+
+CRITICAL RULES — NEVER VIOLATE:
+1. Never run git commands. Always tell user: git add . && git commit -m "..." && git push
+2. Never run npm run lint or npm run build. Tell user to run from terminal.
+3. Never run SQL migrations. Show SQL first, say "Run in Supabase SQL Editor", wait for confirmation.
+4. Never add env vars to code. Tell user to add in Vercel dashboard.
+5. Never fix a bug silently — always report first with Bug found / Location / Impact / Proposed fix.
+6. Never bypass accept_provider_request_atomic() or complete_provider_job_atomic() — they prevent race conditions.
+7. Never add Google Maps SDK (Phase 6 only). Google Maps links only.
+8. Never add commission logic before Phase 8.
+9. When in doubt — ask, do not implement.
+10. Before any file change: read the entire file first, then explain what you will change and why.
+
+ARCHITECTURE NOTES:
+- proxy.ts: token refresh + unauthenticated redirect only. No role-based redirects.
+- All API routes use createAdminClient() (service_role) AFTER verifying auth via anon client.
+- Provider going "online" = inserting/updating a provider_locations row (manual, button-triggered).
+- Provider "online" threshold: updated_at within last 5 minutes (PROVIDER_STALE_MINUTES = 5).
+- Request lock TTL: 60 seconds (REQUEST_LOCK_SECONDS = 60).
+- Adaptive polling on customer request page: 20s (open) / 12s (accepted/in_progress).
+- LAUNCH_PROMO = true (src/types/index.ts:55) → flat 15 AED PPJ fee instead of distance-based.
+
+IMPORTANT CORRECTIONS (verified from codebase):
+- complete_provider_job_atomic does NOT delete provider_locations. Only the release route does.
+- PPJ recovery credit is ONLY restored for customer-cancelled requests, not when another provider accepts.
+- checkout.session.completed is log-only — no DB updates. Provider activation is via customer.subscription.created.
+
+MONEY FLOW:
+- Provider subscription: Stripe Checkout → subscription.created webhook → mark provider active + set plan
+- PPJ fee: Payment Intent created at /api/provider/ppj-checkout → payment_intent.succeeded webhook → accept_provider_request_atomic()
+- Overage fee: Payment Intent at /api/provider/overage-checkout → payment_intent.succeeded webhook → set overage_cleared=true → accept_provider_request_atomic()
+- All fee amounts are server-side only — never accept from request body
+
+SESSION END REQUIREMENT (mandatory — before any context compact or close):
+1. Update SESSION_LOG.md with: what was done, important findings, next task, deferred issues
+2. Tell user: "Session log updated — ready for git push"
+3. At 90% context: stop immediately, update session log, say "Context at 90% — please git push and start new session"
+```
+
+---
+
+## 25. Final Validation
+
+### Document Statistics (after this update)
+| Metric | Value |
+|---|---|
+| Total sections | 25 |
+| Estimated line count | ~1,500 |
+| Last updated | June 5, 2026 |
+| Source of truth | Codebase (migrations, route files, lib modules) |
+
+### Files Reviewed in This Update
+| File | Purpose |
+|---|---|
+| `CLAUDE.md` | Project rules, phase tracking, session rules |
+| `SESSION_LOG.md` | All session decisions and findings |
+| `README.md` | Project overview |
+| `src/proxy.ts` | Middleware (auth/token refresh) |
+| `src/app/api/stripe/webhook/route.ts` | All Stripe event handlers |
+| `src/app/api/provider/requests/accept/route.ts` | Accept flow + overage guard |
+| `src/app/api/provider/jobs/complete/route.ts` | Job completion flow |
+| `src/app/api/provider/jobs/release/route.ts` | Job release + location cleanup |
+| `supabase/migrations/001` through `016` | All schema, RLS, indexes, RPCs |
+
+### Files NOT Reviewed (should be audited in a future session)
+| File | Reason to Review |
+|---|---|
+| `src/app/auth/login/page.tsx` | Sequential role fetch (deferred Finding 2) + 1200ms timer |
+| `src/app/auth/register/page.tsx` | Auth registration flow — exact DB write pattern not confirmed |
+| `src/app/api/ops/monthly-allowance-reset/route.ts` | Cron reliability (Phase 1B) |
+| `src/app/api/ops/expire-requests/route.ts` | Expiry cron behavior |
+| `src/app/page.tsx` | getViewerState() 3 sequential queries (deferred Task 2 finding) |
+| `src/app/provider/dashboard/page.tsx` | Fallback sequential query at line 378 (deferred Finding 5) |
+| `src/app/components/layout/Navbar.tsx` | Duplicated auth + CLS issue (deferred) |
+| `supabase/migrations/003_harden_provider_rls.sql` | RLS hardening details not captured |
+| `supabase/migrations/004_nearby_open_requests.sql` | `get_nearby_open_requests` earlier version |
+
+### Missing External Resources
+| Resource | Status |
+|---|---|
+| `ROADMAP.md` | Does not exist in the repository. Phase roadmap is derived from `CLAUDE.md` "المراحل القادمة" section and `SESSION_LOG.md`. |
+| `SETUP.md` | Exists (referenced multiple times) but not reviewed in this update. Contains Storage RLS setup (§4) and admin user creation (§6). |
+| `DEPLOYMENT_STATUS.md` | Exists (referenced in SESSION_LOG) but not reviewed in this update. Contains per-env checklist. |
+| Vercel dashboard | Not accessible to AI. Env var status is based on SESSION_LOG notes. |
+| Supabase dashboard | Not accessible to AI. Migration status is based on SESSION_LOG notes. |
+
+### Assumptions Made
+1. All 16 migrations are applied in production (stated in SESSION_LOG + DEPLOYMENT_STATUS + CLAUDE.md).
+2. Stripe is on test/sandbox keys (stated in CLAUDE.md + SESSION_LOG).
+3. Sentry is verified in production (stated in SESSION_LOG June 3 entry).
+4. The storage bucket `provider-documents` has 0 RLS policies (referenced in SETUP.md §4 in multiple places but SETUP.md not reviewed).
+5. `NEXT_PUBLIC_SITE_URL` is missing from Vercel (stated in deferred items across multiple sessions).
+6. `vercel.json` cron config is absent (no cron section found in reviewed files; SESSION_LOG says "pending").
+7. Email confirmation is disabled in Supabase Auth (common dev mode; not confirmed from Supabase dashboard).
+8. Production URL is `https://rescuego.ae` (stated in CLAUDE.md `Domain: rescuego.ae`).
+
+### Summary of Changes in This Update (Sections 20–25 Added)
+- **Section 20**: Complete column-by-column DB reference for all 12 tables, showing which migration added each column, plus full index inventory.
+- **Section 21**: Dedicated Authentication Flow section covering registration, login, session handling, role management, logout, and admin creation.
+- **Section 22**: Current Production State — snapshot of Vercel/Supabase/Stripe/Sentry/Cron/Storage status with launch readiness checklist.
+- **Section 23**: Three factual corrections discovered by auditing source code against existing documentation.
+- **Section 24**: Ready-to-use copy-paste prompt for the next AI assistant — self-contained, covers critical rules + corrections.
+- **Section 25**: This validation section.
