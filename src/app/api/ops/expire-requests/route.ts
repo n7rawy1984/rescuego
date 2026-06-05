@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 const REQUEST_EXPIRY_HOURS = 2
 
-export async function POST(req: NextRequest) {
+async function handleExpireRequests(req: NextRequest) {
   const unauthorized = authorizeOpsRequest(req)
   if (unauthorized) return unauthorized
 
@@ -41,4 +41,12 @@ export async function POST(req: NextRequest) {
     cutoff,
     expiry_hours: REQUEST_EXPIRY_HOURS,
   })
+}
+
+export async function GET(req: NextRequest) {
+  return handleExpireRequests(req)
+}
+
+export async function POST(req: NextRequest) {
+  return handleExpireRequests(req)
 }

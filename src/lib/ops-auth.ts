@@ -16,8 +16,12 @@ export function authorizeOpsRequest(req: NextRequest): NextResponse | null {
   const authHeader = req.headers.get('authorization')
   const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null
   const headerToken = req.headers.get('x-ops-secret')
+  const vercelCronSecret = process.env.CRON_SECRET ?? null
 
-  if (bearerToken !== expectedSecret && headerToken !== expectedSecret) {
+  const isVercelCron = vercelCronSecret !== null && bearerToken === vercelCronSecret
+  const isOpsSecret = bearerToken === expectedSecret || headerToken === expectedSecret
+
+  if (!isVercelCron && !isOpsSecret) {
     logger.warn({
       event: 'ops_route_unauthorized',
       path: req.nextUrl.pathname,

@@ -23,7 +23,7 @@ function shouldResetProvider(provider: ResetProviderRow): boolean {
   return periodStart > jobsResetAt
 }
 
-export async function POST(req: NextRequest) {
+async function handleMonthlyAllowanceReset(req: NextRequest) {
   const unauthorized = authorizeOpsRequest(req)
   if (unauthorized) return unauthorized
 
@@ -119,4 +119,12 @@ export async function POST(req: NextRequest) {
     providers_skipped: skippedCount,
     providers_failed: failedCount,
   })
+}
+
+export async function GET(req: NextRequest) {
+  return handleMonthlyAllowanceReset(req)
+}
+
+export async function POST(req: NextRequest) {
+  return handleMonthlyAllowanceReset(req)
 }
