@@ -41,51 +41,52 @@ async function handleMonthlyAllowanceReset(req: NextRequest) {
   }
 
   const dueProviders = (providers ?? []).filter(shouldResetProvider)
-  let resetCount = 0
-  let skippedCount = 0
-  let failedCount = 0
 
-  for (const provider of dueProviders) {
-    let updateQuery = supabase
-      .from('providers')
-      .update({
-        jobs_this_month: 0,
-        job_credit_balance: 0,
-        jobs_reset_at: provider.stripe_current_period_start,
-      })
-      .eq('id', provider.id)
-      .eq('stripe_current_period_start', provider.stripe_current_period_start)
+  const results = await Promise.all(
+    dueProviders.map(async (provider) => {
+      let updateQuery = supabase
+        .from('providers')
+        .update({
+          jobs_this_month: 0,
+          job_credit_balance: 0,
+          jobs_reset_at: provider.stripe_current_period_start,
+        })
+        .eq('id', provider.id)
+        .eq('stripe_current_period_start', provider.stripe_current_period_start)
 
-    updateQuery = provider.jobs_reset_at
-      ? updateQuery.eq('jobs_reset_at', provider.jobs_reset_at)
-      : updateQuery.is('jobs_reset_at', null)
+      updateQuery = provider.jobs_reset_at
+        ? updateQuery.eq('jobs_reset_at', provider.jobs_reset_at)
+        : updateQuery.is('jobs_reset_at', null)
 
-    const { data: updatedProvider, error: updateError } = await updateQuery
-      .select('id')
-      .maybeSingle<{ id: string }>()
+      const { data: updatedProvider, error: updateError } = await updateQuery
+        .select('id')
+        .maybeSingle<{ id: string }>()
 
-    if (updateError) {
-      failedCount += 1
-      logger.error({
-        event: 'monthly_allowance_reset_provider_failed',
-        provider_id: provider.id,
-        error: updateError.message,
-      })
-      continue
-    }
+      if (updateError) {
+        logger.error({
+          event: 'monthly_allowance_reset_provider_failed',
+          provider_id: provider.id,
+          error: updateError.message,
+        })
+        return 'failed' as const
+      }
 
-    if (!updatedProvider) {
-      skippedCount += 1
-      logger.warn({
-        event: 'monthly_allowance_reset_provider_skipped',
-        provider_id: provider.id,
-        reason: 'Provider period was already reset or changed before update',
-      })
-      continue
-    }
+      if (!updatedProvider) {
+        logger.warn({
+          event: 'monthly_allowance_reset_provider_skipped',
+          provider_id: provider.id,
+          reason: 'Provider period was already reset or changed before update',
+        })
+        return 'skipped' as const
+      }
 
-    resetCount += 1
-  }
+      return 'reset' as const
+    })
+  )
+
+  const resetCount = results.filter((r) => r === 'reset').length
+  const skippedCount = results.filter((r) => r === 'skipped').length
+  const failedCount = results.filter((r) => r === 'failed').length
 
   logger.info({
     event: 'monthly_allowance_reset_completed',
