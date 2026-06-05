@@ -1,5 +1,6 @@
 import { BriefcaseBusiness, History, MapPin } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
+import Link from 'next/link'
 
 type ActivityItem = {
   id: string
@@ -18,9 +19,14 @@ type Props = {
 export default function ProviderRecentActivitySection({ items }: Props) {
   return (
     <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
-        <History className="h-5 w-5 text-[#0F6E56]" aria-hidden="true" />
-        <h2 className="text-lg font-semibold text-slate-950">Recent Activity</h2>
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <History className="h-5 w-5 text-[#0F6E56]" aria-hidden="true" />
+          <h2 className="text-lg font-semibold text-slate-950">Recent Activity</h2>
+        </div>
+        <Link href="/provider/history" className="text-sm font-medium text-[#0F6E56] hover:underline">
+          View all →
+        </Link>
       </div>
       <div className="p-2">
         <p className="px-3 py-2 text-xs text-slate-500">
