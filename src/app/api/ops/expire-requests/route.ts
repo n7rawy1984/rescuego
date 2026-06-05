@@ -7,7 +7,7 @@ import { authorizeOpsRequest } from '@/lib/ops-auth'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
-const REQUEST_EXPIRY_HOURS = 2
+const REQUEST_EXPIRY_HOURS = Number(process.env.OPS_REQUEST_EXPIRY_HOURS) || 2
 
 async function handleExpireRequests(req: NextRequest) {
   const unauthorized = authorizeOpsRequest(req)
