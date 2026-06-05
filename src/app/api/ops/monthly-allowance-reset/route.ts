@@ -4,6 +4,7 @@ import { authorizeOpsRequest } from '@/lib/ops-auth'
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 type ResetProviderRow = {
   id: string

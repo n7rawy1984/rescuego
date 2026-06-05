@@ -5,6 +5,7 @@ import { notificationEvents } from '@/lib/notifications'
 import { authorizeOpsRequest } from '@/lib/ops-auth'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30
 
 const REQUEST_EXPIRY_HOURS = 2
 
