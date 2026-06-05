@@ -2,7 +2,85 @@
 
 ---
 
-## Session: June 3, 2026
+## Session: June 5, 2026 — Phase 1B + 1C complete
+
+### What was done
+
+1. **Phase 1B Task 2** — `LAUNCH_PROMO` hardcoded `true` → `process.env.NEXT_PUBLIC_LAUNCH_PROMO === 'true'`. Safe fallback: off if env var missing.
+
+2. **Phase 1B Task 3** — PPJ fee constants (`PAY_PER_JOB_FEE_NEAR_AED`, `PAY_PER_JOB_FEE_FAR_AED`, `PAY_PER_JOB_DISTANCE_THRESHOLD_M`, `PAY_PER_JOB_PROMO_FEE_AED`) moved to `NEXT_PUBLIC_PPJ_*` env vars. Safe numeric fallbacks to original hardcoded values.
+   - File changed: `src/types/index.ts`
+
+3. **Phase 1B Task 4 — Cron reliability (6 findings fixed):**
+   - Finding 1: `vercel.json` created — `expire-requests` every 30 min, `monthly-allowance-reset` daily 00:00 UTC.
+   - `ops-auth.ts` — added Vercel `CRON_SECRET` fallback so native cron injection works without manual secret alignment.
+   - Both routes: added `GET` handler delegating to shared handler function (Vercel Cron calls GET).
+   - Finding 3: `monthly-allowance-reset` serial UPDATE loop → `Promise.all` parallel updates.
+   - Finding 4: `maxDuration = 30` on `expire-requests`, `maxDuration = 60` on `monthly-allowance-reset`.
+   - Finding 5: `REQUEST_EXPIRY_HOURS` → `OPS_REQUEST_EXPIRY_HOURS` env var, fallback `2`.
+   - Finding 6: `validateEnv()` — minimum 32-char length check on `OPS_CRON_SECRET`.
+
+4. **Phase 1B Task 5 Finding 2 — Cancel double-compensation bug fixed:**
+   - New RPC `cancel_request_and_compensate_atomic` (migration 019) — wraps cancel + provider compensation in one Postgres transaction with `FOR UPDATE` on request + provider rows. `cancellation_compensated_at IS NULL` guard is idempotency anchor.
+   - `src/app/api/requests/cancel/route.ts` rewritten to call RPC. 230 lines → 176 lines.
+
+5. **Phase 1B Task 5 Finding 1 — Release cleanup atomicity fixed:**
+   - New RPC `release_job_atomic` (migration 020) — wraps request status update, jobs field reset, request_locks delete, and provider counter increment in one transaction. `provider_locations` delete remains post-RPC best-effort.
+   - `src/app/api/provider/jobs/release/route.ts` rewritten to call RPC. 133 lines → 85 lines.
+
+6. **Phase 1C — Deep RLS Hardening (migration 021):**
+   - DROP `"Providers read locks"` on `request_locks` — all authenticated users could read all lock rows.
+   - DROP `"Customers cancel own open request"` on `requests` — customers could UPDATE any column directly.
+   - DROP `"Active providers read open requests"` on `requests` — bypassed migration 010 privacy masking.
+   - DROP `"Customers read active providers"` on `providers` — exposed Stripe IDs + billing columns.
+   - DROP `"Public read ratings"` + CREATE `"Authenticated read ratings"` — removed anon access.
+   - DROP `"Active providers location visible"` on `provider_locations` — cross-provider location exposure.
+
+7. **Phase 1C remaining (migration 022):**
+   - REVOKE ALL on `reset_monthly_job_counters()` from all roles. COMMENT marking deprecated.
+   - `ratings UNIQUE(job_id)` constraint confirmed via idempotent `DO $$` guard.
+
+8. **Migration 020 duplication bug fixed** — file was doubled by file_write tool; duplicate block removed.
+
+### Files changed
+- `src/types/index.ts` — LAUNCH_PROMO + PPJ fee env vars
+- `src/lib/ops-auth.ts` — CRON_SECRET fallback
+- `src/app/api/ops/expire-requests/route.ts` — GET handler, maxDuration, env var expiry hours
+- `src/app/api/ops/monthly-allowance-reset/route.ts` — GET handler, Promise.all, maxDuration
+- `src/lib/env.ts` — OPS_CRON_SECRET minimum length validation
+- `src/app/api/requests/cancel/route.ts` — RPC-based rewrite
+- `src/app/api/provider/jobs/release/route.ts` — RPC-based rewrite
+- `vercel.json` — created (cron schedule)
+- `supabase/migrations/019_cancel_compensation_atomic.sql` — created + applied
+- `supabase/migrations/020_release_job_atomic.sql` — created + applied (duplication fixed)
+- `supabase/migrations/021_phase1c_rls_hardening.sql` — created + applied
+- `supabase/migrations/022_phase1c_remaining.sql` — created + applied
+
+### Deferred items (carried forward)
+- Phase 1A Task 1: login sequential role fetch, Navbar auth duplication, router.refresh() 1200ms fallback, prefetch all dashboards
+- Phase 1A Task 2: getViewerState() sequential queries, logout navigates to `/`
+- Phase 1A Task 3: provider fallback sequential (Finding 5), skeleton completeness (Finding 6)
+- Phase 1A Task 7: `removeTracing: true` vs CWV — user decision pending
+- Phase 1A Task 7: `server-only` guards on lib files — Phase 1D
+- Phase 1A Task 7: `SUBSCRIPTION_PLANS` defined in 3 places — dedup pass
+- Phase 1B Task 5 Finding 4: complete/route.ts sequential pre-flight reads → Promise.all
+- Phase 1B Task 5 Finding 5: overage guard TOCTOU in accept/route.ts
+- Phase 1B Task 5 Finding 3: PPJ protection `provider_not_found` → Sentry alert
+- Phase 1B Task 5 Finding 8: accept RPC scan-based FOR UPDATE
+- Phase 1B Task 4 Findings 7–9: deprecated edge functions verify undeployed (manual), retry semantics, overage_cleared zombie edge case
+- Storage bucket `provider-documents` — 0 RLS policies
+- `NEXT_PUBLIC_SITE_URL` missing from Vercel
+
+### New env vars required in Vercel
+- `NEXT_PUBLIC_LAUNCH_PROMO = true` (keep promo active)
+- `NEXT_PUBLIC_PPJ_FEE_NEAR_AED = 30`
+- `NEXT_PUBLIC_PPJ_FEE_FAR_AED = 70`
+- `NEXT_PUBLIC_PPJ_DISTANCE_M = 10000`
+- `NEXT_PUBLIC_PPJ_PROMO_FEE_AED = 15`
+
+---
+
+## Session: June 5, 2026 — Phase 1A Task 8 complete
 
 ### What was done
 

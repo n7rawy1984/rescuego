@@ -737,8 +737,8 @@ export default function ProviderRegisterPage() {
                       ? 'RescueGo will review your provider account and activate it after verification.'
                       : 'RescueGo is reviewing your provider account. You can check status from your dashboard while approval is pending.'}
                   </p>
-                  <Link href="/provider/dashboard" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1D9E75] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">
-                    Check Dashboard
+                  <Link href="/provider/pending" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1D9E75] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">
+                    View Application Status
                   </Link>
                 </>
               )}

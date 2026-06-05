@@ -1,5 +1,5 @@
 # RescueGo — Deployment Status
-آخر تحديث: 5 يونيو 2026
+آخر تحديث: 5 يونيو 2026 (Phase 1B + 1C complete)
 
 ---
 
@@ -109,6 +109,10 @@
 | 016_task4_query_indexes | ✅ |
 | 017_task8_query_indexes | ✅ |
 | 018_capture_get_nearby_open_requests | ✅ |
+| 019_cancel_compensation_atomic | ✅ |
+| 020_release_job_atomic | ✅ |
+| 021_phase1c_rls_hardening | ✅ |
+| 022_phase1c_remaining | ✅ |
 
 ---
 
@@ -131,4 +135,15 @@ Tasks:
 - [x] Core Web Vitals baseline audit — Finding 6 fix (preconnect) + Finding 1 fix (sentry.client.config.ts)
 - [x] bundle size review (Phase 1A Task 7 complete — 12 unused dependencies removed)
 - [x] production slow-query identification (Task 8 complete — migration 017 applied, code fixes applied)
+
+**Phase 1B — Critical Architecture Hardening ✅ complete**
+- [x] Task 2: LAUNCH_PROMO → NEXT_PUBLIC_LAUNCH_PROMO env var
+- [x] Task 3: PPJ fees → NEXT_PUBLIC_PPJ_* env vars with safe fallbacks
+- [x] Task 4: Cron reliability — vercel.json created, GET handlers added, Promise.all parallel updates, maxDuration set, REQUEST_EXPIRY_HOURS env var, OPS_CRON_SECRET length validation
+- [x] Task 5 Finding 2: cancel double-compensation bug — cancel_request_and_compensate_atomic RPC (migration 019)
+- [x] Task 5 Finding 1: release cleanup atomicity — release_job_atomic RPC (migration 020)
+
+**Phase 1C — Deep RLS Hardening ✅ complete**
+- [x] Migration 021: 6 over-broad RLS policies dropped/hardened
+- [x] Migration 022: reset_monthly_job_counters revoked, ratings UNIQUE(job_id) confirmed
 
