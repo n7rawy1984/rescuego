@@ -67,8 +67,8 @@ export default async function AdminRevenuePage() {
   if (userData?.role !== 'admin') redirect('/')
 
   const [{ data: payouts }, { data: jobs }, { data: ppjPayments }, { data: failedOverages }] = await Promise.all([
-    supabase.from('payout_log').select('*').order('created_at', { ascending: false }).returns<PayoutRow[]>(),
-    supabase.from('jobs').select('*, providers(plan, users(name)), requests(problem_type)').order('completed_at', { ascending: false }).limit(50).returns<RevenueJobRow[]>(),
+    supabase.from('payout_log').select('id, stripe_payout_id, amount, currency, arrival_date, status').order('created_at', { ascending: false }).limit(100).returns<PayoutRow[]>(),
+    supabase.from('jobs').select('id, commission_rate, commission_amount, completed_at, providers(plan, users(name)), requests(problem_type)').not('completed_at', 'is', null).order('completed_at', { ascending: false }).limit(50).returns<RevenueJobRow[]>(),
     supabase.from('ppj_payments').select('*, providers(users(name, phone))').eq('status', 'paid').order('created_at', { ascending: false }).limit(100).returns<PPJPaymentRow[]>(),
     supabase.from('overage_payments').select('*, providers(users(name, phone))').eq('status', 'failed').order('created_at', { ascending: false }).limit(50).returns<OveragePaymentRow[]>(),
   ])

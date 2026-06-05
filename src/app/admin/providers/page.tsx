@@ -111,8 +111,9 @@ export default async function AdminProvidersPage({
 
   const { data: providers } = await supabase
     .from('providers')
-    .select('*, users(name, email, phone, role)')
+    .select('id, plan, status, rating, jobs_this_month, verified_badge, created_at, documents, users(name, email, phone, role)')
     .order('created_at', { ascending: false })
+    .limit(200)
     .returns<AdminProviderRow[]>()
 
   const legitimateProviders = (providers ?? []).filter((provider) => provider.users?.role === 'provider')
