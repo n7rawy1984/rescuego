@@ -8,15 +8,9 @@ const releaseJobSchema = z.object({
   request_id: z.string().uuid(),
 })
 
-type ActiveRequestRow = {
-  id: string
-  accepted_by: string | null
-  status: string | null
-}
-
-type ProviderReleaseCounterRow = {
-  release_count: number | null
-  provider_side_cancellation_count: number | null
+type ReleaseRpcResult = {
+  success: boolean
+  reason: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -45,81 +39,39 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { data: request } = await admin
-    .from('requests')
-    .select('id, accepted_by, status')
-    .eq('id', parsed.data.request_id)
-    .single<ActiveRequestRow>()
 
-  if (!request || request.accepted_by !== user.id || !['accepted', 'in_progress'].includes(request.status ?? '')) {
-    return NextResponse.json({ error: 'This job is no longer available to release' }, { status: 409 })
-  }
+  const { data: releaseRows, error: releaseError } = await admin.rpc('release_job_atomic', {
+    p_provider_id: user.id,
+    p_request_id: parsed.data.request_id,
+  })
 
-  const { data: providerCounters } = await admin
-    .from('providers')
-    .select('release_count, provider_side_cancellation_count')
-    .eq('id', user.id)
-    .single<ProviderReleaseCounterRow>()
+  const result = (releaseRows as ReleaseRpcResult[] | null)?.[0] ?? null
 
-  const { data: releasedRequest, error: releaseError } = await admin
-    .from('requests')
-    .update({
-      status: 'open',
-      accepted_by: null,
-    })
-    .eq('id', parsed.data.request_id)
-    .eq('accepted_by', user.id)
-    .in('status', ['accepted', 'in_progress'])
-    .select('id')
-    .single()
-
-  if (releaseError || !releasedRequest) {
+  if (releaseError || !result?.success) {
+    const reason = releaseError?.message ?? result?.reason ?? 'unknown'
     logger.warn({
       event: 'provider_release_job_failed',
       provider_id: user.id,
       request_id: parsed.data.request_id,
-      error: releaseError?.message ?? 'Request was already changed',
+      error: reason,
     })
     return NextResponse.json({ error: 'This job is no longer available to release' }, { status: 409 })
   }
 
-  const [{ error: jobError }, { error: locationError }, { error: lockError }, { error: providerCounterError }] = await Promise.all([
-    admin
-      .from('jobs')
-      .update({
-        commission_rate: null,
-        commission_amount: null,
-        stripe_payment_intent_id: null,
-      })
-      .eq('request_id', parsed.data.request_id)
-      .eq('provider_id', user.id)
-      .is('completed_at', null),
-    admin
-      .from('provider_locations')
-      .delete()
-      .eq('provider_id', user.id),
-    admin
-      .from('request_locks')
-      .delete()
-      .eq('request_id', parsed.data.request_id),
-    admin
-      .from('providers')
-      .update({
-        release_count: (providerCounters?.release_count ?? 0) + 1,
-        provider_side_cancellation_count: (providerCounters?.provider_side_cancellation_count ?? 0) + 1,
-      })
-      .eq('id', user.id),
-  ])
+  // Best-effort: take the provider offline after release.
+  // Not included in the RPC — offline status is a convenience signal, not a
+  // correctness requirement. Failure here does not affect the released request.
+  const { error: locationError } = await admin
+    .from('provider_locations')
+    .delete()
+    .eq('provider_id', user.id)
 
-  if (jobError || locationError || lockError || providerCounterError) {
+  if (locationError) {
     logger.warn({
-      event: 'provider_release_job_cleanup_warning',
+      event: 'provider_release_location_cleanup_warning',
       provider_id: user.id,
       request_id: parsed.data.request_id,
-      job_error: jobError?.message,
-      location_error: locationError?.message,
-      lock_error: lockError?.message,
-      provider_counter_error: providerCounterError?.message,
+      error: locationError.message,
     })
   }
 
