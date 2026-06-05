@@ -49,4 +49,11 @@ export function validateEnv(): void {
       `[RescueGo] Missing required environment variables:\n  ${missing.join('\n  ')}\n\nCheck your .env.local file.`
     )
   }
+
+  const opsSecret = process.env.OPS_CRON_SECRET
+  if (opsSecret !== undefined && opsSecret.length < 32) {
+    throw new Error(
+      '[RescueGo] OPS_CRON_SECRET must be at least 32 characters. Generate one with: openssl rand -hex 32'
+    )
+  }
 }
