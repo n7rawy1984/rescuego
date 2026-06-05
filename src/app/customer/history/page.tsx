@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
 import { getProblemLabel } from '@/lib/utils'
-import { CheckCircle2, Clock3, History, MapPin, ReceiptText, Star, XCircle } from 'lucide-react'
+import { CheckCircle2, Clock3, History, MapPin, ReceiptText, Star, XCircle, ArrowRight } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { ProblemType, RequestStatus } from '@/types'
 
@@ -165,11 +165,30 @@ export default async function CustomerHistoryPage() {
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusColors[req.status]}`}>
                           {statusLabels[req.status]}
                         </span>
+                        {(req.status === 'open' || req.status === 'accepted' || req.status === 'in_progress') && (
+                          <Link
+                            href="/customer/request"
+                            className="inline-flex items-center gap-1 rounded-full border border-[#9FE1CB] bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#0F6E56] hover:bg-[#c8f0e2] transition-colors"
+                          >
+                            View active
+                            <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                          </Link>
+                        )}
                         {req.status === 'completed' && jobByRequestId.get(req.id) && (
-                          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${ratedJobIds.has(jobByRequestId.get(req.id)!.id) ? 'border-[#9FE1CB] bg-[#E1F5EE] text-[#0F6E56]' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-                            <Star className="h-3.5 w-3.5" aria-hidden="true" />
-                            {ratedJobIds.has(jobByRequestId.get(req.id)!.id) ? 'Rated' : 'Needs rating'}
-                          </span>
+                          ratedJobIds.has(jobByRequestId.get(req.id)!.id) ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[#9FE1CB] bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#0F6E56]">
+                              <Star className="h-3.5 w-3.5" aria-hidden="true" />
+                              Rated
+                            </span>
+                          ) : (
+                            <Link
+                              href="/customer/ratings"
+                              className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                            >
+                              <Star className="h-3.5 w-3.5" aria-hidden="true" />
+                              Rate now
+                            </Link>
+                          )
                         )}
                       </div>
                     </div>

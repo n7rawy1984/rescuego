@@ -551,7 +551,7 @@ export default function RequestPage() {
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-950">Request progress</h2>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                    {visibleRequest.status.replace('_', ' ')}
+                    {visibleRequest.status === 'in_progress' ? 'In Progress' : visibleRequest.status === 'accepted' ? 'Accepted' : 'Open'}
                   </span>
                 </div>
                 <div className="space-y-4">
@@ -574,6 +574,13 @@ export default function RequestPage() {
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Pay provider directly</p>
                     <p className="text-xs text-slate-500">Cash or card. RescueGo never charges drivers.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-500">4</div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Service complete</p>
+                    <p className="text-xs text-slate-500">Rate your provider to keep RescueGo quality high.</p>
                   </div>
                 </div>
                 </div>
@@ -609,7 +616,7 @@ export default function RequestPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {isOpen
                     ? 'Your request has not been assigned yet, so you can cancel it freely.'
-                    : 'Your provider may already be traveling to your location. RescueGo will handle provider compensation automatically.'}
+                    : `${visibleRequest.provider_name ? `${visibleRequest.provider_name} may` : 'Your provider may'} already be traveling to your location. RescueGo will handle provider compensation automatically.`}
                 </p>
                 {showCancellationAbuseWarning && (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left">
