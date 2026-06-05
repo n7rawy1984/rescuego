@@ -51,8 +51,9 @@ export const PAY_PER_JOB_FEE_NEAR_AED = 30
 export const PAY_PER_JOB_FEE_FAR_AED = 70
 export const PAY_PER_JOB_DISTANCE_THRESHOLD_M = 10_000
 
-// Launch promo - set to false manually when promo ends
-export const LAUNCH_PROMO = true
+// Launch promo - controlled by NEXT_PUBLIC_LAUNCH_PROMO env var
+// Set to 'true' in Vercel to enable, remove or set to 'false' to disable
+export const LAUNCH_PROMO = process.env.NEXT_PUBLIC_LAUNCH_PROMO === 'true'
 export const PAY_PER_JOB_PROMO_FEE_AED = 15
 
 // Overage and platform fees
