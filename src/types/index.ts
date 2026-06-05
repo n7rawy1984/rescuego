@@ -46,15 +46,18 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
 ]
 
-// Pay Per Job - flat acceptance fee (not percentage)
-export const PAY_PER_JOB_FEE_NEAR_AED = 30
-export const PAY_PER_JOB_FEE_FAR_AED = 70
-export const PAY_PER_JOB_DISTANCE_THRESHOLD_M = 10_000
+// Pay Per Job - acceptance fees controlled by env vars
+// Add to Vercel: NEXT_PUBLIC_PPJ_FEE_NEAR_AED, NEXT_PUBLIC_PPJ_FEE_FAR_AED,
+// NEXT_PUBLIC_PPJ_DISTANCE_M, NEXT_PUBLIC_PPJ_PROMO_FEE_AED
+// Fallback values match original hardcoded amounts — safe if env vars are missing
+export const PAY_PER_JOB_FEE_NEAR_AED = Number(process.env.NEXT_PUBLIC_PPJ_FEE_NEAR_AED) || 30
+export const PAY_PER_JOB_FEE_FAR_AED = Number(process.env.NEXT_PUBLIC_PPJ_FEE_FAR_AED) || 70
+export const PAY_PER_JOB_DISTANCE_THRESHOLD_M = Number(process.env.NEXT_PUBLIC_PPJ_DISTANCE_M) || 10_000
 
 // Launch promo - controlled by NEXT_PUBLIC_LAUNCH_PROMO env var
 // Set to 'true' in Vercel to enable, remove or set to 'false' to disable
 export const LAUNCH_PROMO = process.env.NEXT_PUBLIC_LAUNCH_PROMO === 'true'
-export const PAY_PER_JOB_PROMO_FEE_AED = 15
+export const PAY_PER_JOB_PROMO_FEE_AED = Number(process.env.NEXT_PUBLIC_PPJ_PROMO_FEE_AED) || 15
 
 // Overage and platform fees
 export const OVERAGE_FEE_AED = 12
