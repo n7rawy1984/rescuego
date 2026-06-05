@@ -66,4 +66,7 @@ export const REQUEST_LOCK_SECONDS = 60
 export const PROVIDER_RADIUS_METERS = 5000
 export const PROVIDER_STALE_MINUTES = 5
 
+// Support contact — set NEXT_PUBLIC_SUPPORT_EMAIL in Vercel to override
+export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? 'support@rescuego.ae'
+
 import type { ProviderPlan } from './database'

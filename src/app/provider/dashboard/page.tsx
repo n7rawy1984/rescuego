@@ -22,7 +22,7 @@ import LocationActions from '@/components/provider/LocationActions'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
-import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_RADIUS_METERS, PROVIDER_STALE_MINUTES } from '@/types'
+import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_RADIUS_METERS, PROVIDER_STALE_MINUTES, SUPPORT_EMAIL } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
 export const metadata: Metadata = {
@@ -521,7 +521,7 @@ export default async function ProviderDashboardPage({
                   {provider.status === 'suspended' ? (
                     <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
                       Your account is suspended. Contact support to resolve your account status.{' '}
-                      <a href="mailto:n7rawy19840@gmail.com" className="font-semibold underline hover:text-red-900">
+                      <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline hover:text-red-900">
                         Email support
                       </a>
                     </p>
@@ -544,7 +544,7 @@ export default async function ProviderDashboardPage({
                   <p className="font-semibold text-red-800">Account Suspended</p>
                   <p className="mt-1 text-sm text-red-700">
                     Contact support to resolve your account status.{' '}
-                    <a href="mailto:n7rawy19840@gmail.com" className="font-semibold underline hover:text-red-900">
+                    <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline hover:text-red-900">
                       Email support
                     </a>
                   </p>
@@ -695,6 +695,16 @@ export default async function ProviderDashboardPage({
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <div className="font-semibold text-slate-800">{getProblemLabel(activeRequest.problem_type)}</div>
+                        {(activeRequest.price_estimate_min != null || activeRequest.price_estimate_max != null) && (
+                          <div className="mt-1 text-sm text-slate-500">
+                            Estimated:{' '}
+                            {activeRequest.price_estimate_min != null && activeRequest.price_estimate_max != null
+                              ? `${activeRequest.price_estimate_min}–${activeRequest.price_estimate_max} AED`
+                              : activeRequest.price_estimate_min != null
+                              ? `from ${activeRequest.price_estimate_min} AED`
+                              : `up to ${activeRequest.price_estimate_max} AED`}
+                          </div>
+                        )}
                         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
                           <div className="flex items-start gap-2">
                             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0F6E56]" aria-hidden="true" />
@@ -735,7 +745,9 @@ export default async function ProviderDashboardPage({
                           </div>
                         )}
                       </div>
-                      <Badge variant="warning" className="w-fit capitalize">{activeRequest.status}</Badge>
+                      <Badge variant="warning" className="w-fit">
+                        {activeRequest.status === 'in_progress' ? 'In Progress' : 'Accepted'}
+                      </Badge>
                     </div>
                     <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
                       <CompleteJobForm requestId={activeRequest.id} />
