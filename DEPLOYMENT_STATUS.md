@@ -1,5 +1,5 @@
 # RescueGo — Deployment Status
-آخر تحديث: 4 يونيو 2026 (session 2)
+آخر تحديث: 5 يونيو 2026
 
 ---
 
@@ -107,6 +107,7 @@
 | 014_complete_job_transaction_hardening | ✅ |
 | 015_ppj_credit_accept_complete_job_fix | ✅ |
 | 016_task4_query_indexes | ✅ |
+| 017_task8_query_indexes | ✅ |
 
 ---
 
@@ -128,5 +129,5 @@ Tasks:
 - [x] polling reduction (adaptive interval, customer request page)
 - [x] Core Web Vitals baseline audit — Finding 6 fix (preconnect) + Finding 1 fix (sentry.client.config.ts)
 - [x] bundle size review (Phase 1A Task 7 complete — 12 unused dependencies removed)
-- [ ] production slow-query identification
+- [x] production slow-query identification (Task 8 complete — migration 017 applied, code fixes applied)
 
