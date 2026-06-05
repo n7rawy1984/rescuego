@@ -393,9 +393,9 @@ export default async function ProviderDashboardPage({
   }
 
   if (operationalReady && (!openRequests || openRequests.length === 0)) {
-    const { data: fallbackRequests } = await supabase
+    const { data: fallbackRequests } = await admin
       .from('requests')
-      .select('id, customer_id, problem_type, note, status, accepted_by, final_price, created_at, distance_to_provider_m')
+      .select('id, problem_type, status, accepted_by, created_at')
       .eq('status', 'open')
       .is('accepted_by', null)
       .order('created_at', { ascending: false })
