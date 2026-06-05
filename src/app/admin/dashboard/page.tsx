@@ -15,8 +15,10 @@ export default async function AdminDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
+  const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (!userData || userData.role !== 'admin') redirect('/')
+
   const [
-    { data: userData },
     { count: totalCustomers },
     { count: totalProviders },
     { count: activeProvidersCount },
@@ -32,7 +34,6 @@ export default async function AdminDashboardPage() {
     { count: failedStripeEvents },
     { count: failedOveragePayments },
   ] = await Promise.all([
-    supabase.from('users').select('role').eq('id', user.id).single(),
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'provider'),
     supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
@@ -48,8 +49,6 @@ export default async function AdminDashboardPage() {
     supabase.from('stripe_events').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
     supabase.from('overage_payments').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
   ])
-
-  if (!userData || userData.role !== 'admin') redirect('/')
 
   const activeProviders = activeProvidersCount ?? 0
   const pendingProviders = pendingProvidersCount ?? 0

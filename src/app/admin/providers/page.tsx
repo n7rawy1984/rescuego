@@ -134,6 +134,14 @@ export default async function AdminProvidersPage({
     return provider.status === activeFilter
   })
 
+  const filterCounts: Record<ProviderFilter, number> = {
+    all: providersWithDocumentState.length,
+    pending: providersWithDocumentState.filter((p) => p.status === 'pending').length,
+    active: providersWithDocumentState.filter((p) => p.status === 'active').length,
+    suspended: providersWithDocumentState.filter((p) => p.status === 'suspended').length,
+    'missing-documents': providersWithDocumentState.filter((p) => !p.documentsComplete).length,
+  }
+
   const filteredProviders: AdminProviderWithLinks[] = await Promise.all(
     filteredProviderRows.map(async (provider) => ({
       ...provider,
@@ -180,13 +188,18 @@ export default async function AdminProvidersPage({
                     <a
                       key={filter.id}
                       href={filter.id === 'all' ? '/admin/providers' : `/admin/providers?filter=${filter.id}`}
-                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                         activeFilter === filter.id
                           ? 'bg-[#1D9E75] text-white'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]`}
                     >
                       {filter.label}
+                      {filterCounts[filter.id] > 0 && (
+                        <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${activeFilter === filter.id ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-700'}`}>
+                          {filterCounts[filter.id]}
+                        </span>
+                      )}
                     </a>
                   ))}
                 </div>

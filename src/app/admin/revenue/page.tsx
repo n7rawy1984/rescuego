@@ -102,7 +102,7 @@ export default async function AdminRevenuePage() {
             </Card>
             <Card className="border-slate-200 shadow-sm">
               <CardBody className="min-h-28">
-                <div className="text-2xl font-bold text-[#0F6E56]">{(totalCommissions / 100).toFixed(2)} AED</div>
+                <div className="text-2xl font-bold text-[#0F6E56]">{totalCommissions.toFixed(2)} AED</div>
                 <div className="text-sm text-slate-500">Total Commissions Charged</div>
               </CardBody>
             </Card>
@@ -171,7 +171,7 @@ export default async function AdminRevenuePage() {
                           <div className="font-medium text-slate-800">{job.providers?.users?.name ?? '-'}</div>
                           <div className="text-xs text-slate-400">{job.requests?.problem_type} · {job.commission_rate}% rate</div>
                         </div>
-                        <div className="shrink-0 font-semibold text-[#0F6E56]">{((job.commission_amount ?? 0) / 100).toFixed(2)} AED</div>
+                        <div className="shrink-0 font-semibold text-[#0F6E56]">{(job.commission_amount ?? 0).toFixed(2)} AED</div>
                       </div>
                     ))}
                   </div>

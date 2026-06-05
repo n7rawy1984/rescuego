@@ -49,6 +49,18 @@ type JobLookupRow = {
   completed_at: string | null
 }
 
+type RequestFilter = 'all' | 'open' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
+
+const REQUEST_FILTERS: { id: RequestFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'open', label: 'Open' },
+  { id: 'accepted', label: 'Accepted' },
+  { id: 'in_progress', label: 'In Progress' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'cancelled', label: 'Cancelled' },
+  { id: 'expired', label: 'Expired' },
+]
+
 function requestBadgeVariant(status: RequestStatus): 'success' | 'warning' | 'danger' | 'info' | 'default' {
   if (status === 'completed') return 'success'
   if (status === 'open') return 'info'
@@ -70,7 +82,16 @@ function lifecycleLabel(request: AdminRequestRow, completedAt: string | null | u
   return 'Unassigned'
 }
 
-export default async function AdminRequestsPage() {
+export default async function AdminRequestsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ filter?: string }>
+}) {
+  const params = await searchParams
+  const activeFilter: RequestFilter = REQUEST_FILTERS.some((f) => f.id === params?.filter)
+    ? params!.filter as RequestFilter
+    : 'all'
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
@@ -79,12 +100,17 @@ export default async function AdminRequestsPage() {
   if (userData?.role !== 'admin') redirect('/')
 
   const admin = createAdminClient()
-  const { data: requests, error: requestsError } = await admin
+  const query = admin
     .from('requests')
     .select('id, customer_id, accepted_by, problem_type, location_address, note, status, price_estimate_min, price_estimate_max, final_price, cancelled_at, cancellation_actor, cancellation_compensation_type, created_at')
     .order('created_at', { ascending: false })
     .limit(100)
-    .returns<AdminRequestRow[]>()
+
+  const { data: requests, error: requestsError } = await (
+    activeFilter !== 'all'
+      ? query.eq('status', activeFilter)
+      : query
+  ).returns<AdminRequestRow[]>()
 
   const requestRows = requests ?? []
   const customerIds = [...new Set(requestRows.map((request) => request.customer_id).filter((id): id is string => Boolean(id)))]
@@ -127,12 +153,29 @@ export default async function AdminRequestsPage() {
 
           <Card className="overflow-hidden border-slate-200 shadow-sm">
             <CardHeader>
-              <h2 className="font-semibold text-slate-800">Recent Requests ({requestRows.length})</h2>
-              {requestsError && (
-                <p className="mt-1 text-sm text-red-600">
-                  Request data could not be loaded: {requestsError.message}
-                </p>
-              )}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="font-semibold text-slate-800">Requests ({requestRows.length}{activeFilter !== 'all' ? ` · ${REQUEST_FILTERS.find((f) => f.id === activeFilter)?.label}` : ''})</h2>
+                  {requestsError && (
+                    <p className="text-sm text-red-600">Request data could not be loaded: {requestsError.message}</p>
+                  )}
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {REQUEST_FILTERS.map((filter) => (
+                    <a
+                      key={filter.id}
+                      href={filter.id === 'all' ? '/admin/requests' : `/admin/requests?filter=${filter.id}`}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        activeFilter === filter.id
+                          ? 'bg-[#1D9E75] text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]`}
+                    >
+                      {filter.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
             </CardHeader>
             <CardBody className="p-0">
               <div className="overflow-x-auto">
@@ -165,8 +208,8 @@ export default async function AdminRequestsPage() {
                             {request.note && <div className="mt-1 max-w-[260px] break-words text-xs text-slate-400">{request.note}</div>}
                           </td>
                           <td className="px-5 py-4">
-                            <Badge variant={requestBadgeVariant(request.status)} className="capitalize">
-                              {request.status.replace('_', ' ')}
+                            <Badge variant={requestBadgeVariant(request.status)}>
+                              {request.status === 'in_progress' ? 'In Progress' : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                             </Badge>
                           </td>
                           <td className="px-5 py-4 text-slate-600">
@@ -202,8 +245,8 @@ export default async function AdminRequestsPage() {
                     {requestRows.length === 0 && (
                       <tr>
                         <td colSpan={8} className="px-5 py-14 text-center">
-                          <p className="font-semibold text-slate-700">No customer requests yet.</p>
-                          <p className="mt-1 text-sm text-slate-500">Roadside requests will appear here as customers create them.</p>
+                          <p className="font-semibold text-slate-700">No requests match this filter.</p>
+                          <p className="mt-1 text-sm text-slate-500">Try another filter, or check back after new customer activity.</p>
                         </td>
                       </tr>
                     )}
@@ -217,3 +260,4 @@ export default async function AdminRequestsPage() {
     </>
   )
 }
+
