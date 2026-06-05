@@ -416,7 +416,7 @@ Pending user decisions before Task 8:
 - Phase 1A Task 7: add `server-only` guards to `stripe.ts`, `logger.ts`, `env.ts`, `notifications.ts`, `rate-limit.ts`, `ops-auth.ts` — Phase 1C hardening pass
 - Phase 1A Task 7: `SUBSCRIPTION_PLANS` defined in 3 places — dedup in cleanup pass
 - Phase 1A Task 7: `LAUNCH_PROMO = true` hardcoded — move to `NEXT_PUBLIC_LAUNCH_PROMO` env var before promo ends
-- Phase 1A Task 8: production slow-query identification (next)
+- Phase 1A Task 8: ✅ complete — see session June 5, 2026 (Task 8) below
 - `npm uninstall @radix-ui/react-avatar @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-toast react-hook-form @hookform/resolvers date-fns` — safe to run any time (12 unused dependencies, zero bundle impact)
 
 ---
@@ -453,10 +453,73 @@ Pending before Task 8:
 
 ---
 
-## Session: June 5, 2026 (session 2 — VERDENT_HANDOFF.md expanded)
+## Session: June 5, 2026 — Phase 1A Task 8 complete
 
 ### What was done
-1. **VERDENT_HANDOFF.md** — expanded with 4 new sections (16–19). No duplicate content added; all sections are additive to the existing 15.
+
+1. **Issue #1 verified** — `getOpsCronSecret` confirmed exported in `src/lib/env.ts:30`. False alarm from truncated read.
+
+2. **Phase 1A Task 8 — Production slow-query identification (audit + fixes).**
+   Full cross-reference of all 20 API routes + 8 server pages against all 25 indexes in migrations 013 + 016. 12 findings produced.
+
+3. **Findings 1, 2, 5 — code fixes (no migration).**
+   - `src/app/admin/revenue/page.tsx:70` — `payout_log`: narrowed `select('*')` to 6 used columns + added `.limit(100)`. `idx_payout_log_created` now does useful bounded work.
+   - `src/app/admin/revenue/page.tsx:71` — `jobs`: narrowed `select('*')` to 4 used columns + added `.not('completed_at', 'is', null)`. `idx_jobs_completed` partial index now eligible.
+   - `src/app/admin/providers/page.tsx:112` — `providers`: narrowed `select('*')` to 8 columns in `AdminProviderRow` + added `.limit(200)`. Removes billing columns from wire transfer, caps unbounded fetch.
+
+4. **Findings 3, 4, 6 — migration 017 applied.**
+   - `idx_ppj_payments_status_created` — covers admin-wide `ppj_payments` status filter + sort.
+   - `idx_overage_payments_status_created` — covers admin-wide `overage_payments` status filter + sort.
+   - `idx_requests_created` — covers admin/requests unfiltered `ORDER BY created_at DESC LIMIT 100`.
+   - `supabase/migrations/017_task8_query_indexes.sql` created.
+
+5. **Finding 10 — `get_nearby_open_requests` RPC audited + migration 018 applied.**
+   - Function confirmed present in production but absent from all prior migrations.
+   - Index coverage confirmed: GIST spatial index + partial index on open/unassigned requests + PK lookups — all correct.
+   - No query logic changes. Migration 018 is tracking-only — captures production function body into version control.
+   - `supabase/migrations/018_capture_get_nearby_open_requests.sql` created.
+
+### Files changed
+- `src/app/admin/revenue/page.tsx` — Findings 1 + 2 (payout_log limit, jobs narrow + null filter)
+- `src/app/admin/providers/page.tsx` — Finding 5 (providers narrow + limit)
+- `supabase/migrations/017_task8_query_indexes.sql` — created (3 indexes, applied in Supabase)
+- `supabase/migrations/018_capture_get_nearby_open_requests.sql` — created (RPC capture, applied in Supabase)
+- `DEPLOYMENT_STATUS.md` — migrations 017 + 018 marked ✅, Task 8 marked complete
+- `SESSION_LOG.md` — this update
+
+### Task 8 findings not yet actioned (deferred)
+- Finding 7 — `monthly-allowance-reset` serial UPDATE loop → `Promise.all` or bulk UPDATE. Deferred to Phase 1B cron reliability pass.
+- Finding 8 — `complete/route.ts` 2 sequential reads before RPC → `Promise.all`. Low priority.
+- Finding 9 — `release/route.ts` sequential role+counters reads → `Promise.all`. Low priority.
+- Finding 10 — `get_nearby_open_requests` CROSS JOIN silent empty result when provider offline. Design decision — deferred.
+- Finding 12 — Sequential `users.role` check in admin pages/routes → merge into `Promise.all`. Low priority.
+
+### Phase 1A — now fully complete ✅
+All 8 tasks done. Migrations 001–018 applied.
+
+### Next task: Phase 1B remaining
+- Cron reliability + monitoring (monthly-allowance-reset serial loop — Finding 7 above)
+- `LAUNCH_PROMO` → `NEXT_PUBLIC_LAUNCH_PROMO` env var
+- PPJ fees → configurable server-side
+- Additional DB indexes as identified
+
+### Deferred issues (ongoing)
+- `NEXT_PUBLIC_SITE_URL` — missing from Vercel env vars
+- Storage bucket `provider-documents` — 0 RLS policies (review SETUP.md §4)
+- CSP violations review — report-only has been running since Phase 1
+- Stripe still on test/sandbox keys — live keys before real launch (Phase 10)
+- Phase 1A Task 1 deferred: login sequential role fetch, Navbar duplicated auth, router.refresh() + 1200ms fallback, prefetch all 3 dashboards
+- Phase 1A Task 2 deferred: getViewerState() sequential queries on home page, logout navigates to `/`
+- Phase 1A Task 3 deferred: Finding 5 (provider fallback sequential), Finding 6 (skeleton completeness)
+- Phase 1A Task 7: `removeTracing: true` vs CWV — decision required before enabling `browserTracingIntegration`
+- Phase 1A Task 7: add `server-only` guards to `stripe.ts`, `logger.ts`, `env.ts`, `notifications.ts`, `rate-limit.ts`, `ops-auth.ts` — Phase 1C
+- Phase 1A Task 7: `SUBSCRIPTION_PLANS` defined in 3 places — dedup in cleanup pass
+- Phase 1A Task 7: `LAUNCH_PROMO = true` hardcoded — move to `NEXT_PUBLIC_LAUNCH_PROMO` env var before promo ends
+- `npm uninstall @radix-ui/react-avatar @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-toast react-hook-form @hookform/resolvers date-fns` — safe to run any time
+
+---
+
+## Session: June 5, 2026 (session 2 — VERDENT_HANDOFF.md expanded)
    - **Section 16 — PPJ & Subscription Business Logic (Complete Detail):** Full Stripe webhook event table (all 9 events + handler + action), full RPC signatures with transaction step-by-step contracts (`accept_provider_request_atomic`, `complete_provider_job_atomic`, `get_nearby_open_requests`, `restore_ppj_credit`), per-table RLS matrix (all 12 tables), PPJ payment intent creation steps, overage payment intent creation steps, `PLAN_BY_PRICE_ID` mapping pattern.
    - **Section 17 — AI Agent Rules (mandatory):** Session start/end rules, context management at 90%, commands never-run list, bug reporting format, A-vs-B decision rule, golden rule before file changes.
    - **Section 18 — Deferred Items (exact locations):** 3 high-priority pre-launch items, 6 medium-priority (with exact `file:line` references), 10 low-priority items (with exact `file:line` references) organized by phase.

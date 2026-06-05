@@ -108,6 +108,7 @@
 | 015_ppj_credit_accept_complete_job_fix | ✅ |
 | 016_task4_query_indexes | ✅ |
 | 017_task8_query_indexes | ✅ |
+| 018_capture_get_nearby_open_requests | ✅ |
 
 ---
 
