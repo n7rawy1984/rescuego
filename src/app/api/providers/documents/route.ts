@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getRequestUser } from '@/lib/supabase/request-user'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf'])
@@ -26,6 +27,14 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const rateLimit = await checkRateLimitAsync(`documents-upload:${user.id}`, 5, 60 * 60 * 1000, 'provider_documents_upload')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many upload attempts. Please wait before trying again.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
   }
 
   const admin = createAdminClient()

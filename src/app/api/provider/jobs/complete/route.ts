@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 
 const completeJobSchema = z.object({
   request_id: z.string().uuid(),
@@ -35,6 +36,14 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const rateLimit = await checkRateLimitAsync(`job-complete:${user.id}`, 20, 60 * 60 * 1000, 'provider_job_complete')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many completion attempts. Please wait.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
   }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
