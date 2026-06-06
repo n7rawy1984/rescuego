@@ -49,21 +49,35 @@ type JobLookupRow = {
   completed_at: string | null
 }
 
-type RequestFilter = 'all' | 'open' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
+type RequestFilter = 'all' | 'open' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 
 const REQUEST_FILTERS: { id: RequestFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'open', label: 'Open' },
   { id: 'accepted', label: 'Accepted' },
+  { id: 'en_route', label: 'En Route' },
+  { id: 'arrived', label: 'Arrived' },
   { id: 'in_progress', label: 'In Progress' },
   { id: 'completed', label: 'Completed' },
   { id: 'cancelled', label: 'Cancelled' },
   { id: 'expired', label: 'Expired' },
 ]
 
+const STATUS_LABELS: Record<RequestStatus, string> = {
+  open: 'Open',
+  accepted: 'Accepted',
+  en_route: 'En Route',
+  arrived: 'Arrived',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  expired: 'Expired',
+}
+
 function requestBadgeVariant(status: RequestStatus): 'success' | 'warning' | 'danger' | 'info' | 'default' {
   if (status === 'completed') return 'success'
   if (status === 'open') return 'info'
+  if (status === 'en_route' || status === 'arrived') return 'warning'
   if (status === 'cancelled' || status === 'expired') return 'default'
   return 'warning'
 }
@@ -77,6 +91,9 @@ function lifecycleLabel(request: AdminRequestRow, completedAt: string | null | u
   if (request.status === 'completed') {
     return completedAt ? `Completed ${new Date(completedAt).toLocaleDateString('en-AE')}` : 'Completed'
   }
+  if (request.status === 'en_route') return 'Provider en route'
+  if (request.status === 'arrived') return 'Provider on site'
+  if (request.status === 'in_progress') return 'Job in progress'
   if (request.status === 'open' && !request.accepted_by) return 'Waiting for provider'
   if (request.accepted_by) return 'Provider assigned'
   return 'Unassigned'
@@ -209,7 +226,7 @@ export default async function AdminRequestsPage({
                           </td>
                           <td className="px-5 py-4">
                             <Badge variant={requestBadgeVariant(request.status)}>
-                              {request.status === 'in_progress' ? 'In Progress' : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                              {STATUS_LABELS[request.status]}
                             </Badge>
                           </td>
                           <td className="px-5 py-4 text-slate-600">

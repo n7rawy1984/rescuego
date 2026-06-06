@@ -1,9 +1,22 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import type { Metadata } from 'next'
+
+type StuckJobRow = {
+  request_id: string
+  en_route_at: string | null
+  arrived_at: string | null
+  requests: {
+    id: string
+    status: string
+    problem_type: string
+    location_address: string | null
+  } | null
+}
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - RescueGo',
@@ -18,6 +31,10 @@ export default async function AdminDashboardPage() {
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (!userData || userData.role !== 'admin') redirect('/')
 
+  const admin = createAdminClient()
+  const now = new Date()
+  const stuckCutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()
+
   const [
     { count: totalCustomers },
     { count: totalProviders },
@@ -25,6 +42,10 @@ export default async function AdminDashboardPage() {
     { count: pendingProvidersCount },
     { count: suspendedProvidersCount },
     { count: openRequestsCount },
+    { count: acceptedRequestsCount },
+    { count: enRouteRequestsCount },
+    { count: arrivedRequestsCount },
+    { count: inProgressRequestsCount },
     { count: completedRequestsCount },
     { count: expiredRequestsCount },
     { count: totalRequestsCount },
@@ -33,6 +54,7 @@ export default async function AdminDashboardPage() {
     { count: activeSubscriptions },
     { count: failedStripeEvents },
     { count: failedOveragePayments },
+    { data: stuckJobs },
   ] = await Promise.all([
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'provider'),
@@ -40,6 +62,10 @@ export default async function AdminDashboardPage() {
     supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'suspended'),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'en_route'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'arrived'),
+    supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'in_progress'),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
     supabase.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'expired'),
     supabase.from('requests').select('*', { count: 'exact', head: true }),
@@ -48,12 +74,23 @@ export default async function AdminDashboardPage() {
     supabase.from('providers').select('*', { count: 'exact', head: true }).eq('status', 'active').not('stripe_subscription_id', 'is', null),
     supabase.from('stripe_events').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
     supabase.from('overage_payments').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+    admin
+      .from('jobs')
+      .select('request_id, en_route_at, arrived_at, requests!inner(id, status, problem_type, location_address)')
+      .lt('en_route_at', stuckCutoff)
+      .in('requests.status', ['en_route', 'arrived'])
+      .is('completed_at', null)
+      .returns<StuckJobRow[]>(),
   ])
 
   const activeProviders = activeProvidersCount ?? 0
   const pendingProviders = pendingProvidersCount ?? 0
   const suspendedProviders = suspendedProvidersCount ?? 0
   const openRequests = openRequestsCount ?? 0
+  const acceptedRequests = acceptedRequestsCount ?? 0
+  const enRouteRequests = enRouteRequestsCount ?? 0
+  const arrivedRequests = arrivedRequestsCount ?? 0
+  const inProgressRequests = inProgressRequestsCount ?? 0
   const completedRequests = completedRequestsCount ?? 0
   const expiredRequests = expiredRequestsCount ?? 0
   const totalRequests = totalRequestsCount ?? 0
@@ -101,6 +138,52 @@ export default async function AdminDashboardPage() {
             </a>
           </div>
 
+          {stuckJobs && stuckJobs.length > 0 && (
+            <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <h2 className="text-sm font-bold text-red-900">
+                    Stuck Jobs Alert — {stuckJobs.length} job{stuckJobs.length !== 1 ? 's' : ''} stalled for over 2 hours
+                  </h2>
+                  <p className="mt-1 text-xs text-red-700">
+                    These jobs have been in En Route or Arrived status for more than 2 hours without progressing to completion. Manual review may be required.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {stuckJobs.map((job) => {
+                      const req = job.requests
+                      const staleSince = job.arrived_at ?? job.en_route_at
+                      const staleHours = staleSince
+                        ? Math.floor((now.getTime() - new Date(staleSince).getTime()) / (1000 * 60 * 60))
+                        : null
+                      return (
+                        <a
+                          key={job.request_id}
+                          href={`/admin/requests?filter=${req?.status ?? 'en_route'}`}
+                          className="flex items-center justify-between gap-4 rounded-xl bg-white px-3 py-2 text-sm shadow-sm hover:bg-red-50"
+                        >
+                          <div>
+                            <span className="font-semibold text-slate-800 capitalize">{req?.problem_type?.replaceAll('_', ' ') ?? 'Unknown'}</span>
+                            {req?.location_address && (
+                              <span className="ml-2 text-xs text-slate-500">{req.location_address}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant={req?.status === 'arrived' ? 'warning' : 'info'}>
+                              {req?.status === 'arrived' ? 'Arrived' : 'En Route'}
+                            </Badge>
+                            {staleHours !== null && (
+                              <span className="text-xs font-semibold text-red-700">{staleHours}h stalled</span>
+                            )}
+                          </div>
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { label: 'Total Customers', value: totalCustomers ?? 0, color: 'text-blue-600' },
@@ -146,22 +229,15 @@ export default async function AdminDashboardPage() {
                 <div className="flex flex-col gap-3">
                   {[
                     { label: 'Open', count: openRequests, variant: 'info' as const },
+                    { label: 'Accepted', count: acceptedRequests, variant: 'warning' as const },
+                    { label: 'En Route', count: enRouteRequests, variant: 'warning' as const },
+                    { label: 'Arrived', count: arrivedRequests, variant: 'warning' as const },
+                    { label: 'In Progress', count: inProgressRequests, variant: 'warning' as const },
                     { label: 'Completed', count: completedRequests, variant: 'success' as const },
                     { label: 'Expired', count: expiredRequests, variant: 'default' as const },
-                    {
-                      label: 'Other',
-                      count: totalRequests - openRequests - completedRequests - expiredRequests,
-                      variant: 'default' as const,
-                      description: 'Accepted, in progress, cancelled, and other non-primary states.',
-                    },
                   ].map(item => (
                     <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-3 py-2">
-                      <div>
-                        <Badge variant={item.variant}>{item.label}</Badge>
-                        {'description' in item && item.description ? (
-                          <p className="mt-1 text-xs leading-5 text-slate-500">{item.description}</p>
-                        ) : null}
-                      </div>
+                      <Badge variant={item.variant}>{item.label}</Badge>
                       <span className="font-semibold text-slate-700">{item.count}</span>
                     </div>
                   ))}
@@ -228,6 +304,7 @@ export default async function AdminDashboardPage() {
             <a href="/admin/providers" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Manage Providers</a>
             <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">View All Requests</a>
             <a href="/admin/revenue" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Revenue Log</a>
+            <a href="/admin/performance" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Provider Performance</a>
           </div>
         </div>
       </main>

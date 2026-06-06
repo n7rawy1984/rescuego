@@ -2,6 +2,81 @@
 
 ---
 
+## Session: June 6, 2026 (continued 4) — Deferred items + Phase 4 Provider State Machine
+
+### What was done
+
+1. **Deferred 1 — Stuck webhook event cleanup added to expire-requests cron**
+   - `ops/expire-requests/route.ts`: `Promise.all` now runs request expiry + stuck webhook cleanup in parallel
+   - Stuck `stripe_events` rows (`status = 'processing'` older than 10 min) set to `failed` with explanatory `error_message`
+   - Count logged as `stuck_webhooks_cleared` and returned in response JSON
+
+2. **Deferred 2 — Subscribe page: RLS-gated client → admin client**
+   - `provider/subscribe/page.tsx`: provider plan/status/subscription read switched from `supabase` to `admin` client
+
+3. **Deferred 3 — complete/route.ts sequential pre-flight → Promise.all**
+   - `provider/jobs/complete/route.ts`: `profile` and `request` fetches parallelised; `job` fetch remains sequential
+
+4. **Phase 4 — Provider State Machine**
+
+   **Migration 025** (applied):
+   - `requests_status_check` constraint updated to include `en_route` and `arrived`
+   - `jobs.en_route_at TIMESTAMPTZ` and `jobs.arrived_at TIMESTAMPTZ` columns added
+
+   **New API route** `POST /api/provider/jobs/advance-state`:
+   - Enforces transition table: `accepted→en_route→arrived→in_progress`
+   - Rejects out-of-order transitions with `409`
+   - Writes `en_route_at` / `arrived_at` timestamps to `jobs`
+   - Auth-gated, role-checked, rate-limited (30/hour)
+
+   **New component** `src/components/forms/JobStateAdvanceButton.tsx`:
+   - "On My Way" (blue) — `accepted`
+   - "I've Arrived" (amber) — `en_route`
+   - "Start Job" (green) — `arrived`
+   - `null` — `in_progress` or other states
+
+   **`src/types/database.ts`**: `RequestStatus` extended with `'en_route' | 'arrived'`
+
+   **Provider dashboard** (`src/app/provider/dashboard/page.tsx`):
+   - Active request query now includes `en_route` and `arrived`
+   - `JobStateAdvanceButton` mounted for `accepted/en_route/arrived`
+   - `CompleteJobForm` shown for `arrived` and `in_progress` only
+   - Status badge: `'On The Way'` / `'Arrived'` / `'In Progress'`
+   - `ProviderRealtimeRefresh` active job channel refreshes on all status changes
+
+   **Customer request page** (`src/app/customer/request/page.tsx`):
+   - `ActiveRequest.status` type extended with `en_route | arrived`
+   - Stepper rebuilt with 5 steps: Provider notified → Accepted → On the way (dynamic text) → Pay → Complete
+   - Status badge, header pill, description all reflect new states
+
+   **Customer history page** (`src/app/customer/history/page.tsx`):
+   - `statusColors` and `statusLabels` maps extended with `en_route` and `arrived`
+
+### Files changed
+- `src/app/api/ops/expire-requests/route.ts` — stuck webhook cleanup
+- `src/app/provider/subscribe/page.tsx` — admin client
+- `src/app/api/provider/jobs/complete/route.ts` — Promise.all pre-flight
+- `supabase/migrations/025_provider_state_machine.sql` — created + applied
+- `src/app/api/provider/jobs/advance-state/route.ts` — created
+- `src/components/forms/JobStateAdvanceButton.tsx` — created
+- `src/types/database.ts` — RequestStatus extended
+- `src/app/provider/dashboard/page.tsx` — state machine integration
+- `src/components/provider/ProviderRealtimeRefresh.tsx` — refresh on all active job changes
+- `src/app/customer/request/page.tsx` — stepper + status for new states
+- `src/app/customer/history/page.tsx` — status maps extended
+
+### Deferred issues (updated)
+- Phase 3 Finding 7 — No cron to clear stuck `processing` webhook events ✅ RESOLVED
+- Phase 3 Finding 8 — Subscribe page RLS-gated client ✅ RESOLVED
+- Phase 1B Task 5 Finding 4 — complete/route.ts sequential pre-flight ✅ RESOLVED
+- `NEXT_PUBLIC_LAUNCH_PROMO=true` — add to Vercel if promo should be active
+- `removeTracing: true` vs CWV capture — decision required
+- Deprecated Supabase edge functions — manual verification in Supabase dashboard
+- Phase 4B (roadmap) — Admin Operations Center ← NEXT
+- Phase 2B (roadmap) — RTL & Arabic Foundation
+
+---
+
 ## Session: June 6, 2026 (continued 3) — Phase 3 Realtime & Notifications
 
 ### What was done
