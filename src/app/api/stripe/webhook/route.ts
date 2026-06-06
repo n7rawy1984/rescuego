@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireEnv } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { notificationEvents } from '@/lib/notifications'
+import { SUBSCRIPTION_PLANS } from '@/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
 import type { ProviderPlan } from '@/types'
@@ -188,9 +189,8 @@ function planTier(plan: ProviderPlan | null): number {
 }
 
 function monthlyJobAllowance(plan: ProviderPlan | null): number | null {
-  if (plan === 'starter') return 15
-  if (plan === 'pro') return 35
-  return null
+  const entry = SUBSCRIPTION_PLANS.find((p) => p.id === plan)
+  return entry?.monthly_jobs ?? null
 }
 
 function getSubscriptionItemPriceIds(subscription: Stripe.Subscription): string[] {
@@ -550,6 +550,7 @@ async function processStripeEvent(
       .from('providers')
       .update({
         status: 'suspended',
+        plan: 'pay_per_job',
         stripe_subscription_id: null,
         stripe_current_period_start: null,
         stripe_current_period_end: null,

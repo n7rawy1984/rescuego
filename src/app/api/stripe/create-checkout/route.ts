@@ -5,6 +5,7 @@ import { getRequestUser } from '@/lib/supabase/request-user'
 import { getAppUrl } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
+import { SUBSCRIPTION_PLANS } from '@/types'
 import type { ProviderPlan } from '@/types'
 
 const PLAN_PRICE_IDS: Record<Exclude<ProviderPlan, 'pay_per_job'>, string | undefined> = {
@@ -13,8 +14,11 @@ const PLAN_PRICE_IDS: Record<Exclude<ProviderPlan, 'pay_per_job'>, string | unde
   business: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID ?? '',
 }
 
-const SUBSCRIPTION_PLANS = ['starter', 'pro', 'business'] as const
-type SubscriptionPlan = (typeof SUBSCRIPTION_PLANS)[number]
+type SubscriptionPlan = Exclude<ProviderPlan, 'pay_per_job'>
+
+const SUBSCRIPTION_PLAN_IDS = SUBSCRIPTION_PLANS
+  .filter((p) => p.id !== 'pay_per_job')
+  .map((p) => p.id) as SubscriptionPlan[]
 
 type CheckoutRequestBody = {
   plan?: unknown
@@ -31,7 +35,7 @@ type ProviderBillingRow = {
 }
 
 function isSubscriptionPlan(plan: unknown): plan is SubscriptionPlan {
-  return typeof plan === 'string' && SUBSCRIPTION_PLANS.includes(plan as SubscriptionPlan)
+  return typeof plan === 'string' && SUBSCRIPTION_PLAN_IDS.includes(plan as SubscriptionPlan)
 }
 
 export async function POST(req: NextRequest) {
