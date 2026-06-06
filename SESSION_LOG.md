@@ -2,6 +2,99 @@
 
 ---
 
+## Session: June 6, 2026 — Phases 2A, 2B, 2C, 1D, 3, 4 complete
+
+### What was done
+
+1. **Phase 2A Task 4 — `/provider/ratings` page** (`src/app/provider/ratings/page.tsx`)
+   - Auth-gated server component. Fetches last 50 ratings via admin client.
+   - Aggregate card: average score, filled/empty star row, per-star breakdown bar chart.
+   - Rating list: problem type label, stars, comment, date. Empty state with icon.
+
+2. **Phase 2A Task 5 — `/provider/plan` page** (`src/app/provider/plan/page.tsx`)
+   - Current plan card: plan name, promo-aware price, feature list (job limit, overage, commission, queue priority).
+   - Monthly usage card (subscription plans only): jobs used/remaining, colour-coded progress bar, overage warning.
+   - Recovery credits card (PPJ only): shown when `ppj_recovery_credits > 0`.
+   - Plan actions card: upgrade link, Stripe billing portal link (when `stripe_subscription_id` present), support email.
+   - `ProviderDashboardHeader.tsx`: plan badge converted to `<Link href="/provider/plan">`.
+
+3. **Phase 2B — Customer-Facing UI Polish (5 changes):**
+   - 2B-1: `customer/request/page.tsx` — status badge: `replace('_',' ')` → explicit human labels.
+   - 2B-2: Step 4 "Service complete" added to request progress stepper.
+   - 2B-3: Cancel dialog copy includes provider name when available (`visibleRequest.provider_name`).
+   - 2B-4: `customer/history/page.tsx` — open/accepted/in_progress rows get "View active →" link to `/customer/request`.
+   - 2B-5: "Needs rating" static badge → `<Link href="/customer/ratings">Rate now</Link>`.
+
+4. **Phase 2C — Admin Dashboard Hardening (5 changes):**
+   - 2C-1: `admin/requests/page.tsx` — status badge casing fixed (`in progress` → `In Progress`).
+   - 2C-2: `admin/dashboard/page.tsx` — admin role check moved before `Promise.all`; non-admins no longer trigger 14 DB queries.
+   - 2C-3: `admin/providers/page.tsx` — filter tabs now show count badges per status; badge inverts on active tab.
+   - 2C-4: `admin/requests/page.tsx` — full rewrite with status filter tabs (All/Open/Accepted/In Progress/Completed/Cancelled/Expired); DB query scoped by filter.
+   - 2C-5: `admin/revenue/page.tsx` — `commission_amount` display corrected (removed erroneous `/ 100`).
+
+5. **Phase 1D — Server-Only Guards & Code Hygiene:**
+   - `server-only` package installed.
+   - `import 'server-only'` added to: `supabase/admin.ts`, `supabase/server.ts`, `ops-auth.ts`, `stripe.ts`, `rate-limit.ts`.
+   - `env.ts` — `NEXT_PUBLIC_SITE_URL` advisory `console.warn` added for production when unset.
+
+6. **Phase 3 — Stripe Billing Hardening (Findings 1–4):**
+   - Finding 1: `customer.subscription.deleted` webhook now resets `plan: 'pay_per_job'` (previously left stale plan on suspended provider).
+   - Finding 2: `monthlyJobAllowance()` in webhook replaced with canonical `SUBSCRIPTION_PLANS` lookup (no more hardcoded `starter=15, pro=35`).
+   - Finding 3: Local `SUBSCRIPTION_PLANS = ['starter','pro','business']` redefinition in `create-checkout/route.ts` removed; replaced with `SUBSCRIPTION_PLAN_IDS` derived from canonical source.
+   - Finding 4: `SERVER_REQUIRED_ENVS` in `env.ts` extended with `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` + 3 price ID env vars — missing any now throws at startup.
+
+7. **Phase 4 — Performance & Observability:**
+   - 4-1: `loading.tsx` skeletons created for all 4 new provider pages: `history`, `pending`, `plan`, `ratings`.
+   - 4-2: `providers/documents` upload route rate-limited: 5 attempts/hour per provider; `429` + `Retry-After` on breach.
+   - 4-3: Rate limiting added to `providers/plan` (10/hour) and `provider/jobs/complete` (20/hour).
+
+### Files changed
+- `src/app/provider/ratings/page.tsx` — created
+- `src/app/provider/ratings/loading.tsx` — created
+- `src/app/provider/plan/page.tsx` — created
+- `src/app/provider/plan/loading.tsx` — created
+- `src/app/provider/history/loading.tsx` — created
+- `src/app/provider/pending/loading.tsx` — created
+- `src/components/provider/dashboard/ProviderDashboardHeader.tsx` — plan badge → Link
+- `src/app/customer/request/page.tsx` — status badge, stepper step 4, cancel dialog copy
+- `src/app/customer/history/page.tsx` — active request link, rate now link
+- `src/app/admin/requests/page.tsx` — badge casing fix + full rewrite with status filter tabs
+- `src/app/admin/dashboard/page.tsx` — role check before Promise.all
+- `src/app/admin/providers/page.tsx` — count badges on filter tabs
+- `src/app/admin/revenue/page.tsx` — commission_amount divide-by-100 fix
+- `src/lib/supabase/admin.ts` — `import 'server-only'`
+- `src/lib/supabase/server.ts` — `import 'server-only'`
+- `src/lib/ops-auth.ts` — `import 'server-only'`
+- `src/lib/stripe.ts` — `import 'server-only'`
+- `src/lib/rate-limit.ts` — `import 'server-only'`
+- `src/lib/env.ts` — NEXT_PUBLIC_SITE_URL warning + Stripe price IDs in SERVER_REQUIRED_ENVS
+- `src/app/api/stripe/webhook/route.ts` — plan reset on deletion + SUBSCRIPTION_PLANS import + monthlyJobAllowance fix
+- `src/app/api/stripe/create-checkout/route.ts` — canonical SUBSCRIPTION_PLAN_IDS
+- `src/app/api/providers/documents/route.ts` — rate limiting (5/hour)
+- `src/app/api/providers/plan/route.ts` — rate limiting (10/hour)
+- `src/app/api/provider/jobs/complete/route.ts` — rate limiting (20/hour)
+
+### Deferred issues (ongoing)
+- Storage bucket `provider-documents` — 0 RLS policies
+- `NEXT_PUBLIC_SITE_URL` — missing from Vercel env vars
+- Phase 3 Finding 5 — PPJ distance always 0 on first checkout (under-charge bug)
+- Phase 3 Finding 6 — Payment pages have no client_secret re-fetch fallback
+- Phase 3 Finding 7 — No cron to clear stuck `processing` webhook events
+- Phase 3 Finding 8 — Subscribe page uses RLS-gated client for plan read (consistency)
+- Phase 1A deferred: login sequential role fetch, Navbar duplicated auth, router.refresh() 1200ms, prefetch all dashboards
+- Phase 1A deferred: getViewerState() sequential queries, logout navigates to `/`
+- `removeTracing: true` vs CWV capture — decision required
+- `npm uninstall` 12 dead dependencies — safe to run any time
+
+### New env vars required in Vercel (additions from this session)
+- `NEXT_PUBLIC_SUPPORT_EMAIL=support@rescuego.ae`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — already needed, now validated at startup
+- `NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID` — now validated at startup
+- `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` — now validated at startup
+- `NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID` — now validated at startup
+
+---
+
 ## Session: June 5, 2026 — Phase 1B + 1C complete
 
 ### What was done
