@@ -446,6 +446,27 @@ async function processStripeEvent(
   if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
     const sub = event.data.object as Stripe.Subscription
     const stripeCustomerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
+
+    if (sub.status === 'canceled') {
+      const { error } = await supabase
+        .from('providers')
+        .update({
+          status: 'suspended',
+          plan: 'pay_per_job',
+          stripe_subscription_id: null,
+          stripe_current_period_start: null,
+          stripe_current_period_end: null,
+        })
+        .eq('stripe_customer_id', stripeCustomerId)
+      throwIfError(error, 'Failed to handle canceled subscription in updated event')
+      logger.info({
+        event: 'stripe_subscription_canceled_via_updated',
+        stripe_subscription_id: sub.id,
+        stripe_customer_id: stripeCustomerId,
+      })
+      return
+    }
+
     const status = sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'suspended' : 'pending'
     const resolvedPlan = resolveSubscriptionPlan(sub)
     const subscriptionWithPeriod = sub as Stripe.Subscription & {
