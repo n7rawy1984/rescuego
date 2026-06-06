@@ -6,6 +6,7 @@ import { getStripe } from '@/lib/stripe'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { getPayPerJobFee } from '@/lib/utils'
+import { distanceMeters } from '@/lib/geo'
 import { LAUNCH_PROMO, PROVIDER_STALE_MINUTES } from '@/types'
 
 const schema = z.object({ request_id: z.string().uuid() })
@@ -22,7 +23,10 @@ type ProviderBillingRow = {
 type RequestRow = {
   id: string
   status: string
+  location: { coordinates?: number[] } | null
 }
+
+type GeoPoint = { coordinates?: number[] } | null
 
 type PpjPaymentRow = {
   id: string
@@ -86,10 +90,10 @@ export async function POST(req: NextRequest) {
   const onlineSince = new Date(Date.now() - PROVIDER_STALE_MINUTES * 60 * 1000).toISOString()
   const { data: providerLocation } = await admin
     .from('provider_locations')
-    .select('provider_id')
+    .select('provider_id, location')
     .eq('provider_id', user.id)
     .gte('updated_at', onlineSince)
-    .maybeSingle()
+    .maybeSingle<{ provider_id: string; location: GeoPoint }>()
 
   if (!providerLocation) {
     return NextResponse.json({ error: 'Go online before accepting requests.' }, { status: 403 })
@@ -109,7 +113,7 @@ export async function POST(req: NextRequest) {
 
   const { data: request } = await admin
     .from('requests')
-    .select('id, status')
+    .select('id, status, location')
     .eq('id', parsed.data.request_id)
     .eq('status', 'open')
     .single<RequestRow>()
@@ -125,8 +129,37 @@ export async function POST(req: NextRequest) {
     .eq('provider_id', user.id)
     .maybeSingle<PpjPaymentRow>()
 
-  const distanceMeters = existing?.distance_meters ?? 0
-  const feeAed = getPayPerJobFee(distanceMeters)
+  function parseGeoPoint(pt: GeoPoint): { lat: number; lng: number } | null {
+    const coords = pt?.coordinates
+    if (!Array.isArray(coords) || coords.length < 2) return null
+    const lng = Number(coords[0])
+    const lat = Number(coords[1])
+    if (!isFinite(lat) || !isFinite(lng)) return null
+    return { lat, lng }
+  }
+
+  let calculatedDistance: number
+  if (existing?.distance_meters != null) {
+    calculatedDistance = existing.distance_meters
+  } else {
+    const provCoords = parseGeoPoint(providerLocation.location)
+    const reqCoords = parseGeoPoint(request.location)
+    if (provCoords && reqCoords) {
+      calculatedDistance = Math.round(distanceMeters(provCoords, reqCoords))
+    } else {
+      calculatedDistance = 0
+      logger.warn({
+        event: 'ppj_checkout_distance_calculation_failed',
+        provider_id: user.id,
+        request_id: parsed.data.request_id,
+        provider_location_parsed: Boolean(provCoords),
+        request_location_parsed: Boolean(reqCoords),
+      })
+    }
+  }
+
+  const distanceM = calculatedDistance
+  const feeAed = getPayPerJobFee(distanceM)
 
   if ((provider.ppj_recovery_credits ?? 0) > 0) {
     const { data: acceptedRows, error: acceptError } = await admin.rpc('accept_provider_request_atomic', {
@@ -206,7 +239,7 @@ export async function POST(req: NextRequest) {
       provider_id: user.id,
       request_id: parsed.data.request_id,
       fee_type: 'pay_per_job',
-      distance_meters: String(distanceMeters),
+      distance_meters: String(distanceM),
       promo_applied: String(LAUNCH_PROMO),
     },
     description: `RescueGo Pay Per Job - ${feeAed} AED acceptance fee${LAUNCH_PROMO ? ' (promo)' : ''}`,
@@ -228,7 +261,7 @@ export async function POST(req: NextRequest) {
       provider_id: user.id,
       request_id: parsed.data.request_id,
       fee_aed: feeAed,
-      distance_meters: distanceMeters,
+      distance_meters: distanceM,
       stripe_payment_intent_id: paymentIntent.id,
       status: 'pending',
       promo_applied: LAUNCH_PROMO,
