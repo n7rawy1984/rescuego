@@ -19,6 +19,7 @@ import ProviderStatsGrid from '@/components/provider/dashboard/ProviderStatsGrid
 import ProviderUpgradeNotice from '@/components/provider/dashboard/ProviderUpgradeNotice'
 import ProviderRecentActivitySection from '@/components/provider/dashboard/ProviderRecentActivitySection'
 import LocationActions from '@/components/provider/LocationActions'
+import ProviderRealtimeRefresh from '@/components/provider/ProviderRealtimeRefresh'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
@@ -488,6 +489,14 @@ export default async function ProviderDashboardPage({
             verified={provider.verified_badge}
             hasRecentJobs={Boolean(recentJobs?.length)}
           />
+
+          {/* REALTIME REFRESH */}
+          {operationalReady && (
+            <ProviderRealtimeRefresh
+              providerId={user.id}
+              activeRequestId={activeRequest?.id ?? null}
+            />
+          )}
 
           {/* OPERATIONAL READY NOTICE */}
           {operationalReady && (

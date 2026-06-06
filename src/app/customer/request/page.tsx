@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input'
 import RatingForm from '@/components/forms/RatingForm'
 import { roundDispatchCoordinate } from '@/lib/geo'
 import { getProblemLabel } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import type { ProblemType, RequestStatus } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
@@ -159,7 +160,7 @@ export default function RequestPage() {
   useEffect(() => {
     if (!activeRequest || completedUnratedRequest) return
 
-    const pollMs = activeRequest.status === 'open' ? 20000 : 12000
+    const pollMs = 60000
     const interval = window.setInterval(() => {
       void loadRequestState().catch(() => undefined)
     }, pollMs)
@@ -168,6 +169,39 @@ export default function RequestPage() {
       window.clearInterval(interval)
     }
   }, [activeRequest, completedUnratedRequest, loadRequestState])
+
+  useEffect(() => {
+    if (!activeRequest?.id) return
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`request-status:${activeRequest.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'requests',
+          filter: `id=eq.${activeRequest.id}`,
+        },
+        (payload) => {
+          if (!mountedRef.current) return
+          const updated = payload.new as Record<string, unknown>
+          const newStatus = updated.status as RequestStatus | undefined
+          if (!newStatus) return
+          if (newStatus === 'cancelled' || newStatus === 'expired' || newStatus === 'completed') {
+            void loadRequestState().catch(() => undefined)
+            return
+          }
+          setActiveRequest((prev) => prev ? { ...prev, ...(updated as Partial<ActiveRequest>) } : prev)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [activeRequest?.id, loadRequestState])
 
   useEffect(() => {
     if (!activeRequest && !completedUnratedRequest) return
