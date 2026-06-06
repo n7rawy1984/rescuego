@@ -56,4 +56,8 @@ export function validateEnv(): void {
       '[RescueGo] OPS_CRON_SECRET must be at least 32 characters. Generate one with: openssl rand -hex 32'
     )
   }
+
+  if (!process.env.NEXT_PUBLIC_SITE_URL && process.env.NODE_ENV === 'production') {
+    console.warn('[RescueGo] NEXT_PUBLIC_SITE_URL is not set. Password reset emails will use window.location.origin as fallback.')
+  }
 }
