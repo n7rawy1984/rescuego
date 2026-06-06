@@ -46,17 +46,19 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const admin = createAdminClient()
+
+  const [
+    { data: profile },
+    { data: request },
+  ] = await Promise.all([
+    supabase.from('users').select('role').eq('id', user.id).single(),
+    admin.from('requests').select('id, accepted_by, status').eq('id', parsed.data.request_id).single(),
+  ])
+
   if (profile?.role !== 'provider') {
     return NextResponse.json({ error: 'Only providers can complete jobs' }, { status: 403 })
   }
-
-  const admin = createAdminClient()
-  const { data: request } = await admin
-    .from('requests')
-    .select('id, accepted_by, status')
-    .eq('id', parsed.data.request_id)
-    .single()
 
   if (!request || request.accepted_by !== user.id || !['accepted', 'in_progress'].includes(request.status)) {
     return NextResponse.json({ error: 'Job is not available for completion' }, { status: 409 })

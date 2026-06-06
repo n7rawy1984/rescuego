@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import SubscribePlans from './SubscribePlans'
 import type { ProviderPlan, UserRole } from '@/types'
 
@@ -48,7 +49,8 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
     redirect('/provider/register')
   }
 
-  const { data: provider } = await supabase
+  const admin = createAdminClient()
+  const { data: provider } = await admin
     .from('providers')
     .select('plan, status, stripe_subscription_id')
     .eq('id', user.id)
