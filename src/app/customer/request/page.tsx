@@ -30,7 +30,7 @@ type ActiveRequest = {
   problem_type: ProblemType
   location_address: string | null
   note: string | null
-  status: Extract<RequestStatus, 'open' | 'accepted' | 'in_progress'>
+  status: Extract<RequestStatus, 'open' | 'accepted' | 'en_route' | 'arrived' | 'in_progress'>
   accepted_by: string | null
   provider_name?: string | null
   provider_phone?: string | null
@@ -520,7 +520,11 @@ export default function RequestPage() {
       ? 'Your request is live and visible to nearby providers.'
       : visibleRequest.status === 'accepted'
         ? 'A provider accepted your request and will contact you directly.'
-        : 'Your recovery service is currently in progress.'
+        : visibleRequest.status === 'en_route'
+          ? 'Your provider is on the way to your location.'
+          : visibleRequest.status === 'arrived'
+            ? 'Your provider has arrived at your location.'
+            : 'Your recovery service is currently in progress.'
 
     return (
       <>
@@ -538,7 +542,10 @@ export default function RequestPage() {
                 </div>
                 <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#0F6E56]">
                   <span className="h-2 w-2 rounded-full bg-[#1D9E75]" aria-hidden="true" />
-                  {isOpen ? 'Searching for provider' : 'Provider assigned'}
+                  {isOpen ? 'Searching for provider'
+                    : visibleRequest.status === 'en_route' ? 'Provider on the way'
+                    : visibleRequest.status === 'arrived' ? 'Provider arrived'
+                    : 'Provider assigned'}
                 </div>
                 <h1 className="text-2xl font-semibold text-slate-950">{title}</h1>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{description}</p>
@@ -585,7 +592,11 @@ export default function RequestPage() {
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-950">Request progress</h2>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                    {visibleRequest.status === 'in_progress' ? 'In Progress' : visibleRequest.status === 'accepted' ? 'Accepted' : 'Open'}
+                    {visibleRequest.status === 'in_progress' ? 'In Progress'
+                      : visibleRequest.status === 'arrived' ? 'Provider Arrived'
+                      : visibleRequest.status === 'en_route' ? 'On The Way'
+                      : visibleRequest.status === 'accepted' ? 'Accepted'
+                      : 'Open'}
                   </span>
                 </div>
                 <div className="space-y-4">
@@ -597,21 +608,30 @@ export default function RequestPage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${visibleRequest.status === 'accepted' || visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${['accepted','en_route','arrived','in_progress'].includes(visibleRequest.status) ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Provider accepts</p>
                     <p className="text-xs text-slate-500">You&apos;ll receive a call from the provider directly</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${['en_route','arrived','in_progress'].includes(visibleRequest.status) ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Provider on the way</p>
+                    <p className="text-xs text-slate-500">
+                      {visibleRequest.status === 'arrived' ? 'Your provider has arrived at your location.' : visibleRequest.status === 'en_route' ? 'Your provider is heading to your location now.' : 'Provider will head to your location after accepting.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>4</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Pay provider directly</p>
                     <p className="text-xs text-slate-500">Cash or card. RescueGo never charges drivers.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-500">4</div>
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-500">5</div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Service complete</p>
                     <p className="text-xs text-slate-500">Rate your provider to keep RescueGo quality high.</p>

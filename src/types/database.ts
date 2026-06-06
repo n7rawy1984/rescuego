@@ -1,7 +1,7 @@
 export type UserRole = 'customer' | 'provider' | 'admin'
 export type ProviderPlan = 'starter' | 'pro' | 'business' | 'pay_per_job'
 export type ProviderStatus = 'pending' | 'active' | 'suspended'
-export type RequestStatus = 'open' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
+export type RequestStatus = 'open' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 export type ProblemType = 'flat_tire' | 'battery' | 'tow' | 'other'
 
 export interface User {

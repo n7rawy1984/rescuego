@@ -31,6 +31,8 @@ type HistoryJobRow = {
 const statusColors: Record<RequestStatus, string> = {
   open: 'border-blue-100 bg-blue-50 text-blue-700',
   accepted: 'border-[#9FE1CB] bg-[#E1F5EE] text-[#0F6E56]',
+  en_route: 'border-blue-100 bg-blue-50 text-blue-700',
+  arrived: 'border-amber-100 bg-amber-50 text-amber-700',
   in_progress: 'border-amber-100 bg-amber-50 text-amber-700',
   completed: 'border-[#9FE1CB] bg-[#E1F5EE] text-[#0F6E56]',
   cancelled: 'border-slate-200 bg-slate-100 text-slate-600',
@@ -40,7 +42,9 @@ const statusColors: Record<RequestStatus, string> = {
 const statusLabels: Record<RequestStatus, string> = {
   open: 'Open',
   accepted: 'Accepted',
-  in_progress: 'In progress',
+  en_route: 'On The Way',
+  arrived: 'Arrived',
+  in_progress: 'In Progress',
   completed: 'Completed',
   cancelled: 'Cancelled',
   expired: 'Expired',

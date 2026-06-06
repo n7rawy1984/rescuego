@@ -20,6 +20,7 @@ import ProviderUpgradeNotice from '@/components/provider/dashboard/ProviderUpgra
 import ProviderRecentActivitySection from '@/components/provider/dashboard/ProviderRecentActivitySection'
 import LocationActions from '@/components/provider/LocationActions'
 import ProviderRealtimeRefresh from '@/components/provider/ProviderRealtimeRefresh'
+import JobStateAdvanceButton from '@/components/forms/JobStateAdvanceButton'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
@@ -239,7 +240,7 @@ export default async function ProviderDashboardPage({
         .from('requests')
         .select('*')
         .eq('accepted_by', user.id)
-        .in('status', ['accepted', 'in_progress'])
+        .in('status', ['accepted', 'en_route', 'arrived', 'in_progress'])
         .maybeSingle<DashboardRequestRow>()
       : Promise.resolve({ data: null, error: null }),
     operationalReady
@@ -755,11 +756,22 @@ export default async function ProviderDashboardPage({
                         )}
                       </div>
                       <Badge variant="warning" className="w-fit">
-                        {activeRequest.status === 'in_progress' ? 'In Progress' : 'Accepted'}
+                        {activeRequest.status === 'in_progress' ? 'In Progress'
+                          : activeRequest.status === 'arrived' ? 'Arrived'
+                          : activeRequest.status === 'en_route' ? 'On The Way'
+                          : 'Accepted'}
                       </Badge>
                     </div>
-                    <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
-                      <CompleteJobForm requestId={activeRequest.id} />
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {(['accepted', 'en_route', 'arrived'] as const).includes(activeRequest.status as 'accepted' | 'en_route' | 'arrived') && (
+                        <JobStateAdvanceButton
+                          requestId={activeRequest.id}
+                          currentStatus={activeRequest.status}
+                        />
+                      )}
+                      {(activeRequest.status === 'in_progress' || activeRequest.status === 'arrived') && (
+                        <CompleteJobForm requestId={activeRequest.id} />
+                      )}
                       <ReleaseJobButton requestId={activeRequest.id} providerPlan={provider.plan} />
                     </div>
                   </CardBody>

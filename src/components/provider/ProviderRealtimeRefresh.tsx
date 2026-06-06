@@ -71,9 +71,8 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
         },
         (payload) => {
           const updated = payload.new as { status?: string }
-          if (updated.status === 'cancelled' || updated.status === 'completed' || updated.status === 'expired') {
-            scheduleRefresh()
-          }
+          if (!updated.status) return
+          scheduleRefresh()
         }
       )
       .subscribe()
