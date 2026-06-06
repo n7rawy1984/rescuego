@@ -228,3 +228,5 @@ Return:
 6. Validation — user يشغله من terminal
 7. Return محدد
 8. لو في شك → defer مش implement
+---
+
