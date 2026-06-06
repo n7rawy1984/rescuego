@@ -12,12 +12,12 @@ function PpjPayContent() {
   const fee = params.get('fee')
   const [clientSecret, setClientSecret] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    window.setTimeout(() => {
-      if (cancelled) return
 
+    async function init() {
       if (!requestId) {
         setLoading(false)
         return
@@ -33,17 +33,44 @@ function PpjPayContent() {
       try {
         const raw = window.sessionStorage.getItem(`rescuego:ppj-payment:${requestId}`)
         const parsed = raw ? JSON.parse(raw) as { client_secret?: string } : null
-        setClientSecret(parsed?.client_secret ?? '')
-      } catch {
-        setClientSecret('')
-      } finally {
-        setLoading(false)
-      }
-    }, 0)
+        const cached = parsed?.client_secret ?? ''
 
-    return () => {
-      cancelled = true
+        if (cached) {
+          if (!cancelled) setClientSecret(cached)
+          return
+        }
+
+        const res = await fetch('/api/provider/ppj-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ request_id: requestId }),
+        })
+        const data = await res.json()
+
+        if (!cancelled) {
+          if (res.ok && data.client_secret) {
+            try {
+              window.sessionStorage.setItem(
+                `rescuego:ppj-payment:${requestId}`,
+                JSON.stringify({ client_secret: data.client_secret })
+              )
+            } catch {}
+            setClientSecret(data.client_secret)
+          } else if (data.credit_applied) {
+            window.location.href = '/provider/dashboard?payment=credit_applied'
+          } else {
+            setError(data.error ?? 'This payment session is no longer valid.')
+          }
+        }
+      } catch {
+        if (!cancelled) setError('Could not load payment session. Please go back and try again.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
+
+    window.setTimeout(() => { init() }, 0)
+    return () => { cancelled = true }
   }, [requestId])
 
   if (loading) {
@@ -56,11 +83,17 @@ function PpjPayContent() {
     )
   }
 
-  if (!clientSecret || !requestId) {
+  if (error || !clientSecret || !requestId) {
     return (
       <div className="mx-auto max-w-md rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
-        <p className="font-semibold text-red-600">Invalid or expired payment session.</p>
-        <p className="mt-1 text-sm text-slate-500">Please go back to the dashboard and try again.</p>
+        <p className="font-semibold text-red-600">{error ?? 'Invalid or expired payment session.'}</p>
+        <p className="mt-2 text-sm text-slate-500">Please go back to the dashboard and try again.</p>
+        <a
+          href="/provider/dashboard"
+          className="mt-4 inline-flex min-h-10 items-center justify-center rounded-xl border border-[#DDE7EE] px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+        >
+          Back to Dashboard
+        </a>
       </div>
     )
   }
