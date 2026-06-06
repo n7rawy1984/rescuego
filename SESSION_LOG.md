@@ -2,6 +2,49 @@
 
 ---
 
+## Session: June 6, 2026 (continued) — Bugs, Phase 3 Finding 6, proxy fix
+
+### What was done
+
+1. **Bug fix — `subscription.updated` race condition overwrites `pay_per_job` reset**
+   - Root cause: Stripe fires `customer.subscription.updated` with `status: canceled` before (and sometimes after) `customer.subscription.deleted`. The `updated` handler was resolving the plan name and writing it back, overwriting the `pay_per_job` reset written by the `deleted` handler when events arrive out of order.
+   - Fix: added `sub.status === 'canceled'` early-return guard at the top of the `subscription.created/updated` handler. When status is `canceled`, applies identical reset payload (`suspended`, `pay_per_job`, nulled subscription fields) and returns before any plan-resolution logic runs.
+   - File: `src/app/api/stripe/webhook/route.ts`
+
+2. **Bug fix — `/provider/register` redirected unauthenticated users to login**
+   - Root cause: `proxy.ts` — `PROTECTED_PREFIXES` includes `'/provider'`; `/provider/register`.startsWith(`'/provider'`) → true → unauthenticated users redirected to `/auth/login`.
+   - Fix: added `PUBLIC_OVERRIDES` list (`/provider/register`, `/provider/subscribe`) checked before `isProtected`. `isProtected` short-circuits to `false` when pathname matches any override.
+   - File: `src/proxy.ts`
+
+3. **Phase 3 Finding 5 — PPJ distance always `0` on first checkout (under-charge bug)**
+   - Root cause: `ppj-checkout/route.ts` used `existing?.distance_meters ?? 0` — no existing row on first attempt → `getPayPerJobFee(0)` always returned near fee.
+   - Fix: `distanceMeters` imported from `@/lib/geo`. Provider location fetch now selects `location` column. Request fetch now selects `location` column. Live Haversine distance calculated from both GeoJSON `coordinates` arrays. Falls back to `0` with `logger.warn` only if geometry is unparseable. Existing row reused on retry (idempotent).
+   - File: `src/app/api/provider/ppj-checkout/route.ts`
+
+4. **Phase 3 Finding 6 — Payment pages `client_secret` re-fetch fallback**
+   - Root cause: both `ppj-pay` and `overage-pay` pages read `client_secret` from `sessionStorage` only — no recovery if storage cleared, new tab opened, or page refreshed.
+   - Fix: both pages now fall through to a `fetch()` POST to the checkout API when `sessionStorage` miss. API reuses existing live `PaymentIntent` (already idempotent). Secret written back to `sessionStorage`. Specific error messages from API surfaced in error state. "Back to Dashboard" button added to error state. PPJ page also handles `credit_applied` response → redirects to `/provider/dashboard?payment=credit_applied`.
+   - Files: `src/app/provider/ppj-pay/page.tsx`, `src/app/provider/overage-pay/page.tsx`
+
+### Files changed
+- `src/app/api/stripe/webhook/route.ts` — `subscription.updated` canceled guard
+- `src/proxy.ts` — `PUBLIC_OVERRIDES` list, `isProtected` guard
+- `src/app/api/provider/ppj-checkout/route.ts` — live distance calculation
+- `src/app/provider/ppj-pay/page.tsx` — re-fetch fallback
+- `src/app/provider/overage-pay/page.tsx` — re-fetch fallback
+
+### Deferred issues (updated)
+- Phase 3 Finding 7 — No cron to clear stuck `processing` webhook events (low priority)
+- Phase 3 Finding 8 — Subscribe page uses RLS-gated client for plan read (consistency, low priority)
+- Phase 1B Task 5 Finding 5 — overage TOCTOU in `accept/route.ts`
+- Phase 1B Task 5 Finding 4 — complete/route.ts sequential pre-flight → Promise.all
+- Storage bucket `provider-documents` — 0 RLS policies (requires migration)
+- `NEXT_PUBLIC_SITE_URL` — missing from Vercel env vars
+- `removeTracing: true` vs CWV capture — decision required
+- `npm uninstall` 12 dead dependencies — safe to run any time
+
+---
+
 ## Session: June 6, 2026 — Phases 2A, 2B, 2C, 1D, 3, 4 complete
 
 ### What was done
