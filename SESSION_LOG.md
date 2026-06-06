@@ -2,6 +2,49 @@
 
 ---
 
+## Session: June 6, 2026 (continued 3) — Phase 3 Realtime & Notifications
+
+### What was done
+
+1. **Phase 3 Task 3-1 — Customer request page realtime subscription**
+   - `createClient` from `@/lib/supabase/client` imported into `customer/request/page.tsx`
+   - New `useEffect` subscribes to `postgres_changes` UPDATE on `requests` filtered by `id=eq.{activeRequest.id}`
+   - On terminal status (`cancelled/expired/completed`) → calls `loadRequestState()` for full reload
+   - On live status changes (`open→accepted`, `accepted→in_progress`) → merges payload directly into `activeRequest` state (instant update, no round-trip, preserves form state)
+   - Existing poll interval raised from 20s/12s → 60s (heartbeat fallback only)
+   - Channel unsubscribed on cleanup
+   - File: `src/app/customer/request/page.tsx`
+
+2. **Phase 3 Task 3-2 — `ProviderRealtimeRefresh` null component (new)**
+   - `'use client'` null component (`return null`) — purely side-effect
+   - Channel 1: subscribes to INSERT + UPDATE on `requests` where `status=eq.open` → calls `router.refresh()` after 3s debounce when new open requests appear
+   - Channel 2: subscribes to UPDATE on `requests` where `id=eq.{activeRequestId}` → calls `router.refresh()` when active job is cancelled/completed/expired
+   - Both channels and debounce timer cleaned up on unmount
+   - File: `src/components/provider/ProviderRealtimeRefresh.tsx` (new, 84 lines)
+
+3. **Phase 3 Task 3-3 — Mount `ProviderRealtimeRefresh` in provider dashboard**
+   - Component imported and mounted inside `operationalReady` block
+   - Passes `providerId={user.id}` and `activeRequestId={activeRequest?.id ?? null}`
+   - File: `src/app/provider/dashboard/page.tsx`
+
+### Files changed
+- `src/app/customer/request/page.tsx` — realtime subscription + poll raised to 60s
+- `src/components/provider/ProviderRealtimeRefresh.tsx` — created
+- `src/app/provider/dashboard/page.tsx` — ProviderRealtimeRefresh mounted
+
+### Deferred issues (updated)
+- Phase 3 Finding 7 — No cron to clear stuck `processing` webhook events (low priority)
+- Phase 3 Finding 8 — Subscribe page uses RLS-gated client for plan read (low priority)
+- Phase 1B Task 5 Finding 4 — complete/route.ts sequential pre-flight → Promise.all (low priority)
+- `NEXT_PUBLIC_LAUNCH_PROMO=true` — add to Vercel if promo should be active
+- `removeTracing: true` vs CWV capture — decision required
+- Deprecated Supabase edge functions — manual verification in Supabase dashboard
+- Phase 4 (roadmap) — Provider state machine (en_route → arrived → completed), customer timeline
+- Phase 4B (roadmap) — Admin Operations Center
+- Phase 2B (roadmap) — RTL & Arabic Foundation
+
+---
+
 ## Session: June 6, 2026 (continued 2) — Storage RLS + TOCTOU fix
 
 ### What was done
