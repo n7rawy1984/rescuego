@@ -17,6 +17,11 @@ const PROTECTED_PREFIXES = [
   '/customer',
 ]
 
+const PUBLIC_OVERRIDES = [
+  '/provider/register',
+  '/provider/subscribe',
+]
+
 function getSafeRedirectTarget(request: NextRequest): string {
   const { pathname, search } = request.nextUrl
   return `${pathname}${search}`
@@ -54,6 +59,7 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    && !PUBLIC_OVERRIDES.some((override) => pathname.startsWith(override))
 
   if (isProtected && !user) {
     const loginUrl = new URL('/auth/login', request.url)
