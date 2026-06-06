@@ -2,6 +2,37 @@
 
 ---
 
+## Session: June 6, 2026 (continued 2) — Storage RLS + TOCTOU fix
+
+### What was done
+
+1. **Migration 023 — `provider-documents` bucket RLS**
+   - 3 policies added to `storage.objects` scoped to `bucket_id = 'provider-documents'`:
+     - `"Providers read own documents"` — SELECT, path starts with `auth.uid()`
+     - `"Providers insert own documents"` — INSERT, path starts with `auth.uid()`
+     - `"Providers update own documents"` — UPDATE, path starts with `auth.uid()`
+   - No DELETE policy — deletion is admin/ops only via service_role
+   - No anon policy — bucket fully private to authenticated users
+   - Upload route unaffected (uses service_role which bypasses RLS)
+   - RLS enabled on bucket confirmed in Supabase dashboard
+   - File: `supabase/migrations/023_provider_documents_bucket_rls.sql`
+
+2. **Migration 024 — TOCTOU fix: overage guard inside `accept_provider_request_atomic`**
+   - Root cause: `accept/route.ts` read `jobs_this_month` in pre-flight `Promise.all`, then wrote in the RPC — two concurrent accepts against different requests by the same provider at their limit could both pass the pre-flight check before either incremented `jobs_this_month`.
+   - Fix: `p_plan_limit INTEGER DEFAULT -1` parameter added to RPC. When `>= 0`, RPC re-checks `jobs_this_month` under the existing `FOR UPDATE` lock on the provider row and returns `reason = 'overage_required'` if live count >= limit. `-1` skips the check (business/PPJ/overage cleared).
+   - `accept/route.ts`: `planLimit` computed from `allowance.effectiveLimit`; passed as `p_plan_limit` to RPC. Pre-flight check retained as fast-fail optimisation. New `overage_required` RPC reason handled with `402 OVERAGE_REQUIRED` response.
+   - Files: `supabase/migrations/024_accept_rpc_overage_guard.sql`, `src/app/api/provider/requests/accept/route.ts`
+
+### Deferred issues (updated — all safety issues now resolved)
+- Phase 3 Finding 7 — No cron to clear stuck `processing` webhook events (low priority)
+- Phase 3 Finding 8 — Subscribe page uses RLS-gated client for plan read (low priority)
+- Phase 1B Task 5 Finding 4 — complete/route.ts sequential pre-flight → Promise.all (low priority)
+- `NEXT_PUBLIC_LAUNCH_PROMO=true` — add to Vercel if promo should be active
+- `removeTracing: true` vs CWV capture — decision required
+- Deprecated Supabase edge functions — manual verification in Supabase dashboard
+
+---
+
 ## Session: June 6, 2026 (continued) — Bugs, Phase 3 Finding 6, proxy fix
 
 ### What was done

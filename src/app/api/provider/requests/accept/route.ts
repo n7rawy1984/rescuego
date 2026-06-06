@@ -103,6 +103,10 @@ export async function POST(req: NextRequest) {
   // code OVERAGE_REQUIRED so the client can redirect to /provider/overage-pay.
   // Business plan providers are unlimited — this block is skipped for them.
   // PPJ plan providers never reach this guard (hasMonthlyAllowance = false).
+  //
+  // The pre-flight check here is a fast-fail optimisation only.
+  // The authoritative check runs inside accept_provider_request_atomic under
+  // the FOR UPDATE lock on the provider row (migration 024 — TOCTOU fix).
   const allowance = getProviderAllowance({
     plan: provider.plan,
     jobsThisMonth: provider.jobs_this_month,
@@ -140,6 +144,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Determine the plan limit to pass to the RPC for atomic enforcement.
+  // -1 = no limit (business plan, PPJ, or overage already cleared).
+  // For subscription plans still within limit, also pass -1 — the guard
+  // only needs to fire when the provider is AT the limit (handled above).
+  // When overage_cleared = true the limit is intentionally bypassed.
+  const { data: overageClearedRow } = allowance.hasMonthlyAllowance && allowance.effectiveLimit !== null
+    ? await admin.from('requests').select('overage_cleared').eq('id', parsed.data.request_id).single()
+    : { data: null }
+  const planLimit = (
+    allowance.hasMonthlyAllowance &&
+    allowance.effectiveLimit !== null &&
+    !overageClearedRow?.overage_cleared
+  ) ? allowance.effectiveLimit : -1
+
   // Pre-flight lock check: if another provider is mid-payment (PPJ or overage),
   // they hold a 60-second lock on this request. Fail fast here rather than
   // reaching the atomic RPC, which would also reject but with a DB round-trip.
@@ -167,6 +185,7 @@ export async function POST(req: NextRequest) {
     p_request_id: parsed.data.request_id,
     p_increment_jobs: true,
     p_consume_ppj_credit: false,
+    p_plan_limit: planLimit,
   })
 
   const accepted = (acceptedRows as AcceptRpcResult[] | null)?.[0] ?? null
@@ -178,6 +197,18 @@ export async function POST(req: NextRequest) {
       request_id: parsed.data.request_id,
       error: acceptError?.message ?? accepted?.reason ?? 'Request is no longer available',
     })
+
+    if (accepted?.reason === 'overage_required') {
+      return NextResponse.json(
+        {
+          error: `You've reached your monthly job limit. Accept this job for ${OVERAGE_FEE_AED} AED?`,
+          code: 'OVERAGE_REQUIRED',
+          overage_fee_aed: OVERAGE_FEE_AED,
+          request_id: parsed.data.request_id,
+        },
+        { status: 402 }
+      )
+    }
 
     if (accepted?.reason === 'active_job_exists') {
       return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
