@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
-import { getMessages } from 'next-intl/server'
+import { getLocale, getMessages } from 'next-intl/server'
 import './globals.css'
 import { validateEnv } from '@/lib/env'
 
@@ -77,9 +77,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   const messages = await getMessages()
+  const locale = await getLocale()
 
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable}>
+    <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} className={cairo.variable}>
       <head>
         <script
           type="application/ld+json"

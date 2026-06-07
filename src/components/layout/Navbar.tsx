@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types'
 
@@ -22,6 +22,7 @@ function isProtectedPath(pathname: string): boolean {
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
+  const locale = useLocale()
   const t = useTranslations('nav')
   const tCommon = useTranslations('common')
   const tErrors = useTranslations('errors')
@@ -121,6 +122,12 @@ export default function Navbar() {
     setLoadAttempt((current) => current + 1)
   }
 
+  function switchLocale() {
+    const next = locale === 'ar' ? 'en' : 'ar'
+    document.cookie = `NEXT_LOCALE=${next};path=/;max-age=31536000`
+    router.refresh()
+  }
+
   function handleLogout(event: MouseEvent<HTMLButtonElement>) {
     event.currentTarget.blur()
     localLogoutRef.current = true
@@ -142,12 +149,21 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10 xl:px-12">
-        <Link href="/" className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2" aria-label="RescueGo home">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1D9E75]" aria-hidden="true">
-            <span className="text-white font-bold text-sm">R</span>
-          </div>
-          <span className="font-bold text-xl text-slate-900">RescueGo</span>
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2" aria-label="RescueGo home">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1D9E75]" aria-hidden="true">
+              <span className="text-white font-bold text-sm">R</span>
+            </div>
+            <span className="font-bold text-xl text-slate-900">RescueGo</span>
+          </Link>
+          <button
+            type="button"
+            onClick={switchLocale}
+            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56]"
+          >
+            {locale === 'ar' ? 'English' : 'العربية'}
+          </button>
+        </div>
 
         <div className="hidden md:flex items-center gap-2">
           <Link href="/pricing" className={`${baseNavLink} ${pathname === '/pricing' ? activeNavLink : ''}`}>{t('pricing')}</Link>
@@ -219,6 +235,13 @@ export default function Navbar() {
 
       {open && (
         <div id="mobile-nav" className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-4 shadow-sm md:hidden">
+          <button
+            type="button"
+            onClick={switchLocale}
+            className="rounded-lg px-3 py-3 text-start font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56]"
+          >
+            {locale === 'ar' ? 'English' : 'العربية'}
+          </button>
           <Link href="/pricing" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/pricing' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>{t('pricing')}</Link>
           <Link href="/about" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/about' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>{t('about')}</Link>
           {role === 'admin' && !loadError && !loading && (
