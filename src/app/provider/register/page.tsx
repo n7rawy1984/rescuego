@@ -663,7 +663,7 @@ export default function ProviderRegisterPage() {
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={e => setFiles(prev => ({ ...prev, [key]: e.target.files?.[0] }))}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#E1F5EE] file:px-4 file:py-2 file:font-semibold file:text-[#0F6E56] hover:file:bg-[#DCFCE7] focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 file:me-4 file:rounded-lg file:border-0 file:bg-[#E1F5EE] file:px-4 file:py-2 file:font-semibold file:text-[#0F6E56] hover:file:bg-[#DCFCE7] focus:outline-none focus:ring-2 focus:ring-[#1D9E75]"
                     />
                   </div>
                 ))}
@@ -692,9 +692,9 @@ export default function ProviderRegisterPage() {
                     key={plan.id}
                     onClick={() => setSelectedPlan(plan.id)}
                     disabled={loading}
-                    className={`relative min-h-44 rounded-2xl border p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75] ${selectedPlan === plan.id ? 'border-[#1D9E75] bg-[#E1F5EE] shadow-md shadow-[#DCFCE7]' : 'border-slate-200 bg-white hover:border-[#9FE1CB] hover:bg-[#E1F5EE]/30'}`}
+                    className={`relative min-h-44 rounded-2xl border p-5 text-start transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75] ${selectedPlan === plan.id ? 'border-[#1D9E75] bg-[#E1F5EE] shadow-md shadow-[#DCFCE7]' : 'border-slate-200 bg-white hover:border-[#9FE1CB] hover:bg-[#E1F5EE]/30'}`}
                   >
-                    {plan.highlight && <span className="absolute right-3 top-3 rounded-full bg-[#1D9E75] px-2 py-0.5 text-xs font-bold text-white">Popular</span>}
+                    {plan.highlight && <span className="absolute end-3 top-3 rounded-full bg-[#1D9E75] px-2 py-0.5 text-xs font-bold text-white">Popular</span>}
                     <div className="text-lg font-semibold text-slate-950">{plan.name}</div>
                     <div className="mt-2 text-3xl font-semibold text-[#1D9E75]">{plan.price === 0 ? 'Free' : `${plan.price} AED`}<span className="text-sm font-normal text-slate-500">{plan.price > 0 ? '/mo' : ''}</span></div>
                     <div className="mt-4 rounded-xl bg-white/70 px-3 py-2 text-sm text-slate-600">{plan.jobs}</div>

@@ -205,9 +205,9 @@ export default async function PricingPage() {
                 return (
                   <div key={plan.id} className={`relative rounded-3xl border bg-white p-6 shadow-sm md:p-8 ${isCurrentPlan ? 'border-[#1D9E75] ring-2 ring-[#DCFCE7]' : plan.highlight ? 'border-[#1D9E75] shadow-xl shadow-[#DCFCE7]' : 'border-[#DDE7EE]'}`}>
                     {isCurrentPlan ? (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#1D9E75] px-4 py-1 text-sm font-bold text-white">{t('activePlan')}</div>
+                      <div className="absolute -top-4 start-1/2 -translate-x-1/2 rounded-full bg-[#1D9E75] px-4 py-1 text-sm font-bold text-white">{t('activePlan')}</div>
                     ) : plan.highlight ? (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#1D9E75] px-4 py-1 text-sm font-bold text-white">{t('popular')}</div>
+                      <div className="absolute -top-4 start-1/2 -translate-x-1/2 rounded-full bg-[#1D9E75] px-4 py-1 text-sm font-bold text-white">{t('popular')}</div>
                     ) : null}
                     <div className="mb-2 text-xl font-semibold text-slate-950">{plan.name}</div>
                     <p className="mb-4 text-sm leading-6 text-slate-600">{plan.positioning}</p>

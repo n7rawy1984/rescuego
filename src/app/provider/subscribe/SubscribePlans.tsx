@@ -157,7 +157,7 @@ export default function SubscribePlans({
           return (
             <article key={plan.id} className={`relative overflow-hidden rounded-3xl border bg-white p-6 shadow-sm ${isCurrent ? 'border-[#1D9E75] ring-2 ring-[#DCFCE7]' : isSelected ? 'border-amber-300 ring-2 ring-amber-100' : 'border-[#DDE7EE]'}`}>
             {plan.id === 'pro' && !isCurrent && (
-              <div className="absolute right-5 top-5 rounded-full bg-[#1D9E75] px-3 py-1 text-xs font-bold text-white shadow-sm">
+              <div className="absolute end-5 top-5 rounded-full bg-[#1D9E75] px-3 py-1 text-xs font-bold text-white shadow-sm">
                 Popular
               </div>
             )}

@@ -429,7 +429,7 @@ export default function RequestPage() {
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
               {t('loadingDesc')}
             </p>
-            <div className="mt-6 space-y-3 text-left">
+            <div className="mt-6 space-y-3 text-start">
               <div className="h-3 w-full animate-pulse rounded-full bg-slate-100" />
               <div className="h-3 w-4/5 animate-pulse rounded-full bg-slate-100" />
               <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-100" />
@@ -556,7 +556,7 @@ export default function RequestPage() {
               </div>
 
               <div className="space-y-5 p-5 sm:p-6">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-start">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0F6E56] ring-1 ring-[#DDE7EE]">
                     <MapPin className="h-5 w-5" aria-hidden="true" />
@@ -569,7 +569,7 @@ export default function RequestPage() {
               </div>
 
               {!isOpen && (
-                <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-left">
+                <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-start">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('assignedProvider')}</div>
@@ -583,7 +583,7 @@ export default function RequestPage() {
                         href={`tel:${visibleRequest.provider_phone}`}
                         className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 sm:w-auto"
                       >
-                        <PhoneCall className="mr-2 h-4 w-4" aria-hidden="true" />
+                        <PhoneCall className="me-2 h-4 w-4" aria-hidden="true" />
                         {t('callProvider')}
                       </a>
                     ) : null}
@@ -591,7 +591,7 @@ export default function RequestPage() {
                 </div>
               )}
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 text-start shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-950">{t('requestProgress')}</h2>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
@@ -643,7 +643,7 @@ export default function RequestPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start">
                 <p className="text-sm text-amber-800">
                   <strong>Tip:</strong> {t('tip')}
                 </p>
@@ -678,7 +678,7 @@ export default function RequestPage() {
                       : t('cancelDialogAssignedDefault')}
                 </p>
                 {showCancellationAbuseWarning && (
-                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left">
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-start">
                     <p className="text-sm font-semibold text-amber-900">{t('cancelAbuseTitle')}</p>
                     <p className="mt-1 text-xs leading-5 text-amber-800">
                       {t('cancelAbuseDesc')}
@@ -759,7 +759,7 @@ export default function RequestPage() {
                 href="/customer/history"
                 className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#DDE7EE] bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
-                <History className="mr-2 h-4 w-4" aria-hidden="true" />
+                <History className="me-2 h-4 w-4" aria-hidden="true" />
                 {t('requestHistory')}
               </Link>
             </div>
@@ -822,7 +822,7 @@ export default function RequestPage() {
                     <button
                       key={opt.type}
                       onClick={() => setProblemType(opt.type)}
-                      className={`min-h-32 rounded-2xl border p-5 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75] ${problemType === opt.type ? 'border-[#1D9E75] bg-[#E1F5EE] shadow-sm' : 'border-slate-200 bg-white hover:border-[#9FE1CB] hover:bg-[#E1F5EE]/30'}`}
+                      className={`min-h-32 rounded-2xl border p-5 text-start transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75] ${problemType === opt.type ? 'border-[#1D9E75] bg-[#E1F5EE] shadow-sm' : 'border-slate-200 bg-white hover:border-[#9FE1CB] hover:bg-[#E1F5EE]/30'}`}
                     >
                       <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#0F6E56]">
                         <Icon className="h-5 w-5" aria-hidden="true" />
@@ -865,7 +865,7 @@ export default function RequestPage() {
               </p>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="min-h-11 w-full bg-white">
-                  <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
+                  <LocateFixed className="me-2 h-4 w-4" aria-hidden="true" />
                   {t('useMyLocation')}
                 </Button>
                 <p className="mt-3 text-xs leading-5 text-slate-500">

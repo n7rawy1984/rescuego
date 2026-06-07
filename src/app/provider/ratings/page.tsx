@@ -100,7 +100,7 @@ export default async function ProviderRatingsPage() {
         {allRatings.length > 0 && (
           <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
-              <div className="text-center sm:text-left">
+              <div className="text-center sm:text-start">
                 <p className="text-4xl font-bold text-slate-900">{average!.toFixed(1)}</p>
                 <StarDisplay stars={Math.round(average!)} size="lg" />
                 <p className="mt-1 text-xs text-slate-500">{allRatings.length} review{allRatings.length !== 1 ? 's' : ''}</p>
@@ -108,15 +108,15 @@ export default async function ProviderRatingsPage() {
               <div className="flex-1 space-y-1.5">
                 {breakdown.map(({ star, count }) => (
                   <div key={star} className="flex items-center gap-2">
-                    <span className="w-4 text-right text-xs text-slate-500">{star}</span>
+                    <span className="w-4 text-end text-xs text-slate-500">{star}</span>
                     <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" aria-hidden="true" />
                     <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="absolute inset-y-0 left-0 rounded-full bg-amber-400"
+                        className="absolute inset-y-0 start-0 rounded-full bg-amber-400"
                         style={{ width: allRatings.length > 0 ? `${(count / allRatings.length) * 100}%` : '0%' }}
                       />
                     </div>
-                    <span className="w-5 text-left text-xs text-slate-500">{count}</span>
+                    <span className="w-5 text-start text-xs text-slate-500">{count}</span>
                   </div>
                 ))}
               </div>
