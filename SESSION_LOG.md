@@ -4,6 +4,19 @@
 
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
+### Phase 2 — Rate Limiter Graceful Degradation
+**Status:** COMPLETE
+
+**Change:**
+- `src/lib/rate-limit.ts` — `fallbackRateLimit()` changed from fail-closed (reject all in production) to fail-open with in-memory fallback. When Redis is unavailable, the in-memory `checkRateLimit()` is used regardless of environment. Log level changed from `error` to `warn` since it's no longer a service-breaking event.
+
+**Before:** If `UPSTASH_REDIS_REST_URL`/`TOKEN` were missing in production, every rate-limited endpoint returned 429 to ALL users.
+**After:** Falls back to per-instance in-memory rate limiting (same behavior as dev). Still logs a warning on first occurrence for monitoring.
+
+**Trade-off:** In-memory limiter is per-serverless-instance (not distributed). An attacker could theoretically hit different Vercel instances to bypass limits. This is acceptable until Redis is configured — it's better than blocking all legitimate users.
+
+---
+
 ### Phase 1 — Missing Assets + Payout Fix + Provider Online Fix
 **Status:** COMPLETE
 

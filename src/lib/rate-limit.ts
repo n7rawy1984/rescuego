@@ -54,16 +54,13 @@ function fallbackRateLimit(
   windowMs: number,
   reason: string
 ): RateLimitResult {
-  if (process.env.NODE_ENV === 'production') {
-    if (!redisFallbackLogged) {
-      redisFallbackLogged = true
-      logger.error({
-        event: 'rate_limit_redis_unavailable_fail_closed',
-        reason,
-        limiter: 'rejected',
-      })
-    }
-    return { allowed: false, retryAfter: 60 }
+  if (!redisFallbackLogged) {
+    redisFallbackLogged = true
+    logger.warn({
+      event: 'rate_limit_redis_unavailable_in_memory_fallback',
+      reason,
+      environment: process.env.NODE_ENV,
+    })
   }
 
   return checkRateLimit(key, limit, windowMs)
