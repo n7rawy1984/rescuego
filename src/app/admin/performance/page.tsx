@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -32,11 +33,11 @@ type RatingCountRow = {
 
 type SortKey = 'completed' | 'rating' | 'revenue' | 'this_month'
 
-const SORT_OPTIONS: { id: SortKey; label: string }[] = [
-  { id: 'completed', label: 'Completed Jobs' },
-  { id: 'rating', label: 'Rating' },
-  { id: 'revenue', label: 'Revenue' },
-  { id: 'this_month', label: 'Jobs This Month' },
+const SORT_OPTIONS: { id: SortKey; labelKey: string }[] = [
+  { id: 'completed', labelKey: 'sortCompletedJobs' },
+  { id: 'rating', labelKey: 'sortRating' },
+  { id: 'revenue', labelKey: 'sortRevenue' },
+  { id: 'this_month', labelKey: 'sortJobsThisMonth' },
 ]
 
 export default async function AdminPerformancePage({
@@ -44,6 +45,7 @@ export default async function AdminPerformancePage({
 }: {
   searchParams?: Promise<{ sort?: string }>
 }) {
+  const t = await getTranslations('admin.performance')
   const params = await searchParams
   const activeSort: SortKey = SORT_OPTIONS.some((s) => s.id === params?.sort)
     ? (params!.sort as SortKey)
@@ -125,6 +127,33 @@ export default async function AdminPerformancePage({
     return 'default'
   }
 
+  const providerStatusLabel = (status: string) => {
+    if (status === 'active') return t('statusActive')
+    if (status === 'pending') return t('statusPending')
+    if (status === 'suspended') return t('statusSuspended')
+    return status.charAt(0).toUpperCase() + status.slice(1)
+  }
+
+  const providerPlanLabel = (plan: string) => {
+    if (plan === 'pay_per_job') return t('planPayPerJob')
+    if (plan === 'business') return t('planBusiness')
+    if (plan === 'pro') return t('planPro')
+    if (plan === 'starter') return t('planStarter')
+    return plan.charAt(0).toUpperCase() + plan.slice(1)
+  }
+
+  const tableHeadings = [
+    t('rankColumn'),
+    t('providerColumn'),
+    t('statusColumn'),
+    t('planColumn'),
+    t('ratingColumn'),
+    t('reviewsColumn'),
+    t('completedColumn'),
+    t('thisMonthColumn'),
+    t('revenueColumn'),
+  ]
+
   return (
     <>
       <Navbar />
@@ -133,14 +162,14 @@ export default async function AdminPerformancePage({
           <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Provider analytics</p>
-                <h1 className="mt-1 text-2xl font-bold text-slate-900">Provider Performance</h1>
+                <p className="text-sm font-medium text-slate-500">{t('eyebrow')}</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">{t('title')}</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  Leaderboard of all providers ranked by completed jobs, rating, revenue, or current-month activity.
+                  {t('description')}
                 </p>
               </div>
               <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
-                Back to Dashboard
+                {t('backToDashboard')}
               </a>
             </div>
           </div>
@@ -150,10 +179,10 @@ export default async function AdminPerformancePage({
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="font-semibold text-slate-800">
-                    Leaderboard ({sorted.length} providers)
+                    {t('leaderboardTitle', { count: sorted.length })}
                   </h2>
                   {providersError && (
-                    <p className="text-sm text-red-600">Provider data could not be loaded: {providersError.message}</p>
+                    <p className="text-sm text-red-600">{t('providerDataLoadError', { message: providersError.message })}</p>
                   )}
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
@@ -167,7 +196,7 @@ export default async function AdminPerformancePage({
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]`}
                     >
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </a>
                   ))}
                 </div>
@@ -178,7 +207,7 @@ export default async function AdminPerformancePage({
                 <table className="w-full min-w-[900px] text-sm">
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
-                      {['#', 'Provider', 'Status', 'Plan', 'Rating', 'Reviews', 'Completed', 'This Month', 'Revenue'].map((heading) => (
+                      {tableHeadings.map((heading) => (
                         <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">
                           {heading}
                         </th>
@@ -193,23 +222,23 @@ export default async function AdminPerformancePage({
                         </td>
                         <td className="px-5 py-4">
                           <div className="font-medium text-slate-800">
-                            {provider.users?.name ?? 'Unnamed'}
+                            {provider.users?.name ?? t('unnamedProvider')}
                             {provider.verified_badge && (
                               <span className="ms-1.5 inline-block rounded bg-[#0F6E56] px-1.5 py-0.5 text-[10px] font-bold text-white">
-                                Verified
+                                {t('verifiedBadge')}
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-slate-400">{provider.users?.phone ?? 'No phone'}</div>
+                          <div className="text-xs text-slate-400">{provider.users?.phone ?? t('noPhone')}</div>
                         </td>
                         <td className="px-5 py-4">
                           <Badge variant={statusVariant(provider.status)}>
-                            {provider.status.charAt(0).toUpperCase() + provider.status.slice(1)}
+                            {providerStatusLabel(provider.status)}
                           </Badge>
                         </td>
                         <td className="px-5 py-4">
                           <Badge variant={planVariant(provider.plan)}>
-                            {provider.plan === 'pay_per_job' ? 'PPJ' : provider.plan.charAt(0).toUpperCase() + provider.plan.slice(1)}
+                            {providerPlanLabel(provider.plan)}
                           </Badge>
                         </td>
                         <td className="px-5 py-4 font-semibold text-slate-800">
@@ -225,15 +254,15 @@ export default async function AdminPerformancePage({
                           {provider.jobs_this_month}
                         </td>
                         <td className="px-5 py-4 text-slate-600">
-                          {provider.totalRevenue > 0 ? `${provider.totalRevenue} AED` : '—'}
+                          {provider.totalRevenue > 0 ? t('revenueValue', { amount: provider.totalRevenue }) : '—'}
                         </td>
                       </tr>
                     ))}
                     {sorted.length === 0 && (
                       <tr>
                         <td colSpan={9} className="px-5 py-14 text-center">
-                          <p className="font-semibold text-slate-700">No providers found.</p>
-                          <p className="mt-1 text-sm text-slate-500">Provider performance data will appear once providers are registered.</p>
+                          <p className="font-semibold text-slate-700">{t('emptyTitle')}</p>
+                          <p className="mt-1 text-sm text-slate-500">{t('emptyDescription')}</p>
                         </td>
                       </tr>
                     )}

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminDashboardPage() {
+  const t = await getTranslations('admin.dashboard')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
@@ -103,18 +105,18 @@ export default async function AdminDashboardPage() {
           <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">Marketplace operations</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">Admin Dashboard</h1>
+              <p className="text-sm font-medium text-slate-500">{t('eyebrow')}</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">{t('title')}</h1>
               <p className="mt-1 text-sm text-slate-500">
-                Monitor provider readiness, request flow, billing events, and operational exceptions.
+                {t('description')}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <a href="/admin/providers?filter=pending" className="inline-flex h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56]">
-                Review pending
+                {t('reviewPending')}
               </a>
               <a href="/admin/requests" className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
-                View requests
+                {t('viewRequests')}
               </a>
             </div>
             </div>
@@ -123,18 +125,18 @@ export default async function AdminDashboardPage() {
           <div className="grid grid-cols-1 gap-4 mb-8 md:grid-cols-3">
             <a href="/admin/providers?filter=pending" className="min-h-32 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
               <div className="text-2xl font-bold text-amber-700">{pendingProviders}</div>
-              <div className="mt-1 text-sm font-semibold text-amber-900">Pending provider approvals</div>
-              <div className="mt-1 text-xs text-amber-800">Review documents and activate eligible providers.</div>
+              <div className="mt-1 text-sm font-semibold text-amber-900">{t('pendingProviderApprovals')}</div>
+              <div className="mt-1 text-xs text-amber-800">{t('pendingProviderApprovalsDescription')}</div>
             </a>
             <a href="/admin/providers?filter=missing-documents" className="min-h-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">
               <div className="text-2xl font-bold text-slate-800">{totalProviders ?? 0}</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Provider moderation</div>
-              <div className="mt-1 text-xs text-slate-500">Check missing documents, status, and trust badges.</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">{t('providerModeration')}</div>
+              <div className="mt-1 text-xs text-slate-500">{t('providerModerationDescription')}</div>
             </a>
             <a href="/admin/revenue" className="min-h-32 rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">
               <div className="text-2xl font-bold text-red-700">{(failedStripeEvents ?? 0) + (failedOveragePayments ?? 0)}</div>
-              <div className="mt-1 text-sm font-semibold text-red-900">Payment exceptions</div>
-              <div className="mt-1 text-xs text-red-800">Watch failed Stripe events and overage payments.</div>
+              <div className="mt-1 text-sm font-semibold text-red-900">{t('paymentExceptions')}</div>
+              <div className="mt-1 text-xs text-red-800">{t('paymentExceptionsDescription')}</div>
             </a>
           </div>
 
@@ -143,10 +145,12 @@ export default async function AdminDashboardPage() {
               <div className="flex items-start gap-3">
                 <div className="flex-1">
                   <h2 className="text-sm font-bold text-red-900">
-                    Stuck Jobs Alert — {stuckJobs.length} job{stuckJobs.length !== 1 ? 's' : ''} stalled for over 2 hours
+                    {stuckJobs.length === 1
+                      ? t('stuckJobsAlertOne', { count: stuckJobs.length })
+                      : t('stuckJobsAlertOther', { count: stuckJobs.length })}
                   </h2>
                   <p className="mt-1 text-xs text-red-700">
-                    These jobs have been in En Route or Arrived status for more than 2 hours without progressing to completion. Manual review may be required.
+                    {t('stuckJobsDescription')}
                   </p>
                   <div className="mt-3 flex flex-col gap-2">
                     {stuckJobs.map((job) => {
@@ -162,17 +166,17 @@ export default async function AdminDashboardPage() {
                           className="flex items-center justify-between gap-4 rounded-xl bg-white px-3 py-2 text-sm shadow-sm hover:bg-red-50"
                         >
                           <div>
-                            <span className="font-semibold text-slate-800 capitalize">{req?.problem_type?.replaceAll('_', ' ') ?? 'Unknown'}</span>
+                            <span className="font-semibold text-slate-800 capitalize">{req?.problem_type?.replaceAll('_', ' ') ?? t('unknown')}</span>
                             {req?.location_address && (
                               <span className="ms-2 text-xs text-slate-500">{req.location_address}</span>
                             )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Badge variant={req?.status === 'arrived' ? 'warning' : 'info'}>
-                              {req?.status === 'arrived' ? 'Arrived' : 'En Route'}
+                              {req?.status === 'arrived' ? t('arrived') : t('enRoute')}
                             </Badge>
                             {staleHours !== null && (
-                              <span className="text-xs font-semibold text-red-700">{staleHours}h stalled</span>
+                              <span className="text-xs font-semibold text-red-700">{t('hoursStalled', { hours: staleHours })}</span>
                             )}
                           </div>
                         </a>
@@ -186,14 +190,14 @@ export default async function AdminDashboardPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Total Customers', value: totalCustomers ?? 0, color: 'text-blue-600' },
-              { label: 'Total Providers', value: totalProviders ?? 0, color: 'text-purple-600' },
-              { label: 'Total Requests', value: totalRequests, color: 'text-[#0F6E56]' },
-              { label: 'Completed Jobs', value: completedRequests, color: 'text-green-600' },
-              { label: 'Active Subscriptions', value: activeSubscriptions ?? 0, color: 'text-green-600' },
-              { label: 'Expired Requests', value: expiredRequests, color: 'text-slate-600' },
-              { label: 'Failed Stripe Events', value: failedStripeEvents ?? 0, color: 'text-red-600' },
-              { label: 'Failed Overages', value: failedOveragePayments ?? 0, color: 'text-red-600' },
+              { label: t('totalCustomers'), value: totalCustomers ?? 0, color: 'text-blue-600' },
+              { label: t('totalProviders'), value: totalProviders ?? 0, color: 'text-purple-600' },
+              { label: t('totalRequests'), value: totalRequests, color: 'text-[#0F6E56]' },
+              { label: t('completedJobs'), value: completedRequests, color: 'text-green-600' },
+              { label: t('activeSubscriptions'), value: activeSubscriptions ?? 0, color: 'text-green-600' },
+              { label: t('expiredRequests'), value: expiredRequests, color: 'text-slate-600' },
+              { label: t('failedStripeEvents'), value: failedStripeEvents ?? 0, color: 'text-red-600' },
+              { label: t('failedOverages'), value: failedOveragePayments ?? 0, color: 'text-red-600' },
             ].map(stat => (
               <Card key={stat.label} className="border-slate-200 shadow-sm">
                 <CardBody className="min-h-28">
@@ -206,13 +210,13 @@ export default async function AdminDashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Card>
-              <CardHeader><h2 className="font-semibold text-slate-800">Provider Status</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-slate-800">{t('providerStatus')}</h2></CardHeader>
               <CardBody>
                 <div className="flex flex-col gap-3">
                   {[
-                    { label: 'Active', count: activeProviders, variant: 'success' as const },
-                    { label: 'Pending Review', count: pendingProviders, variant: 'warning' as const },
-                    { label: 'Suspended', count: suspendedProviders, variant: 'danger' as const },
+                    { label: t('active'), count: activeProviders, variant: 'success' as const },
+                    { label: t('pendingReview'), count: pendingProviders, variant: 'warning' as const },
+                    { label: t('suspended'), count: suspendedProviders, variant: 'danger' as const },
                   ].map(item => (
                     <div key={item.label} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
                       <Badge variant={item.variant}>{item.label}</Badge>
@@ -224,17 +228,17 @@ export default async function AdminDashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader><h2 className="font-semibold text-slate-800">Request Status</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-slate-800">{t('requestStatus')}</h2></CardHeader>
               <CardBody>
                 <div className="flex flex-col gap-3">
                   {[
-                    { label: 'Open', count: openRequests, variant: 'info' as const },
-                    { label: 'Accepted', count: acceptedRequests, variant: 'warning' as const },
-                    { label: 'En Route', count: enRouteRequests, variant: 'warning' as const },
-                    { label: 'Arrived', count: arrivedRequests, variant: 'warning' as const },
-                    { label: 'In Progress', count: inProgressRequests, variant: 'warning' as const },
-                    { label: 'Completed', count: completedRequests, variant: 'success' as const },
-                    { label: 'Expired', count: expiredRequests, variant: 'default' as const },
+                    { label: t('open'), count: openRequests, variant: 'info' as const },
+                    { label: t('accepted'), count: acceptedRequests, variant: 'warning' as const },
+                    { label: t('enRoute'), count: enRouteRequests, variant: 'warning' as const },
+                    { label: t('arrived'), count: arrivedRequests, variant: 'warning' as const },
+                    { label: t('inProgress'), count: inProgressRequests, variant: 'warning' as const },
+                    { label: t('completed'), count: completedRequests, variant: 'success' as const },
+                    { label: t('expired'), count: expiredRequests, variant: 'default' as const },
                   ].map(item => (
                     <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-3 py-2">
                       <Badge variant={item.variant}>{item.label}</Badge>
@@ -248,12 +252,12 @@ export default async function AdminDashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
-              <CardHeader><h2 className="font-semibold text-slate-800">Recent Stripe Events</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-slate-800">{t('recentStripeEvents')}</h2></CardHeader>
               <CardBody className="p-0">
                 {!recentEvents?.length ? (
                   <div className="px-6 py-8 text-center">
-                    <p className="text-sm font-semibold text-slate-700">No Stripe events yet</p>
-                    <p className="mt-1 text-xs text-slate-500">Webhook activity will appear here after billing events are received.</p>
+                    <p className="text-sm font-semibold text-slate-700">{t('noStripeEventsYet')}</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('noStripeEventsDescription')}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -262,10 +266,10 @@ export default async function AdminDashboardPage() {
                         <span className="min-w-0 break-all font-mono text-sm text-slate-700">{event.type}</span>
                         <div className="shrink-0 sm:text-end">
                           <Badge variant={event.status === 'failed' ? 'danger' : event.status === 'processing' ? 'warning' : 'success'}>
-                            {event.status ?? 'processed'}
+                            {event.status ?? t('processed')}
                           </Badge>
                           <div className="mt-1 text-xs text-slate-400">
-                            {event.processed_at ? new Date(event.processed_at).toLocaleDateString() : 'Not processed'}
+                            {event.processed_at ? new Date(event.processed_at).toLocaleDateString() : t('notProcessed')}
                           </div>
                         </div>
                       </div>
@@ -276,12 +280,12 @@ export default async function AdminDashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader><h2 className="font-semibold text-slate-800">Recent Payouts</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-slate-800">{t('recentPayouts')}</h2></CardHeader>
               <CardBody className="p-0">
                 {!recentPayouts?.length ? (
                   <div className="px-6 py-8 text-center">
-                    <p className="text-sm font-semibold text-slate-700">No payouts yet</p>
-                    <p className="mt-1 text-xs text-slate-500">Provider payout records will appear after completed payout activity.</p>
+                    <p className="text-sm font-semibold text-slate-700">{t('noPayoutsYet')}</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('noPayoutsDescription')}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -301,10 +305,10 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <a href="/admin/providers" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Manage Providers</a>
-            <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">View All Requests</a>
-            <a href="/admin/revenue" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Revenue Log</a>
-            <a href="/admin/performance" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Provider Performance</a>
+            <a href="/admin/providers" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('manageProviders')}</a>
+            <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('viewAllRequests')}</a>
+            <a href="/admin/revenue" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('revenueLog')}</a>
+            <a href="/admin/performance" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('providerPerformance')}</a>
           </div>
         </div>
       </main>

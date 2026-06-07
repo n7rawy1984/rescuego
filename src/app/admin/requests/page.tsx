@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -51,27 +52,27 @@ type JobLookupRow = {
 
 type RequestFilter = 'all' | 'open' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 
-const REQUEST_FILTERS: { id: RequestFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'open', label: 'Open' },
-  { id: 'accepted', label: 'Accepted' },
-  { id: 'en_route', label: 'En Route' },
-  { id: 'arrived', label: 'Arrived' },
-  { id: 'in_progress', label: 'In Progress' },
-  { id: 'completed', label: 'Completed' },
-  { id: 'cancelled', label: 'Cancelled' },
-  { id: 'expired', label: 'Expired' },
+const REQUEST_FILTERS: { id: RequestFilter; labelKey: string }[] = [
+  { id: 'all', labelKey: 'filters.all' },
+  { id: 'open', labelKey: 'filters.open' },
+  { id: 'accepted', labelKey: 'filters.accepted' },
+  { id: 'en_route', labelKey: 'filters.enRoute' },
+  { id: 'arrived', labelKey: 'filters.arrived' },
+  { id: 'in_progress', labelKey: 'filters.inProgress' },
+  { id: 'completed', labelKey: 'filters.completed' },
+  { id: 'cancelled', labelKey: 'filters.cancelled' },
+  { id: 'expired', labelKey: 'filters.expired' },
 ]
 
-const STATUS_LABELS: Record<RequestStatus, string> = {
-  open: 'Open',
-  accepted: 'Accepted',
-  en_route: 'En Route',
-  arrived: 'Arrived',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  expired: 'Expired',
+const STATUS_LABEL_KEYS: Record<RequestStatus, string> = {
+  open: 'status.open',
+  accepted: 'status.accepted',
+  en_route: 'status.enRoute',
+  arrived: 'status.arrived',
+  in_progress: 'status.inProgress',
+  completed: 'status.completed',
+  cancelled: 'status.cancelled',
+  expired: 'status.expired',
 }
 
 function requestBadgeVariant(status: RequestStatus): 'success' | 'warning' | 'danger' | 'info' | 'default' {
@@ -82,21 +83,25 @@ function requestBadgeVariant(status: RequestStatus): 'success' | 'warning' | 'da
   return 'warning'
 }
 
-function lifecycleLabel(request: AdminRequestRow, completedAt: string | null | undefined): string {
+function lifecycleLabel(
+  request: AdminRequestRow,
+  completedAt: string | null | undefined,
+  t: Awaited<ReturnType<typeof getTranslations>>
+): string {
   if (request.status === 'cancelled') {
     return request.cancellation_actor
-      ? `Cancelled by ${request.cancellation_actor}`
-      : 'Cancelled'
+      ? t('lifecycle.cancelledBy', { actor: request.cancellation_actor })
+      : t('lifecycle.cancelled')
   }
   if (request.status === 'completed') {
-    return completedAt ? `Completed ${new Date(completedAt).toLocaleDateString('en-AE')}` : 'Completed'
+    return completedAt ? t('lifecycle.completedOn', { date: new Date(completedAt).toLocaleDateString('en-AE') }) : t('lifecycle.completed')
   }
-  if (request.status === 'en_route') return 'Provider en route'
-  if (request.status === 'arrived') return 'Provider on site'
-  if (request.status === 'in_progress') return 'Job in progress'
-  if (request.status === 'open' && !request.accepted_by) return 'Waiting for provider'
-  if (request.accepted_by) return 'Provider assigned'
-  return 'Unassigned'
+  if (request.status === 'en_route') return t('lifecycle.providerEnRoute')
+  if (request.status === 'arrived') return t('lifecycle.providerOnSite')
+  if (request.status === 'in_progress') return t('lifecycle.jobInProgress')
+  if (request.status === 'open' && !request.accepted_by) return t('lifecycle.waitingForProvider')
+  if (request.accepted_by) return t('lifecycle.providerAssigned')
+  return t('lifecycle.unassigned')
 }
 
 export default async function AdminRequestsPage({
@@ -104,6 +109,7 @@ export default async function AdminRequestsPage({
 }: {
   searchParams?: Promise<{ filter?: string }>
 }) {
+  const t = await getTranslations('admin.requests')
   const params = await searchParams
   const activeFilter: RequestFilter = REQUEST_FILTERS.some((f) => f.id === params?.filter)
     ? params!.filter as RequestFilter
@@ -149,6 +155,7 @@ export default async function AdminRequestsPage({
   const customerById = new Map((customers ?? []).map((customer) => [customer.id, customer]))
   const providerById = new Map((providers ?? []).map((provider) => [provider.id, provider]))
   const jobByRequestId = new Map((jobs ?? []).map((job) => [job.request_id, job]))
+  const activeFilterLabel = REQUEST_FILTERS.find((f) => f.id === activeFilter)?.labelKey
 
   return (
     <>
@@ -158,13 +165,13 @@ export default async function AdminRequestsPage({
           <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Operational requests</p>
-                <h1 className="mt-1 text-2xl font-bold text-slate-900">All Requests</h1>
+                <p className="text-sm font-medium text-slate-500">{t('eyebrow')}</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">{t('title')}</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  Monitor customer roadside requests, assignment state, cancellations, and completions.
+                  {t('description')}
                 </p>
               </div>
-              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Back to Dashboard</a>
+              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('backToDashboard')}</a>
             </div>
           </div>
 
@@ -172,9 +179,9 @@ export default async function AdminRequestsPage({
             <CardHeader>
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="font-semibold text-slate-800">Requests ({requestRows.length}{activeFilter !== 'all' ? ` · ${REQUEST_FILTERS.find((f) => f.id === activeFilter)?.label}` : ''})</h2>
+                  <h2 className="font-semibold text-slate-800">{t('requestsHeading', { count: requestRows.length })}{activeFilter !== 'all' && activeFilterLabel ? t('activeFilterSuffix', { filter: t(activeFilterLabel) }) : ''}</h2>
                   {requestsError && (
-                    <p className="text-sm text-red-600">Request data could not be loaded: {requestsError.message}</p>
+                    <p className="text-sm text-red-600">{t('requestLoadError', { message: requestsError.message })}</p>
                   )}
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
@@ -188,7 +195,7 @@ export default async function AdminRequestsPage({
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]`}
                     >
-                      {filter.label}
+                      {t(filter.labelKey)}
                     </a>
                   ))}
                 </div>
@@ -199,7 +206,16 @@ export default async function AdminRequestsPage({
                 <table className="w-full min-w-[1080px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {['Type', 'Customer', 'Location', 'Status', 'Provider', 'Lifecycle', 'Value', 'Time'].map((heading) => (
+                      {[
+                        t('table.type'),
+                        t('table.customer'),
+                        t('table.location'),
+                        t('table.status'),
+                        t('table.provider'),
+                        t('table.lifecycle'),
+                        t('table.value'),
+                        t('table.time'),
+                      ].map((heading) => (
                         <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
@@ -217,8 +233,8 @@ export default async function AdminRequestsPage({
                             <div className="mt-1 font-mono text-xs text-slate-400">{request.id.slice(0, 8)}</div>
                           </td>
                           <td className="px-5 py-4 text-slate-600">
-                            <div>{customer?.name ?? 'Customer unavailable'}</div>
-                            <div className="text-xs text-slate-400">{customer?.phone ?? 'No phone'}</div>
+                            <div>{customer?.name ?? t('customerUnavailable')}</div>
+                            <div className="text-xs text-slate-400">{customer?.phone ?? t('noPhone')}</div>
                           </td>
                           <td className="px-5 py-4 text-slate-600">
                             <div className="max-w-[260px] break-words">{request.location_address ?? '-'}</div>
@@ -226,34 +242,34 @@ export default async function AdminRequestsPage({
                           </td>
                           <td className="px-5 py-4">
                             <Badge variant={requestBadgeVariant(request.status)}>
-                              {STATUS_LABELS[request.status]}
+                              {t(STATUS_LABEL_KEYS[request.status])}
                             </Badge>
                           </td>
                           <td className="px-5 py-4 text-slate-600">
-                            <div>{provider?.users?.name ?? 'Not assigned'}</div>
+                            <div>{provider?.users?.name ?? t('notAssigned')}</div>
                             <div className="text-xs text-slate-400">
-                              {provider?.users?.phone ?? (request.accepted_by ? 'Provider contact unavailable' : 'Open request')}
+                              {provider?.users?.phone ?? (request.accepted_by ? t('providerContactUnavailable') : t('openRequest'))}
                             </div>
                           </td>
                           <td className="px-5 py-4 text-slate-600">
-                            <div>{lifecycleLabel(request, job?.completed_at)}</div>
+                            <div>{lifecycleLabel(request, job?.completed_at, t)}</div>
                             {request.status === 'cancelled' && request.cancellation_compensation_type && (
                               <div className="mt-1 text-xs text-slate-400">
-                                Compensation: {request.cancellation_compensation_type.replaceAll('_', ' ')}
+                                {t('compensation', { type: request.cancellation_compensation_type.replaceAll('_', ' ') })}
                               </div>
                             )}
                           </td>
                           <td className="px-5 py-4 text-slate-600">
                             {request.final_price
-                              ? `${request.final_price} AED`
+                              ? t('priceAmount', { amount: request.final_price })
                               : request.price_estimate_min && request.price_estimate_max
-                                ? `${request.price_estimate_min}-${request.price_estimate_max} AED`
+                                ? t('priceRange', { min: request.price_estimate_min, max: request.price_estimate_max })
                                 : '-'}
                           </td>
                           <td className="px-5 py-4 text-xs text-slate-400">
                             {new Date(request.created_at).toLocaleString('en-AE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             {request.cancelled_at && (
-                              <div className="mt-1">Cancelled {new Date(request.cancelled_at).toLocaleDateString('en-AE')}</div>
+                              <div className="mt-1">{t('cancelledOn', { date: new Date(request.cancelled_at).toLocaleDateString('en-AE') })}</div>
                             )}
                           </td>
                         </tr>
@@ -262,8 +278,8 @@ export default async function AdminRequestsPage({
                     {requestRows.length === 0 && (
                       <tr>
                         <td colSpan={8} className="px-5 py-14 text-center">
-                          <p className="font-semibold text-slate-700">No requests match this filter.</p>
-                          <p className="mt-1 text-sm text-slate-500">Try another filter, or check back after new customer activity.</p>
+                          <p className="font-semibold text-slate-700">{t('emptyTitle')}</p>
+                          <p className="mt-1 text-sm text-slate-500">{t('emptyDescription')}</p>
                         </td>
                       </tr>
                     )}

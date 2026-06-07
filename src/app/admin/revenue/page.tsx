@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import Navbar from '@/components/layout/Navbar'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -60,6 +61,7 @@ type OveragePaymentRow = {
 }
 
 export default async function AdminRevenuePage() {
+  const t = await getTranslations('admin.revenue')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
@@ -85,57 +87,57 @@ export default async function AdminRevenuePage() {
           <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Revenue operations</p>
-                <h1 className="mt-1 text-2xl font-bold text-slate-900">Revenue Log</h1>
-                <p className="mt-1 text-sm text-slate-500">Review payouts, commission charges, PPJ payments, and failed overage events.</p>
+                <p className="text-sm font-medium text-slate-500">{t('eyebrow')}</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">{t('title')}</h1>
+                <p className="mt-1 text-sm text-slate-500">{t('description')}</p>
               </div>
-              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Back to Dashboard</a>
+              <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('backToDashboard')}</a>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Card className="border-slate-200 shadow-sm">
               <CardBody className="min-h-28">
-                <div className="text-2xl font-bold text-green-600">{(totalPaid / 100).toFixed(2)} AED</div>
-                <div className="text-sm text-slate-500">Total Paid Out</div>
+                <div className="text-2xl font-bold text-green-600">{t('amountAed', { amount: (totalPaid / 100).toFixed(2) })}</div>
+                <div className="text-sm text-slate-500">{t('totalPaidOut')}</div>
               </CardBody>
             </Card>
             <Card className="border-slate-200 shadow-sm">
               <CardBody className="min-h-28">
-                <div className="text-2xl font-bold text-[#0F6E56]">{totalCommissions.toFixed(2)} AED</div>
-                <div className="text-sm text-slate-500">Total Commissions Charged</div>
+                <div className="text-2xl font-bold text-[#0F6E56]">{t('amountAed', { amount: totalCommissions.toFixed(2) })}</div>
+                <div className="text-sm text-slate-500">{t('totalCommissionsCharged')}</div>
               </CardBody>
             </Card>
             <Card className="border-slate-200 shadow-sm">
               <CardBody className="min-h-28">
                 <div className="text-2xl font-bold text-slate-700">{jobs?.length ?? 0}</div>
-                <div className="text-sm text-slate-500">Total Jobs</div>
+                <div className="text-sm text-slate-500">{t('totalJobs')}</div>
               </CardBody>
             </Card>
             <Card className="border-slate-200 shadow-sm">
               <CardBody className="min-h-28">
-                <div className="text-2xl font-bold text-green-600">{totalPPJRevenue} AED</div>
-                <div className="text-sm text-slate-500">PPJ Revenue (paid)</div>
-                <div className="text-xs text-slate-400 mt-1">{ppjPayments?.length ?? 0} payments</div>
+                <div className="text-2xl font-bold text-green-600">{t('amountAed', { amount: totalPPJRevenue })}</div>
+                <div className="text-sm text-slate-500">{t('ppjRevenuePaid')}</div>
+                <div className="text-xs text-slate-400 mt-1">{t('paymentsCount', { count: ppjPayments?.length ?? 0 })}</div>
               </CardBody>
             </Card>
             <Card className="border-slate-200 shadow-sm">
               <CardBody className="min-h-28">
                 <div className="text-2xl font-bold text-red-600">{failedOverages?.length ?? 0}</div>
-                <div className="text-sm text-slate-500">Failed Overage Payments</div>
-                <div className="text-xs text-slate-400 mt-1">Needs provider follow-up</div>
+                <div className="text-sm text-slate-500">{t('failedOveragePayments')}</div>
+                <div className="text-xs text-slate-400 mt-1">{t('needsProviderFollowUp')}</div>
               </CardBody>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="overflow-hidden border-slate-200 shadow-sm">
-              <CardHeader><h2 className="font-semibold text-slate-800">Stripe Payouts</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-slate-800">{t('stripePayouts')}</h2></CardHeader>
               <CardBody className="p-0">
                 {!payouts?.length ? (
                   <div className="px-6 py-10 text-center">
-                    <p className="text-sm font-semibold text-slate-700">No payouts yet</p>
-                    <p className="mt-1 text-xs text-slate-500">Stripe payout records will appear here after payout activity.</p>
+                    <p className="text-sm font-semibold text-slate-700">{t('noPayoutsYet')}</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('payoutsEmptyDescription')}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -156,12 +158,12 @@ export default async function AdminRevenuePage() {
             </Card>
 
             <Card className="overflow-hidden border-slate-200 shadow-sm">
-              <CardHeader><h2 className="font-semibold text-slate-800">Recent Commission Charges</h2></CardHeader>
+              <CardHeader><h2 className="font-semibold text-slate-800">{t('recentCommissionCharges')}</h2></CardHeader>
               <CardBody className="p-0">
                 {!jobs?.length ? (
                   <div className="px-6 py-10 text-center">
-                    <p className="text-sm font-semibold text-slate-700">No commission jobs yet</p>
-                    <p className="mt-1 text-xs text-slate-500">Completed commission activity will appear here.</p>
+                    <p className="text-sm font-semibold text-slate-700">{t('noCommissionJobsYet')}</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('commissionEmptyDescription')}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -169,9 +171,9 @@ export default async function AdminRevenuePage() {
                       <div key={job.id} className="flex items-center justify-between gap-4 px-6 py-4">
                         <div>
                           <div className="font-medium text-slate-800">{job.providers?.users?.name ?? '-'}</div>
-                          <div className="text-xs text-slate-400">{job.requests?.problem_type} · {job.commission_rate}% rate</div>
+                          <div className="text-xs text-slate-400">{job.requests?.problem_type} · {t('commissionRate', { rate: job.commission_rate ?? 0 })}</div>
                         </div>
-                        <div className="shrink-0 font-semibold text-[#0F6E56]">{(job.commission_amount ?? 0).toFixed(2)} AED</div>
+                        <div className="shrink-0 font-semibold text-[#0F6E56]">{t('amountAed', { amount: (job.commission_amount ?? 0).toFixed(2) })}</div>
                       </div>
                     ))}
                   </div>
@@ -183,13 +185,20 @@ export default async function AdminRevenuePage() {
           {ppjPayments && ppjPayments.length > 0 && (
             <Card className="mt-6 overflow-hidden border-slate-200 shadow-sm">
               <CardHeader>
-                <h2 className="font-semibold text-slate-800">Pay Per Job Payments</h2>
+                <h2 className="font-semibold text-slate-800">{t('payPerJobPayments')}</h2>
               </CardHeader>
               <CardBody className="p-0 overflow-x-auto">
                 <table className="w-full min-w-[820px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
-                      {['Provider', 'Fee', 'Distance', 'Promo?', 'Date', 'Stripe PI'].map((heading) => (
+                      {[
+                        t('provider'),
+                        t('fee'),
+                        t('distance'),
+                        t('promo'),
+                        t('date'),
+                        t('stripePi'),
+                      ].map((heading) => (
                         <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
@@ -198,12 +207,12 @@ export default async function AdminRevenuePage() {
                     {ppjPayments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-slate-50">
                         <td className="px-5 py-4 font-medium text-slate-800">{payment.providers?.users?.name ?? '-'}</td>
-                        <td className="px-5 py-4 text-slate-700">{payment.fee_aed} AED</td>
-                        <td className="px-5 py-4 text-slate-500">{(payment.distance_meters / 1000).toFixed(1)} km</td>
+                        <td className="px-5 py-4 text-slate-700">{t('amountAed', { amount: payment.fee_aed })}</td>
+                        <td className="px-5 py-4 text-slate-500">{t('distanceKm', { distance: (payment.distance_meters / 1000).toFixed(1) })}</td>
                         <td className="px-5 py-4">
                           {payment.promo_applied
-                            ? <span className="text-[#0F6E56] font-semibold text-xs">Yes</span>
-                            : <span className="text-slate-400 text-xs">No</span>
+                            ? <span className="text-[#0F6E56] font-semibold text-xs">{t('yes')}</span>
+                            : <span className="text-slate-400 text-xs">{t('no')}</span>
                           }
                         </td>
                         <td className="px-5 py-4 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
@@ -224,13 +233,18 @@ export default async function AdminRevenuePage() {
           {failedOverages && failedOverages.length > 0 && (
             <Card className="mt-6 overflow-hidden border-slate-200 shadow-sm">
               <CardHeader>
-                <h2 className="font-semibold text-slate-800">Failed Overage Payments</h2>
+                <h2 className="font-semibold text-slate-800">{t('failedOveragePayments')}</h2>
               </CardHeader>
               <CardBody className="p-0 overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
-                      {['Provider', 'Fee', 'Date', 'Stripe PI'].map((heading) => (
+                      {[
+                        t('provider'),
+                        t('fee'),
+                        t('date'),
+                        t('stripePi'),
+                      ].map((heading) => (
                         <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
@@ -239,7 +253,7 @@ export default async function AdminRevenuePage() {
                     {failedOverages.map((payment) => (
                       <tr key={payment.id} className="hover:bg-slate-50">
                         <td className="px-5 py-4 font-medium text-slate-800">{payment.providers?.users?.name ?? '-'}</td>
-                        <td className="px-5 py-4 text-slate-700">{payment.fee_aed} AED</td>
+                        <td className="px-5 py-4 text-slate-700">{t('amountAed', { amount: payment.fee_aed })}</td>
                         <td className="px-5 py-4 text-slate-500">{new Date(payment.created_at).toLocaleDateString('en-AE')}</td>
                         <td className="px-5 py-4 font-mono text-xs text-slate-400">
                           {payment.stripe_payment_intent_id

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -50,12 +51,12 @@ type AdminProviderWithLinks = AdminProviderRow & {
 
 type ProviderFilter = 'all' | 'pending' | 'active' | 'suspended' | 'missing-documents'
 
-const FILTERS: { id: ProviderFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'active', label: 'Active' },
-  { id: 'suspended', label: 'Suspended' },
-  { id: 'missing-documents', label: 'Missing documents' },
+const FILTERS: { id: ProviderFilter; labelKey: string }[] = [
+  { id: 'all', labelKey: 'filters.all' },
+  { id: 'pending', labelKey: 'filters.pending' },
+  { id: 'active', labelKey: 'filters.active' },
+  { id: 'suspended', labelKey: 'filters.suspended' },
+  { id: 'missing-documents', labelKey: 'filters.missingDocuments' },
 ]
 
 async function createDocumentLinks(provider: AdminProviderRow): Promise<ProviderDocumentLinks> {
@@ -87,10 +88,10 @@ function statusBadgeVariant(status: ProviderStatus): 'success' | 'warning' | 'da
   return 'warning'
 }
 
-function documentLinkLabel(key: keyof ProviderDocumentLinks): string {
-  if (key === 'emiratesId') return 'Emirates ID'
-  if (key === 'license') return 'UAE driving license'
-  return 'Vehicle photo'
+function documentLinkLabelKey(key: keyof ProviderDocumentLinks): string {
+  if (key === 'emiratesId') return 'documents.emiratesId'
+  if (key === 'license') return 'documents.uaeDrivingLicense'
+  return 'documents.vehiclePhoto'
 }
 
 export default async function AdminProvidersPage({
@@ -98,6 +99,7 @@ export default async function AdminProvidersPage({
 }: {
   searchParams?: Promise<{ filter?: string }>
 }) {
+  const t = await getTranslations('admin.providers')
   const params = await searchParams
   const activeFilter = FILTERS.some((filter) => filter.id === params?.filter)
     ? params?.filter as ProviderFilter
@@ -157,13 +159,13 @@ export default async function AdminProvidersPage({
           <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Admin moderation</p>
-                <h1 className="mt-1 text-2xl font-bold text-slate-900">Manage Providers</h1>
-                <p className="mt-1 text-sm text-slate-500">Review documents, approve providers, and manage trust badges.</p>
+                <p className="text-sm font-medium text-slate-500">{t('eyebrow')}</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">{t('title')}</h1>
+                <p className="mt-1 text-sm text-slate-500">{t('description')}</p>
               </div>
               <div className="flex flex-wrap gap-3">
-                <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Dashboard</a>
-                <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">Requests</a>
+                <a href="/admin/dashboard" className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('dashboard')}</a>
+                <a href="/admin/requests" className="inline-flex min-h-10 items-center rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]">{t('requests')}</a>
               </div>
             </div>
           </div>
@@ -172,14 +174,14 @@ export default async function AdminProvidersPage({
             <CardHeader className="bg-white">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="font-semibold text-slate-900">Providers ({filteredProviders.length})</h2>
-                  <p className="text-sm text-slate-500">{providersWithDocumentState.length} legitimate provider accounts</p>
+                  <h2 className="font-semibold text-slate-900">{t('providersCount', { count: filteredProviders.length })}</h2>
+                  <p className="text-sm text-slate-500">{t('legitimateProviderAccounts', { count: providersWithDocumentState.length })}</p>
                 </div>
                 {invalidProviderRows.length > 0 && (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                    <p className="font-semibold">Data integrity warning</p>
+                    <p className="font-semibold">{t('dataIntegrityWarning')}</p>
                     <p className="mt-1">
-                      {invalidProviderRows.length} provider table row{invalidProviderRows.length === 1 ? '' : 's'} belong to non-provider user accounts and are hidden from moderation. Review these rows manually in Supabase before taking action.
+                      {t('invalidProviderRowsWarning', { count: invalidProviderRows.length })}
                     </p>
                   </div>
                 )}
@@ -194,7 +196,7 @@ export default async function AdminProvidersPage({
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       } focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]`}
                     >
-                      {filter.label}
+                      {t(filter.labelKey)}
                       {filterCounts[filter.id] > 0 && (
                         <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${activeFilter === filter.id ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-700'}`}>
                           {filterCounts[filter.id]}
@@ -210,8 +212,8 @@ export default async function AdminProvidersPage({
                 <table className="w-full min-w-[1040px] text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {['Provider', 'Contact', 'Plan', 'Status', 'Jobs', 'Created', 'Documents', 'Trust', 'Actions'].map(h => (
-                        <th key={h} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{h}</th>
+                      {['provider', 'contact', 'plan', 'status', 'jobs', 'created', 'documents', 'trust', 'actions'].map((h) => (
+                        <th key={h} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{t(`table.${h}`)}</th>
                       ))}
                     </tr>
                   </thead>
@@ -219,12 +221,12 @@ export default async function AdminProvidersPage({
                     {filteredProviders.map((provider) => (
                       <tr key={provider.id} className="align-top hover:bg-slate-50">
                         <td className="px-5 py-4">
-                          <div className="font-medium text-slate-800">{provider.users?.name ?? 'Unnamed provider'}</div>
+                          <div className="font-medium text-slate-800">{provider.users?.name ?? t('unnamedProvider')}</div>
                           <div className="text-xs text-slate-400">{provider.id.slice(0, 8)}</div>
                         </td>
                         <td className="px-5 py-4 text-slate-600">
-                          <div className="max-w-56 break-words">{provider.users?.email ?? '-'}</div>
-                          <div className="text-xs text-slate-400">{provider.users?.phone ?? 'No phone'}</div>
+                          <div className="max-w-56 break-words">{provider.users?.email ?? t('dash')}</div>
+                          <div className="text-xs text-slate-400">{provider.users?.phone ?? t('noPhone')}</div>
                         </td>
                         <td className="px-5 py-4"><Badge variant="info">{getPlanLabel(provider.plan)}</Badge></td>
                         <td className="px-5 py-4">
@@ -234,34 +236,34 @@ export default async function AdminProvidersPage({
                         </td>
                         <td className="px-5 py-4 text-slate-700">{provider.jobs_this_month ?? 0}</td>
                         <td className="px-5 py-4 text-slate-500">
-                          {provider.created_at ? new Date(provider.created_at).toLocaleDateString('en-AE') : '-'}
+                          {provider.created_at ? new Date(provider.created_at).toLocaleDateString('en-AE') : t('dash')}
                         </td>
                         <td className="px-5 py-4">
                           <div className="min-w-48 space-y-2">
                             <Badge variant={provider.documentsComplete ? 'success' : 'warning'}>
-                              {provider.documentsComplete ? 'Documents complete' : 'Missing documents'}
+                              {provider.documentsComplete ? t('documentsComplete') : t('missingDocuments')}
                             </Badge>
                             <div className="flex flex-col gap-1">
                               {(['emiratesId', 'license', 'vehicle'] as const).map((key) => (
                                 provider.documentLinks[key] ? (
                                   <a key={key} className="text-xs font-semibold text-[#1D9E75] hover:underline" href={provider.documentLinks[key]} target="_blank" rel="noopener noreferrer">
-                                    View {documentLinkLabel(key)}
+                                    {t('viewDocument', { document: t(documentLinkLabelKey(key)) })}
                                   </a>
                                 ) : null
                               ))}
                             </div>
                             {provider.missingDocumentLabels.length > 0 && (
                               <p className="text-xs leading-5 text-slate-500">
-                                Missing: {provider.missingDocumentLabels.join(', ')}
+                                {t('missingList', { documents: provider.missingDocumentLabels.join(', ') })}
                               </p>
                             )}
                           </div>
                         </td>
                         <td className="px-5 py-4">
                           {provider.verified_badge ? (
-                            <Badge variant="success">Verified Provider</Badge>
+                            <Badge variant="success">{t('verifiedProvider')}</Badge>
                           ) : (
-                            <Badge>Not verified</Badge>
+                            <Badge>{t('notVerified')}</Badge>
                           )}
                         </td>
                         <td className="px-5 py-4">
@@ -272,9 +274,9 @@ export default async function AdminProvidersPage({
                     {filteredProviders.length === 0 && (
                       <tr>
                         <td colSpan={9} className="px-5 py-14 text-center">
-                          <p className="font-semibold text-slate-700">No providers match this filter.</p>
+                          <p className="font-semibold text-slate-700">{t('noProvidersTitle')}</p>
                           <p className="mt-1 text-sm text-slate-500">
-                            Try another moderation filter, or check back after new provider registrations.
+                            {t('noProvidersDescription')}
                           </p>
                         </td>
                       </tr>
