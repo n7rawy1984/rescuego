@@ -96,7 +96,7 @@ Always tell user to run from terminal.
 - Phase 4 — Provider State Machine (en_route/arrived/advance-state)
 - Phase 4B — Admin Operations Center (stuck jobs, performance, extended filters)
 - Pre-launch hardening (C-1 through C-3, H-1 through H-4)
-- Migrations: 001 → 026
+- Migrations: 001 → 027
 
 ### مكتمل حديثاً (بعد آخر تحديث)
 - Phase 1A Task 8 — Production slow-query identification (migration 017)
@@ -107,12 +107,16 @@ Always tell user to run from terminal.
 - Phase 4B — Admin Operations Center (stuck jobs, performance leaderboard, filters)
 - Phase 2B (partial) — RTL infrastructure (Cairo font, logical classes, @custom-variant rtl)
 - Pre-launch hardening — C-1/C-2/C-3, H-1/H-2/H-3/H-4 (migration 026)
-- Migrations: 001 → 026
+- Audit Phase 1: og-image.svg + logo.svg, payout_log UNIQUE + onConflict, provider dashboard RLS fix
+- Migrations: 001 → 027
 
 ### الجاي — Next Tasks
+- Audit Phase 2: Rate limiter graceful degradation
+- Audit Phase 3: complete/route.ts + advance-state empty string fix
+- Audit Phase 4: Navbar duplicate auth removal
+- Audit Phase 5: Deprecated edge functions cleanup
+- Audit Phase 6: CSP enforcement + CSRF header
 - Phase 2B-3: Arabic strings + RTL activation
-- Phase 5: Provider KYC & UAE Compliance
-- Phase 6: Dispatch Logic V2
 
 ### المراحل القادمة بالترتيب
 - Phase 2B remaining: Arabic strings (2B-3) + RTL activation

@@ -1,7 +1,7 @@
 # RescueGo — Complete Project Handoff
 
 **Last updated:** June 7, 2026  
-**Status:** Phases 0–4B complete. Migrations 001–026 applied. Next: Phase 2B-3 (Arabic strings + RTL activation).  
+**Status:** Phases 0–4B complete. Audit Phase 1 done. Migrations 001–027 applied. Next: Audit Phase 2 (rate limiter graceful degradation).  
 **Branch:** main  
 **Domain:** rescuego.ae
 

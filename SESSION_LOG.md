@@ -2,6 +2,23 @@
 
 ---
 
+## Session: June 7, 2026 (continued 3) — Audit Fix Phases
+
+### Phase 1 — Missing Assets + Payout Fix + Provider Online Fix
+**Status:** COMPLETE
+
+**Changes:**
+1. `public/og-image.svg` — created branded OG image (1200x630) replacing missing og-image.jpg
+2. `public/logo.svg` — created branded logo replacing missing logo.png
+3. `src/app/layout.tsx` — metadata references updated from .jpg/.png to .svg
+4. `src/app/api/stripe/webhook/route.ts` — payout_log upsert fixed with `onConflict: 'stripe_payout_id'`
+5. `supabase/migrations/027_payout_log_unique_constraint.sql` — UNIQUE constraint on stripe_payout_id
+6. `src/app/provider/dashboard/page.tsx` — provider_locations query switched from user-scoped `supabase` to `admin` client (RLS was blocking read after migration 021 dropped SELECT policy)
+
+**Root cause of provider Accept button bug:** Migration 021 dropped "Active providers location visible" SELECT policy on provider_locations. Dashboard used user-scoped client to read provider's own location → always got null → providerIsOnline always false → button always disabled.
+
+---
+
 ## Session: June 7, 2026 (continued 2) — Full Project Audit & Documentation Update
 
 ### What was done
