@@ -163,7 +163,8 @@ export default function RequestPage() {
   useEffect(() => {
     if (!activeRequest || completedUnratedRequest) return
 
-    const pollMs = 60000
+    const isActiveState = ['accepted', 'en_route', 'arrived', 'in_progress'].includes(activeRequest.status)
+    const pollMs = isActiveState ? 5000 : 60000
     const interval = window.setInterval(() => {
       void loadRequestState().catch(() => undefined)
     }, pollMs)

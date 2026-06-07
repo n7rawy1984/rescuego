@@ -158,7 +158,7 @@ export default function Navbar({
   }
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
+    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white" suppressHydrationWarning>
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10 xl:px-12">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2" aria-label="RescueGo home">

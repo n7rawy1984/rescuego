@@ -25,7 +25,6 @@ export default async function NavbarServer() {
 
   return (
     <Navbar
-      key={`nav-${authenticated}-${role}`}
       initialAuthenticated={authenticated}
       initialRole={role}
     />
