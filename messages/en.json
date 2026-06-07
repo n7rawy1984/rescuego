@@ -138,7 +138,19 @@
       "noAccount": "Don't have an account?",
       "registerLink": "Register now",
       "error": "Invalid email or password",
-      "rateLimited": "Too many attempts. Please try again later."
+      "rateLimited": "Too many attempts. Please try again later.",
+      "openingDashboard": "Opening dashboard...",
+      "signingIn": "Signing in...",
+      "loadingDashboard": "Loading dashboard...",
+      "loginFailed": "Login failed. Please check your credentials.",
+      "sessionConfirmError": "Could not confirm session. Please try again.",
+      "connectionLost": "Connection lost. Check your internet and try again.",
+      "homeAriaLabel": "RescueGo home",
+      "secureAccess": "Secure, encrypted access to your RescueGo account",
+      "newCustomer": "New customer?",
+      "createAccount": "Create an account",
+      "recoveryProvider": "Recovery provider?",
+      "joinProvider": "Join as provider"
     },
     "register": {
       "title": "Create Account",

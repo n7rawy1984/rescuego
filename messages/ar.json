@@ -138,7 +138,19 @@
       "noAccount": "ليس لديك حساب؟",
       "registerLink": "سجّل الآن",
       "error": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
-      "rateLimited": "محاولات كثيرة. حاول بعد قليل."
+      "rateLimited": "محاولات كثيرة. حاول بعد قليل.",
+      "openingDashboard": "جاري فتح لوحة التحكم...",
+      "signingIn": "جاري تسجيل الدخول...",
+      "loadingDashboard": "جاري تحميل لوحة التحكم...",
+      "loginFailed": "فشل تسجيل الدخول. تحقق من بياناتك.",
+      "sessionConfirmError": "تعذر تأكيد الجلسة. حاول مرة أخرى.",
+      "connectionLost": "انقطع الاتصال. تحقق من الإنترنت وحاول مرة أخرى.",
+      "homeAriaLabel": "الصفحة الرئيسية لـ RescueGo",
+      "secureAccess": "دخول آمن ومشفّر لحسابك في RescueGo",
+      "newCustomer": "عميل جديد؟",
+      "createAccount": "أنشئ حساباً",
+      "recoveryProvider": "مقدم خدمة إنقاذ؟",
+      "joinProvider": "انضم كمقدم خدمة"
     },
     "register": {
       "title": "إنشاء حساب",

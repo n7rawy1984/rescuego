@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
@@ -8,6 +9,9 @@ import Input from '@/components/ui/Input'
 import { ShieldCheck } from 'lucide-react'
 
 export default function RegisterPage() {
+  const t = useTranslations('auth.register')
+  const tCommon = useTranslations('common')
+  const tErrors = useTranslations('errors')
   const router = useRouter()
   const [form, setForm] = useState({ name: '', phone: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
@@ -31,7 +35,7 @@ export default function RegisterPage() {
         options: { data: { name: form.name, phone: form.phone } },
       })
       if (authError || !data.user) {
-        setError(authError?.message ?? 'Registration failed')
+        setError(authError?.message ?? tErrors('generic'))
         setLoading(false)
         return
       }
@@ -47,20 +51,20 @@ export default function RegisterPage() {
       const profile = await profileRes.json().catch(() => null) as { id?: string; error?: string } | null
 
       if (profileRes.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(tErrors('unauthorized'))
         setLoading(false)
         return
       }
 
       if (!profileRes.ok || !profile?.id) {
-        setError(profile?.error ?? 'Account created, but profile setup failed. Please sign in and try again.')
+        setError(profile?.error ?? tErrors('generic'))
         setLoading(false)
         return
       }
 
       router.push('/customer/request')
     } catch {
-      setError('Connection lost. Please check your internet connection and try again.')
+      setError(tErrors('network'))
       setLoading(false)
     }
   }
@@ -75,29 +79,29 @@ export default function RegisterPage() {
             </div>
             <span className="text-2xl font-bold text-slate-900">RescueGo</span>
           </Link>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Create account</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Free for drivers. No credit card needed.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{t('title')}</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{t('subtitle')}</p>
         </div>
         <div className="rounded-3xl border border-[#DDE7EE] bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
           <div className="mb-5 rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-sm text-[#0F6E56]">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-              <p>Your contact details are shared with an assigned provider only when you request help.</p>
+              <p>{t('success')}</p> {/* TODO: i18n */}
             </div>
           </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input id="name" label="Full Name" value={form.name} onChange={e => update('name', e.target.value)} required placeholder="Ahmed Al Rashid" />
-            <Input id="phone" type="tel" label="Phone Number" value={form.phone} onChange={e => update('phone', e.target.value)} required placeholder="+971 50 000 0000" />
-            <Input id="email" type="email" label="Email" value={form.email} onChange={e => update('email', e.target.value)} required placeholder="you@example.com" />
-            <Input id="password" type="password" label="Password" value={form.password} onChange={e => update('password', e.target.value)} required placeholder="Min 8 characters" minLength={8} />
-            <p className="-mt-2 text-xs text-slate-500">Use at least 8 characters. A longer password with a mix of words and numbers is stronger.</p>
+            <Input id="name" label={t('name')} value={form.name} onChange={e => update('name', e.target.value)} required placeholder={t('namePlaceholder')} />
+            <Input id="phone" type="tel" label={t('phone')} value={form.phone} onChange={e => update('phone', e.target.value)} required placeholder={t('phonePlaceholder')} />
+            <Input id="email" type="email" label={t('email')} value={form.email} onChange={e => update('email', e.target.value)} required placeholder={t('emailPlaceholder')} />
+            <Input id="password" type="password" label={t('password')} value={form.password} onChange={e => update('password', e.target.value)} required placeholder={t('passwordPlaceholder')} minLength={8} />
+            <p className="-mt-2 text-xs text-slate-500">{t('passwordPlaceholder')}</p>
             {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
             <Button type="submit" loading={loading} size="lg" className="mt-2 min-h-12 w-full">
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? tCommon('loading') : t('submit')}
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-500">
-            Already have an account? <Link href="/auth/login" className="text-[#1D9E75] font-semibold hover:underline">Sign In</Link>
+            {t('hasAccount')} <Link href="/auth/login" className="text-[#1D9E75] font-semibold hover:underline">{t('loginLink')}</Link>
           </p>
         </div>
       </div>

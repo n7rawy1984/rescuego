@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { ShieldCheck } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 type UserRole = 'admin' | 'provider' | 'customer'
 
@@ -30,6 +31,7 @@ function getDestinationForRole(role: string | null | undefined, safeRedirect: st
 }
 
 export default function LoginPage() {
+  const t = useTranslations('auth.login')
   const router = useRouter()
   const fallbackTimerRef = useRef<number | null>(null)
   const [email, setEmail] = useState('')
@@ -48,7 +50,7 @@ export default function LoginPage() {
   const navigateAfterAuthenticatedLogin = useCallback((destination: string) => {
     clearFallbackTimer()
     setLoading(true)
-    setLoadingMessage('Opening your dashboard...')
+    setLoadingMessage(t('openingDashboard'))
     setError('')
 
     router.replace(destination)
@@ -127,14 +129,14 @@ export default function LoginPage() {
     e.preventDefault()
     if (loading) return
     setLoading(true)
-    setLoadingMessage('Signing you in...')
+    setLoadingMessage(t('signingIn'))
     setError('')
 
     try {
       const supabase = createClient()
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
       if (authError || !data.user) {
-        setError(authError?.message ?? 'Login failed')
+        setError(authError?.message ?? t('loginFailed'))
         setLoading(false)
         setLoadingMessage('')
         return
@@ -142,13 +144,13 @@ export default function LoginPage() {
 
       const confirmedSession = data.session ?? (await supabase.auth.getSession()).data.session
       if (!confirmedSession) {
-        setError('We could not confirm your session. Please try signing in again.')
+        setError(t('sessionConfirmError'))
         setLoading(false)
         setLoadingMessage('')
         return
       }
 
-      setLoadingMessage('Loading your dashboard...')
+      setLoadingMessage(t('loadingDashboard'))
       const { data: userData } = await supabase
         .from('users')
         .select('role')
@@ -157,7 +159,7 @@ export default function LoginPage() {
 
       navigateAfterAuthenticatedLogin(getDestinationForRole(userData?.role as UserRole | undefined, getSafeRedirect()))
     } catch {
-      setError('Connection lost. Please check your internet connection and try again.')
+      setError(t('connectionLost'))
       setLoading(false)
       setLoadingMessage('')
     }
@@ -167,28 +169,28 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
       <div className="mx-auto w-full max-w-md">
         <div className="mb-6 text-center">
-          <Link href="/" className="mb-6 inline-flex items-center gap-2" aria-label="RescueGo home">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2" aria-label={t('homeAriaLabel')}>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1D9E75]" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
             <span className="text-2xl font-bold text-slate-900">RescueGo</span>
           </Link>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Sign in</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Welcome back to your RescueGo account.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{t('title')}</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{t('subtitle')}</p>
         </div>
         <div className="rounded-3xl border border-[#DDE7EE] bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
           <div className="mb-5 rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-sm text-[#0F6E56]">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-              <p>Secure access for customers, providers, and RescueGo operations.</p>
+              <p>{t('secureAccess')}</p>
             </div>
           </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input id="email" type="email" label="Email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" disabled={loading} />
-            <Input id="password" type="password" label="Password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Password" disabled={loading} />
+            <Input id="email" type="email" label={t('email')} value={email} onChange={e => setEmail(e.target.value)} required placeholder={t('emailPlaceholder')} disabled={loading} />
+            <Input id="password" type="password" label={t('password')} value={password} onChange={e => setPassword(e.target.value)} required placeholder={t('passwordPlaceholder')} disabled={loading} />
             <div className="text-end -mt-2">
               <Link href="/auth/forgot-password" className="text-sm text-[#1D9E75] hover:underline">
-                Forgot password?
+                {t('forgotPassword')}
               </Link>
             </div>
             {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
@@ -198,12 +200,12 @@ export default function LoginPage() {
               </div>
             )}
             <Button type="submit" loading={loading} size="lg" className="mt-2 min-h-12 w-full">
-              {loading ? loadingMessage : 'Sign In'}
+              {loading ? loadingMessage : t('submit')}
             </Button>
           </form>
           <div className="mt-6 flex flex-col gap-2 text-center text-sm text-slate-500">
-            <p>New customer? <Link href="/auth/register" className="text-[#1D9E75] font-semibold hover:underline">Create account</Link></p>
-            <p>Recovery provider? <Link href="/provider/register" className="text-[#1D9E75] font-semibold hover:underline">Join as Provider</Link></p>
+            <p>{t('newCustomer')} <Link href="/auth/register" className="text-[#1D9E75] font-semibold hover:underline">{t('createAccount')}</Link></p>
+            <p>{t('recoveryProvider')} <Link href="/provider/register" className="text-[#1D9E75] font-semibold hover:underline">{t('joinProvider')}</Link></p>
           </div>
         </div>
       </div>
