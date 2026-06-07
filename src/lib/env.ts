@@ -29,6 +29,12 @@ export function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 }
 
+export function getSiteUrl(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL
+    || process.env.NEXT_PUBLIC_APP_URL
+    || 'https://rescuego.ae'
+}
+
 export function getOpsCronSecret(): string | null {
   return process.env.OPS_CRON_SECRET || null
 }

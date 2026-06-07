@@ -85,6 +85,23 @@ Run all SQL migrations in order from the `supabase/migrations` folder:
 8. `008_upgrade_job_credits.sql`
 9. `009_operational_trust_credits.sql`
 10. `010_harden_open_request_privacy.sql`
+11. `011_accept_request_atomic.sql`
+12. `012_ppj_race_protection.sql`
+13. `013_request_lock_ttl_fix.sql`
+14. `014_complete_job_atomic.sql`
+15. `015_rating_trigger_fix.sql`
+16. `016_provider_location_index.sql`
+17. `017_slow_query_optimization.sql`
+18. `018_launch_promo_ppj_config.sql`
+19. `019_cancel_request_atomic.sql`
+20. `020_release_job_atomic.sql`
+21. `021_phase1c_rls_hardening.sql`
+22. `022_phase1c_remaining.sql`
+23. `023_provider_documents_bucket_rls.sql`
+24. `024_accept_rpc_overage_guard.sql`
+25. `025_provider_state_machine.sql` (adds en_route/arrived states — REQUIRED for state machine)
+26. `026_advance_state_atomic.sql`
+27. `027_payout_log_unique_constraint.sql`
 
 In Supabase:
 
@@ -92,7 +109,7 @@ In Supabase:
 2. Create a new query.
 3. Paste the contents of `001_initial_schema.sql`.
 4. Run it.
-5. Repeat for each migration in order through `010_harden_open_request_privacy.sql`.
+5. Repeat for each migration in order through `027_payout_log_unique_constraint.sql`.
 
 These migrations create:
 - `users`
@@ -595,6 +612,7 @@ Sentry production verification:
 - Enable Supabase email confirmation.
 - Use production Stripe keys and live price IDs.
 - Set `NEXT_PUBLIC_APP_URL=https://rescuego.ae`.
+- Set `NEXT_PUBLIC_SITE_URL=https://rescuego.ae` (used for password reset redirect URLs).
 - Configure optional Sentry monitoring after confirming privacy redaction in a staging deployment.
 - Configure Stripe production webhook endpoint:
 
@@ -604,4 +622,24 @@ https://rescuego.ae/api/stripe/webhook
 
 - Keep `provider-documents` private.
 - Do not expose service role keys in browser code.
-- Apply all migrations before deploying.
+- Apply all migrations (001-027) before deploying.
+
+### Google Maps API Key Restriction
+
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is exposed client-side (used for geocoding in customer request form). To prevent abuse:
+
+1. Go to Google Cloud Console > APIs & Services > Credentials.
+2. Select the API key used for `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
+3. Under `Application restrictions`, select `HTTP referrers (websites)`.
+4. Add allowed referrers:
+   ```
+   https://rescuego.ae/*
+   http://localhost:3000/*
+   ```
+5. Under `API restrictions`, restrict to:
+   - Maps JavaScript API
+   - Geocoding API
+   - Places API
+6. Save.
+
+This ensures the key cannot be used from unauthorized domains.

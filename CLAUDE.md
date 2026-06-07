@@ -113,6 +113,7 @@ Always tell user to run from terminal.
 - Audit Phase 4: NavbarServer eliminates duplicate client auth (~200ms savings per page)
 - Audit Phase 5: Deleted 5 deprecated Supabase edge functions
 - Audit Phase 6: CSP enforced + CSRF origin validation on all POST /api/* routes
+- Audit Phase 7: getSiteUrl() fallback, Google Maps API key docs, PROJECT_HANDOFF updated, SETUP.md migrations complete
 - Migrations: 001 → 027
 
 ### الجاي — Next Tasks

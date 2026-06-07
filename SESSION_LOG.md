@@ -4,6 +4,19 @@
 
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
+### Phase 7 — Site URL Fallback + Google Maps Docs + PROJECT_HANDOFF Update
+**Status:** COMPLETE
+
+**Changes:**
+1. `src/lib/env.ts` — Added `getSiteUrl()` helper with fallback chain: NEXT_PUBLIC_SITE_URL → NEXT_PUBLIC_APP_URL → 'https://rescuego.ae'
+2. `src/app/auth/forgot-password/page.tsx` — Added NEXT_PUBLIC_APP_URL as intermediate fallback before window.location.origin
+3. `SETUP.md` — Added "Google Maps API Key Restriction" section with step-by-step instructions for securing the client-side key in Google Cloud Console
+4. `SETUP.md` — Updated migrations list to include all 27 migrations (was only 10)
+5. `SETUP.md` — Added NEXT_PUBLIC_SITE_URL to production notes
+6. `PROJECT_HANDOFF.md` — Updated dependencies list (removed Radix/date-fns/react-hook-form, added Sentry/next-intl/stripe-react)
+
+---
+
 ### Phase 6 — CSP Enforcement + CSRF Origin Validation
 **Status:** COMPLETE
 
