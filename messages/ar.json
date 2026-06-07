@@ -912,6 +912,12 @@
       "registrationFailedSignIn": "فشل التسجيل. يرجى تسجيل الدخول لمتابعة الإعداد: {loginRedirect}",
       "settingUpProfile": "جاري إعداد الملف الشخصي...",
       "sessionExpired": "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى."
+    },
+    "subscribe": {
+      "eyebrow": "اشتراك مقدم الخدمة",
+      "pageTitle": "اختر خطتك",
+      "pageSubtitle": "اختر خطة اشتراك شهرية لفتح حدود مهام أعلى وعمولات أقل وأولوية في الطابور.",
+      "stripeCheckout": "دفع آمن عبر Stripe"
     }
   },
   "pricing": {

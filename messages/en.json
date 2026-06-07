@@ -912,6 +912,12 @@
       "registrationFailedSignIn": "Registration failed. Please sign in to continue setup: {loginRedirect}",
       "settingUpProfile": "Setting up profile...",
       "sessionExpired": "Your session expired. Please sign in again."
+    },
+    "subscribe": {
+      "eyebrow": "Provider subscription",
+      "pageTitle": "Choose Your Plan",
+      "pageSubtitle": "Select a monthly subscription plan to unlock higher job allowances, lower commissions, and priority queue access.",
+      "stripeCheckout": "Secure checkout via Stripe"
     }
   },
   "pricing": {
