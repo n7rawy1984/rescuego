@@ -65,12 +65,12 @@ export default function ProviderRequestList({
   const router = useRouter()
   const t = useTranslations('components.providerRequestList')
   const [hiddenRequestIds, setHiddenRequestIds] = useState<Set<string>>(() => new Set())
-  const [accepting, setAccepting] = useState<string | null>()
+  const [accepting, setAccepting] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [showOverageModal, setShowOverageModal] = useState<string | null>()
+  const [showOverageModal, setShowOverageModal] = useState<string | null>(null)
   const [overageLoading, setOverageLoading] = useState(false)
-  const [confirmRequestId, setConfirmRequestId] = useState<string | null>()
+  const [confirmRequestId, setConfirmRequestId] = useState<string | null>(null)
 
   const refreshRequests = useCallback(async () => {
     router.refresh()
