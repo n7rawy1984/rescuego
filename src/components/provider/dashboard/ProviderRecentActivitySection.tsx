@@ -50,7 +50,7 @@ export default function ProviderRecentActivitySection({ items }: Props) {
                     <span className="truncate">{item.location}</span>
                   </p>
                 </div>
-                <div className="text-left sm:text-right">
+                <div className="text-start sm:text-end">
                   <p className="font-semibold text-slate-900">{item.amount}</p>
                   <p className="text-xs text-slate-500">{item.date}</p>
                 </div>

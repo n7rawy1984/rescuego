@@ -200,7 +200,7 @@ export default async function AdminRequestsPage({
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       {['Type', 'Customer', 'Location', 'Status', 'Provider', 'Lifecycle', 'Value', 'Time'].map((heading) => (
-                        <th key={heading} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
+                        <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
                   </thead>

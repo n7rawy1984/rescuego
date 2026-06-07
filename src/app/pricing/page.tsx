@@ -288,7 +288,7 @@ export default async function PricingPage() {
                 <thead className="bg-slate-950 text-white">
                   <tr>
                     {['Feature', 'Starter', 'Pro', 'Business'].map(heading => (
-                      <th key={heading} className="px-4 py-3 text-left font-semibold">{heading}</th>
+                      <th key={heading} className="px-4 py-3 text-start font-semibold">{heading}</th>
                     ))}
                   </tr>
                 </thead>

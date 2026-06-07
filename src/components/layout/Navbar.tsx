@@ -251,7 +251,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-lg px-3 py-3 text-left font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] active:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
+                className="rounded-lg px-3 py-3 text-start font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] active:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
                 Logout
               </button>

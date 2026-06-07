@@ -244,9 +244,9 @@ export default function ProviderAvailabilityToggle({
             className="h-11 w-full bg-[#1D9E75] px-5 text-white hover:bg-[#0F6E56] focus:ring-[#1D9E75] sm:w-auto"
           >
             {online ? (
-              <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+              <RefreshCw className="me-2 h-4 w-4" aria-hidden="true" />
             ) : (
-              <Radio className="mr-2 h-4 w-4" aria-hidden="true" />
+              <Radio className="me-2 h-4 w-4" aria-hidden="true" />
             )}
             {online ? 'Refresh Location' : 'Go Online'}
           </Button>
@@ -258,7 +258,7 @@ export default function ProviderAvailabilityToggle({
               loading={loading}
               className="h-11 w-full px-5 sm:w-auto"
             >
-              <Power className="mr-2 h-4 w-4" aria-hidden="true" />
+              <Power className="me-2 h-4 w-4" aria-hidden="true" />
               Go Offline
             </Button>
           )}

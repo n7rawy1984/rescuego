@@ -72,7 +72,7 @@ export default function PaymentElementForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="text-left">
+    <form onSubmit={handleSubmit} className="text-start">
       <PaymentElement
         options={{
           paymentMethodOrder: ['card'],

@@ -75,7 +75,7 @@ export default function ProviderDashboardHeader({
                 aria-hidden="true"
               />
             ))}
-            <span className="ml-2 text-2xl font-semibold text-amber-950">
+            <span className="ms-2 text-2xl font-semibold text-amber-950">
               {rating.toFixed(1)}
             </span>
           </div>

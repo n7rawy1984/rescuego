@@ -179,7 +179,7 @@ export default async function AdminPerformancePage({
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr>
                       {['#', 'Provider', 'Status', 'Plan', 'Rating', 'Reviews', 'Completed', 'This Month', 'Revenue'].map((heading) => (
-                        <th key={heading} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">
                           {heading}
                         </th>
                       ))}
@@ -195,7 +195,7 @@ export default async function AdminPerformancePage({
                           <div className="font-medium text-slate-800">
                             {provider.users?.name ?? 'Unnamed'}
                             {provider.verified_badge && (
-                              <span className="ml-1.5 inline-block rounded bg-[#0F6E56] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              <span className="ms-1.5 inline-block rounded bg-[#0F6E56] px-1.5 py-0.5 text-[10px] font-bold text-white">
                                 Verified
                               </span>
                             )}

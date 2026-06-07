@@ -165,7 +165,7 @@ export default async function ProviderHistoryPage() {
                       <span>{item.location}</span>
                     </p>
                   </div>
-                  <div className="text-left sm:text-right shrink-0">
+                  <div className="text-start sm:text-end shrink-0">
                     {item.amount && (
                       <p className="font-semibold text-slate-900">{item.amount}</p>
                     )}

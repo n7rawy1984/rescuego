@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from 'next'
+import { Cairo } from 'next/font/google'
 import './globals.css'
 import { validateEnv } from '@/lib/env'
+
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  display: 'swap',
+  variable: '--font-cairo',
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://rescuego.ae'),
@@ -69,7 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <html lang="en">
+    <html lang="ar" dir="ltr" className={cairo.variable}>
       <head>
         <script
           type="application/ld+json"
@@ -79,7 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
         )}
       </head>
-      <body>{children}</body>
+      <body className={cairo.className}>{children}</body>
     </html>
   )
 }

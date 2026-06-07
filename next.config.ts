@@ -35,6 +35,7 @@ const contentSecurityPolicyReportOnly = [
     "style-src",
     "'self'",
     "'unsafe-inline'",
+    'https://fonts.googleapis.com',
   ].join(' '),
   [
     "img-src",
@@ -48,6 +49,7 @@ const contentSecurityPolicyReportOnly = [
     "font-src",
     "'self'",
     'data:',
+    'https://fonts.gstatic.com',
   ].join(' '),
   [
     "connect-src",

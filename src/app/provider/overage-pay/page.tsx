@@ -107,11 +107,11 @@ function OveragePayContent() {
         <p className="mb-6 text-slate-600">
           Pay <strong className="text-[#0F6E56]">{fee} AED</strong> to accept this extra job.
         </p>
-        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-sm leading-6 text-amber-800">
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start text-sm leading-6 text-amber-800">
           <strong>What happens next:</strong> Once payment is confirmed, the request will be automatically accepted
           and appear as your active job. Exact customer location is shown after assignment.
         </div>
-        <div className="mb-6 rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-left text-xs leading-5 text-[#0F6E56]">
+        <div className="mb-6 rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-start text-xs leading-5 text-[#0F6E56]">
           <div className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <p>Secure payment powered by Stripe. Your card details are encrypted and never stored by RescueGo.</p>

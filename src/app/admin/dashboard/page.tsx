@@ -164,7 +164,7 @@ export default async function AdminDashboardPage() {
                           <div>
                             <span className="font-semibold text-slate-800 capitalize">{req?.problem_type?.replaceAll('_', ' ') ?? 'Unknown'}</span>
                             {req?.location_address && (
-                              <span className="ml-2 text-xs text-slate-500">{req.location_address}</span>
+                              <span className="ms-2 text-xs text-slate-500">{req.location_address}</span>
                             )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
@@ -260,7 +260,7 @@ export default async function AdminDashboardPage() {
                     {recentEvents.map(event => (
                       <div key={event.id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <span className="min-w-0 break-all font-mono text-sm text-slate-700">{event.type}</span>
-                        <div className="shrink-0 sm:text-right">
+                        <div className="shrink-0 sm:text-end">
                           <Badge variant={event.status === 'failed' ? 'danger' : event.status === 'processing' ? 'warning' : 'success'}>
                             {event.status ?? 'processed'}
                           </Badge>

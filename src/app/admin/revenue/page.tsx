@@ -190,7 +190,7 @@ export default async function AdminRevenuePage() {
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
                       {['Provider', 'Fee', 'Distance', 'Promo?', 'Date', 'Stripe PI'].map((heading) => (
-                        <th key={heading} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
+                        <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
                   </thead>
@@ -231,7 +231,7 @@ export default async function AdminRevenuePage() {
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
                       {['Provider', 'Fee', 'Date', 'Stripe PI'].map((heading) => (
-                        <th key={heading} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
+                        <th key={heading} className="px-5 py-3 text-start text-xs font-semibold uppercase tracking-wide text-slate-500">{heading}</th>
                       ))}
                     </tr>
                   </thead>

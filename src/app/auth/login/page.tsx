@@ -186,7 +186,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input id="email" type="email" label="Email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" disabled={loading} />
             <Input id="password" type="password" label="Password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Password" disabled={loading} />
-            <div className="text-right -mt-2">
+            <div className="text-end -mt-2">
               <Link href="/auth/forgot-password" className="text-sm text-[#1D9E75] hover:underline">
                 Forgot password?
               </Link>

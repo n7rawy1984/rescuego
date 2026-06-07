@@ -105,7 +105,7 @@ export default function RatingForm({ jobId, providerId, onComplete }: Props) {
             })}
           </div>
           {stars > 0 && (
-            <p className="mt-2 text-center text-sm font-medium text-slate-600 sm:text-left">
+            <p className="mt-2 text-center text-sm font-medium text-slate-600 sm:text-start">
               {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][stars]}
             </p>
           )}

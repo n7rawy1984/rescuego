@@ -160,7 +160,7 @@ export default async function CustomerHistoryPage() {
                           </div>
                         </div>
                         {req.status === 'completed' && (
-                          <div className="ml-0 mt-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:ml-[52px]">
+                          <div className="ms-0 mt-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:ms-[52px]">
                             {req.final_price ? `Completed at ${req.final_price} AED, paid directly to provider.` : 'Completed service.'}
                           </div>
                         )}
