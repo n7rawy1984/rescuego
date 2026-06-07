@@ -14,11 +14,14 @@ Before starting ANY fix, feature, or roadmap task — you MUST first verify whet
 3. **Check git log** — run `git log --oneline -20` to see recent commits that may have addressed it.
 
 If the task is already done:
-- Skip it silently and move to the next task.
-- Do NOT re-implement or overwrite existing work.
+- Review the existing implementation for correctness and best practices.
+- If it needs improvement (outdated pattern, missing edge case, better approach available) — fix it.
+- If it's already correct — skip it silently and move to the next task.
+- Do NOT re-implement from scratch or overwrite working code unnecessarily.
 
 If partially done:
-- Only complete the missing parts.
+- Complete the missing parts.
+- Review the existing parts for quality — improve if needed.
 
 This rule applies to ALL work: audit fixes, roadmap phases, SEO tasks, Arabic translation tasks, and any other modifications.
 
