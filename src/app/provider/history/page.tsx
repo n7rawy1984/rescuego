@@ -7,6 +7,7 @@ import { getProblemLabel } from '@/lib/utils'
 import { BriefcaseBusiness, MapPin, ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import type { ProblemType, RequestStatus } from '@/types'
 
 export const metadata: Metadata = {
@@ -38,22 +39,22 @@ type JobDisplayItem = {
   date: string
 }
 
-function getJobDisplay(job: HistoryJobRow): JobDisplayItem {
+function getJobDisplay(job: HistoryJobRow, t: Awaited<ReturnType<typeof getTranslations>>): JobDisplayItem {
   const req = job.requests
-  const location = req?.location_address ?? 'Location unavailable'
+  const location = req?.location_address ?? t('locationUnavailable')
   const date = job.completed_at ?? req?.cancelled_at ?? req?.created_at ?? null
   const dateStr = date
     ? new Date(date).toLocaleString('en-AE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : 'Date unavailable'
+    : t('dateUnavailable')
 
   if (job.completed_at || req?.status === 'completed') {
     return {
       id: job.id,
-      problemLabel: req?.problem_type ? getProblemLabel(req.problem_type) : 'Service',
-      badgeLabel: 'Completed',
+      problemLabel: req?.problem_type ? getProblemLabel(req.problem_type) : t('serviceDefault'),
+      badgeLabel: t('completed'),
       badgeVariant: 'success',
       location,
-      amount: req?.final_price != null ? `${req.final_price} AED` : 'Completed',
+      amount: req?.final_price != null ? `${req.final_price} AED` : t('completed'),
       date: dateStr,
     }
   }
@@ -62,8 +63,8 @@ function getJobDisplay(job: HistoryJobRow): JobDisplayItem {
     const byCustomer = req.cancellation_actor === 'customer'
     return {
       id: job.id,
-      problemLabel: req?.problem_type ? getProblemLabel(req.problem_type) : 'Service',
-      badgeLabel: byCustomer ? 'Customer cancelled' : 'Cancelled',
+      problemLabel: req?.problem_type ? getProblemLabel(req.problem_type) : t('serviceDefault'),
+      badgeLabel: byCustomer ? t('customerCancelled') : t('cancelled'),
       badgeVariant: 'default',
       location,
       amount: null,
@@ -73,8 +74,8 @@ function getJobDisplay(job: HistoryJobRow): JobDisplayItem {
 
   return {
     id: job.id,
-    problemLabel: req?.problem_type ? getProblemLabel(req.problem_type) : 'Service',
-    badgeLabel: 'Released',
+    problemLabel: req?.problem_type ? getProblemLabel(req.problem_type) : t('serviceDefault'),
+    badgeLabel: t('released'),
     badgeVariant: 'warning',
     location,
     amount: null,
@@ -83,6 +84,7 @@ function getJobDisplay(job: HistoryJobRow): JobDisplayItem {
 }
 
 export default async function ProviderHistoryPage() {
+  const t = await getTranslations('provider.history')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/provider/history')
@@ -107,7 +109,7 @@ export default async function ProviderHistoryPage() {
     .returns<HistoryJobRow[]>()
 
   const allJobs = jobs ?? []
-  const items = allJobs.map(getJobDisplay)
+  const items = allJobs.map((job) => getJobDisplay(job, t))
 
   const completedJobs = allJobs.filter((j) => j.completed_at || j.requests?.status === 'completed')
   const totalEarnings = completedJobs.reduce((sum, j) => sum + (j.requests?.final_price ?? 0), 0)
@@ -124,10 +126,10 @@ export default async function ProviderHistoryPage() {
             className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
           >
             <ChevronLeft className="h-4 w-4" />
-            Back to dashboard
+            {t('backToDashboard')}
           </Link>
-          <h1 className="mt-3 text-2xl font-bold text-slate-900">Job History</h1>
-          <p className="mt-1 text-sm text-slate-500">Your last {allJobs.length} jobs on RescueGo.</p>
+          <h1 className="mt-3 text-2xl font-bold text-slate-900">{t('title')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('subtitle', { count: allJobs.length })}</p>
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">

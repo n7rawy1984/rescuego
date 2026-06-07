@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -25,6 +26,7 @@ type PendingProviderRow = {
 }
 
 export default async function ProviderPendingPage() {
+  const t = await getTranslations('provider.pending')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -72,14 +74,14 @@ export default async function ProviderPendingPage() {
             <AlertCircle className="mx-auto mb-3 h-12 w-12 text-blue-500" />
           )}
           <h1 className="text-2xl font-bold text-slate-900">
-            {isSuspended ? 'Account Suspended' : state.pendingApproval ? 'Application Under Review' : 'Complete Your Application'}
+            {isSuspended ? t('accountSuspended') : state.pendingApproval ? t('applicationUnderReview') : t('completeApplication')}
           </h1>
           <p className="mt-2 text-sm text-slate-500">
             {isSuspended
-              ? 'Your account has been suspended. Please contact support.'
+              ? t('suspendedDescription')
               : state.pendingApproval
-              ? 'Our team typically reviews applications within 24–48 hours.'
-              : 'Complete the steps below to submit your application.'}
+              ? t('reviewDescription')
+              : t('completeDescription')}
           </p>
         </div>
 
@@ -88,7 +90,7 @@ export default async function ProviderPendingPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">Profile</span>
+                <span className="text-sm font-semibold text-slate-700">{t('profile')}</span>
                 {state.profileComplete
                   ? <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                   : <AlertCircle className="h-5 w-5 text-amber-500" />}
@@ -97,13 +99,13 @@ export default async function ProviderPendingPage() {
             <CardBody>
               {state.profileComplete ? (
                 <div className="space-y-1 text-sm text-slate-600">
-                  <p><span className="font-medium">Name:</span> {provider.users?.name ?? '—'}</p>
-                  <p><span className="font-medium">Email:</span> {provider.users?.email ?? '—'}</p>
-                  <p><span className="font-medium">Phone:</span> {provider.users?.phone ?? '—'}</p>
+                  <p><span className="font-medium">{t('name')}</span> {provider.users?.name ?? '—'}</p>
+                  <p><span className="font-medium">{t('email')}</span> {provider.users?.email ?? '—'}</p>
+                  <p><span className="font-medium">{t('phone')}</span> {provider.users?.phone ?? '—'}</p>
                 </div>
               ) : (
                 <Link href="/provider/register" className="text-sm font-medium text-emerald-600 hover:underline">
-                  Complete your profile →
+                  {t('completeProfile')}
                 </Link>
               )}
             </CardBody>
@@ -112,7 +114,7 @@ export default async function ProviderPendingPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">Documents</span>
+                <span className="text-sm font-semibold text-slate-700">{t('documents')}</span>
                 {state.documentsComplete
                   ? <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                   : <AlertCircle className="h-5 w-5 text-amber-500" />}
@@ -134,7 +136,7 @@ export default async function ProviderPendingPage() {
               </ul>
               {!state.documentsComplete && (
                 <Link href="/provider/register" className="mt-3 block text-sm font-medium text-emerald-600 hover:underline">
-                  Upload missing documents →
+                  {t('uploadDocuments')}
                 </Link>
               )}
             </CardBody>
@@ -143,7 +145,7 @@ export default async function ProviderPendingPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">Plan</span>
+                <span className="text-sm font-semibold text-slate-700">{t('plan')}</span>
                 {state.planComplete
                   ? <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                   : <AlertCircle className="h-5 w-5 text-amber-500" />}
@@ -152,11 +154,11 @@ export default async function ProviderPendingPage() {
             <CardBody>
               {state.planComplete ? (
                 <p className="text-sm text-slate-600">
-                  <span className="font-medium">Selected plan:</span> {getPlanLabel(provider.plan)}
+                  <span className="font-medium">{t('selectedPlan')}</span> {getPlanLabel(provider.plan)}
                 </p>
               ) : (
                 <Link href="/provider/register" className="text-sm font-medium text-emerald-600 hover:underline">
-                  Select a plan →
+                  {t('selectPlan')}
                 </Link>
               )}
             </CardBody>
@@ -165,7 +167,7 @@ export default async function ProviderPendingPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">Admin Approval</span>
+                <span className="text-sm font-semibold text-slate-700">{t('adminApproval')}</span>
                 {isSuspended
                   ? <XCircle className="h-5 w-5 text-red-500" />
                   : <Clock className="h-5 w-5 text-amber-400" />}
@@ -174,10 +176,10 @@ export default async function ProviderPendingPage() {
             <CardBody>
               <p className="text-sm text-slate-600">
                 {isSuspended
-                  ? 'Account suspended. Contact support@rescuego.ae for assistance.'
+                  ? t('suspendedSupport')
                   : state.pendingApproval
-                  ? 'Your application has been submitted and is awaiting review.'
-                  : 'Submit your profile, documents, and plan to begin review.'}
+                  ? t('submittedReview')
+                  : t('submitRequirements')}
               </p>
             </CardBody>
           </Card>
@@ -188,9 +190,9 @@ export default async function ProviderPendingPage() {
           <div className="mt-8 flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
             <div>
-              <p className="text-sm font-semibold text-slate-700">What happens next?</p>
+              <p className="text-sm font-semibold text-slate-700">{t('whatNext')}</p>
               <p className="mt-1 text-sm text-slate-500">
-                Our team will verify your documents and activate your account. You&apos;ll receive an email once approved. No action is needed from you at this stage.
+                {t('whatNextDescription')}
               </p>
             </div>
           </div>

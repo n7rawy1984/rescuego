@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Navbar from '@/components/layout/Navbar'
@@ -26,6 +27,7 @@ type PlanProviderRow = {
 }
 
 export default async function ProviderPlanPage() {
+  const t = await getTranslations('provider.plan')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/provider/plan')
@@ -67,10 +69,10 @@ export default async function ProviderPlanPage() {
             className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
           >
             <ChevronLeft className="h-4 w-4" />
-            Back to dashboard
+            {t('backToDashboard')}
           </Link>
-          <h1 className="mt-3 text-2xl font-bold text-slate-900">My Plan</h1>
-          <p className="mt-1 text-sm text-slate-500">Your current plan and monthly usage.</p>
+          <h1 className="mt-3 text-2xl font-bold text-slate-900">{t('title')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('subtitle')}</p>
         </div>
 
         <div className="space-y-4">
@@ -78,26 +80,26 @@ export default async function ProviderPlanPage() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Current plan</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('currentPlanLabel')}</p>
                 <p className="mt-1 text-2xl font-bold text-slate-900">{getPlanLabel(provider.plan)}</p>
                 {isPayPerJob ? (
                   <p className="mt-1 text-sm text-slate-500">
                     {LAUNCH_PROMO
-                      ? `${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job (launch promo)`
-                      : `${PAY_PER_JOB_FEE_NEAR_AED}–${PAY_PER_JOB_FEE_FAR_AED} AED acceptance fee per job`}
+                      ? t('payPerJobPromoFee', { fee: PAY_PER_JOB_PROMO_FEE_AED })
+                      : t('payPerJobFeeRange', { nearFee: PAY_PER_JOB_FEE_NEAR_AED, farFee: PAY_PER_JOB_FEE_FAR_AED })}
                   </p>
                 ) : planDetails ? (
                   <p className="mt-1 text-sm text-slate-500">
                     {planDetails.promo_price_aed && LAUNCH_PROMO
-                      ? `${planDetails.promo_price_aed} AED/month (launch promo)`
-                      : `${planDetails.price_aed} AED/month`}
+                      ? t('monthlyPromoPrice', { price: planDetails.promo_price_aed })
+                      : t('monthlyPrice', { price: planDetails.price_aed })}
                   </p>
                 ) : null}
               </div>
               {hasStripeSubscription && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Active subscription
+                  {t('activeSubscription')}
                 </span>
               )}
             </div>
@@ -107,24 +109,24 @@ export default async function ProviderPlanPage() {
                 <li className="flex items-center gap-2 text-sm text-slate-600">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
                   {planDetails.monthly_jobs !== null
-                    ? `${planDetails.monthly_jobs} jobs per month`
-                    : 'Unlimited jobs per month'}
+                    ? t('jobsPerMonth', { count: planDetails.monthly_jobs })
+                    : t('unlimitedJobsPerMonth')}
                 </li>
                 {planDetails.overage_aed !== null && (
                   <li className="flex items-center gap-2 text-sm text-slate-600">
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-                    {planDetails.overage_aed} AED overage fee per job over limit
+                    {t('overageFee', { fee: planDetails.overage_aed })}
                   </li>
                 )}
                 <li className="flex items-center gap-2 text-sm text-slate-600">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
                   {planDetails.premium_commission_pct > 0
-                    ? `${planDetails.premium_commission_pct}% commission on premium jobs`
-                    : 'No premium commission'}
+                    ? t('premiumCommission', { pct: planDetails.premium_commission_pct })
+                    : t('noPremiumCommission')}
                 </li>
                 <li className="flex items-center gap-2 text-sm text-slate-600">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-                  Priority {planDetails.priority === 1 ? 'highest' : planDetails.priority === 2 ? 'high' : 'standard'} in dispatch queue
+                  {t('priority', { priority: planDetails.priority === 1 ? t('priorityHighest') : planDetails.priority === 2 ? t('priorityHigh') : t('priorityStandard') })}
                 </li>
               </ul>
             )}
@@ -132,19 +134,19 @@ export default async function ProviderPlanPage() {
 
           {!isPayPerJob && (
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">This month</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('thisMonth')}</p>
               <div className="mt-3 flex items-end justify-between gap-2">
                 <div>
                   <p className="text-2xl font-bold text-slate-900">{provider.jobs_this_month}</p>
                   <p className="mt-0.5 text-sm text-slate-500">
-                    jobs used
-                    {allowance.effectiveLimit !== null ? ` of ${allowance.effectiveLimit}` : ''}
-                    {allowance.creditBalance > 0 ? ` (includes ${allowance.creditBalance} credit${allowance.creditBalance !== 1 ? 's' : ''})` : ''}
+                    {t('jobsUsedLabel')}
+                    {allowance.effectiveLimit !== null ? t('ofLimit', { limit: allowance.effectiveLimit }) : ''}
+                    {allowance.creditBalance > 0 ? t('includesCredits', { count: allowance.creditBalance, credits: allowance.creditBalance !== 1 ? t('creditPlural') : t('creditSingular') }) : ''}
                   </p>
                 </div>
                 {allowance.remaining !== null && (
                   <p className="text-sm font-semibold text-slate-700">
-                    {allowance.remaining} remaining
+                    {t('remaining', { count: allowance.remaining })}
                   </p>
                 )}
               </div>
@@ -156,13 +158,13 @@ export default async function ProviderPlanPage() {
                       style={{ width: `${usagePct}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">{usagePct}% of monthly allowance used</p>
+                  <p className="mt-1 text-xs text-slate-400">{t('allowanceUsed', { pct: usagePct })}</p>
                 </div>
               )}
               {allowance.remaining === 0 && (
                 <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>You have reached your monthly job limit. Each additional job incurs an overage fee.</span>
+                  <span>{t('limitReached')}</span>
                 </div>
               )}
             </div>
@@ -170,23 +172,23 @@ export default async function ProviderPlanPage() {
 
           {isPayPerJob && (provider.ppj_recovery_credits ?? 0) > 0 && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Recovery credits</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{t('recoveryCredits')}</p>
               <p className="mt-1 text-2xl font-bold text-emerald-900">{provider.ppj_recovery_credits}</p>
               <p className="mt-1 text-sm text-emerald-800">
-                credit{provider.ppj_recovery_credits === 1 ? '' : 's'} from customer cancellations. Applied automatically to future acceptance payments.
+                {t('recoveryCreditDesc', { credits: provider.ppj_recovery_credits === 1 ? t('creditSingular') : t('creditPlural') })}
               </p>
             </div>
           )}
 
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Plan actions</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('planActions')}</p>
 
             {isPayPerJob ? (
               <Link
                 href="/provider/subscribe"
                 className="flex w-full items-center justify-center rounded-lg bg-[#0F6E56] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0a5240]"
               >
-                Upgrade to a monthly plan
+                {t('upgradeMonthly')}
               </Link>
             ) : (
               <>
@@ -195,7 +197,7 @@ export default async function ProviderPlanPage() {
                     href={`/provider/subscribe?plan=${provider.plan === 'starter' ? 'pro' : 'business'}`}
                     className="flex w-full items-center justify-center rounded-lg bg-[#0F6E56] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0a5240]"
                   >
-                    Upgrade plan
+                    {t('upgradePlan')}
                   </Link>
                 )}
                 {hasStripeSubscription && (
@@ -203,16 +205,16 @@ export default async function ProviderPlanPage() {
                     href="/provider/subscribe?portal_return=1"
                     className="flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                   >
-                    Manage billing
+                    {t('manageBilling')}
                   </Link>
                 )}
               </>
             )}
 
             <p className="text-center text-xs text-slate-400">
-              Questions about billing?{' '}
+              {t('billingQuestions')}{' '}
               <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[#0F6E56] hover:underline">
-                Contact support
+                {t('contactSupport')}
               </a>
             </p>
           </div>

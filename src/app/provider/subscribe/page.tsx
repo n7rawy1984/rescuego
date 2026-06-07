@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import Navbar from '@/components/layout/Navbar'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -24,6 +25,7 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
   const selectedPlan = parseSelectedPlan(params?.plan)
   const returnedFromBillingPortal = Boolean(Array.isArray(params?.portal_return) ? params?.portal_return[0] : params?.portal_return)
   const planWasAlreadyCurrent = Boolean(Array.isArray(params?.updated) ? params?.updated[0] : params?.updated)
+  const t = await getTranslations('provider.subscribe')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -70,14 +72,14 @@ export default async function SubscribePage({ searchParams }: SubscribePageProps
           <div className="mb-8 overflow-hidden rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Subscription upgrade</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Choose your subscription plan</h1>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('eyebrow')}</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{t('pageTitle')}</h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-                  Upgrade from Pay Per Job to get monthly job allowance, better priority, and lower premium commissions.
+                  {t('pageSubtitle')}
                 </p>
               </div>
               <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-sm font-semibold text-[#0F6E56]">
-                Secure checkout by Stripe
+                {t('stripeCheckout')}
               </div>
             </div>
           </div>

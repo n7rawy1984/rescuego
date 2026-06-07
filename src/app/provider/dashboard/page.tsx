@@ -24,6 +24,7 @@ import JobStateAdvanceButton from '@/components/forms/JobStateAdvanceButton'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { PAY_PER_JOB_PROMO_FEE_AED, PROVIDER_RADIUS_METERS, PROVIDER_STALE_MINUTES, SUPPORT_EMAIL } from '@/types'
 import type { ProblemType, ProviderPlan, ProviderStatus, RequestStatus } from '@/types'
 
@@ -121,10 +122,10 @@ type CancelledRequestNoticeRow = {
   cancelled_at: string | null
 }
 
-function formatApproxDistance(meters: number | null | undefined): string {
-  if (meters === null || meters === undefined) return 'Distance unavailable'
-  if (meters < 1000) return `Approx. ${Math.round(meters)} m away`
-  return `Approx. ${(meters / 1000).toFixed(1)} km away`
+function formatApproxDistance(meters: number | null | undefined, t: Awaited<ReturnType<typeof getTranslations>>): string {
+  if (meters === null || meters === undefined) return t('distanceUnavailable')
+  if (meters < 1000) return t('approxMetersAway', { distance: Math.round(meters) })
+  return t('approxKmAway', { distance: (meters / 1000).toFixed(1) })
 }
 
 function isRecentPaymentAttempt(createdAt: string | null | undefined): boolean {
@@ -137,7 +138,7 @@ function isRecentOperationalNotice(createdAt: string | null | undefined): boolea
   return Date.now() - new Date(createdAt).getTime() < 24 * 60 * 60 * 1000
 }
 
-function recentActivityStatus(job: RecentJobRow): {
+function recentActivityStatus(job: RecentJobRow, t: Awaited<ReturnType<typeof getTranslations>>): {
   label: string
   badge: 'success' | 'warning' | 'danger' | 'info' | 'default'
   detail: string
@@ -147,9 +148,9 @@ function recentActivityStatus(job: RecentJobRow): {
 
   if (job.completed_at || request?.status === 'completed') {
     return {
-      label: 'Completed',
+      label: t('completed'),
       badge: 'success',
-      detail: request?.final_price ? `${request.final_price} AED` : 'Completed service',
+      detail: request?.final_price ? `${request.final_price} AED` : t('completedService'),
       date: job.completed_at ?? request?.created_at ?? null,
     }
   }
@@ -157,34 +158,34 @@ function recentActivityStatus(job: RecentJobRow): {
   if (request?.status === 'cancelled') {
     const customerCancelled = request.cancellation_actor === 'customer'
     return {
-      label: customerCancelled ? 'Customer cancelled' : 'Cancelled',
+      label: customerCancelled ? t('customerCancelled') : t('cancelled'),
       badge: 'default',
-      detail: customerCancelled ? 'Customer cancelled this request' : 'Request was cancelled',
+      detail: customerCancelled ? t('customerCancelledDetail') : t('requestCancelled'),
       date: request.cancelled_at ?? request.created_at,
     }
   }
 
   if (request?.status === 'open' && !request.accepted_by) {
     return {
-      label: 'Released by you',
+      label: t('releasedByYou'),
       badge: 'warning',
-      detail: 'You released this request',
+      detail: t('youReleasedRequest'),
       date: request.created_at,
     }
   }
 
   return {
-    label: 'Activity',
+    label: t('activity'),
     badge: 'info',
-    detail: 'Request activity',
+    detail: t('requestActivity'),
     date: request?.created_at ?? null,
   }
 }
 
-function safeActivityLocation(address: string | null | undefined): string {
+function safeActivityLocation(address: string | null | undefined, t: Awaited<ReturnType<typeof getTranslations>>): string {
   const display = getProviderLocationDisplay({ location_address: address ?? null })
-  if (display.label === 'Location details unavailable') return 'Location unavailable'
-  if (display.label === 'GPS location') return 'GPS location'
+  if (display.label === 'Location details unavailable') return t('locationUnavailable')
+  if (display.label === 'GPS location') return t('gpsLocation')
   return display.label
 }
 
@@ -193,6 +194,8 @@ export default async function ProviderDashboardPage({
 }: {
   searchParams?: Promise<{ payment?: string; payment_intent?: string; redirect_status?: string }>
 }) {
+  const t = await getTranslations('provider.dashboard')
+  const statusT = await getTranslations('status')
   const params = await searchParams
   const returnedFromPayment = params?.payment === 'processing'
     || params?.redirect_status === 'succeeded'
@@ -221,14 +224,14 @@ export default async function ProviderDashboardPage({
   const availabilityDisabledReason = provider.status === 'active'
     ? undefined
     : provider.status === 'suspended'
-      ? 'Your account is suspended. Contact support to resolve your account status before going online.'
+      ? t('availabilitySuspended')
       : !onboarding.profileComplete
-      ? 'Complete your provider profile before going online for dispatch.'
+      ? t('availabilityProfile')
       : !onboarding.documentsComplete
-        ? `Upload required documents before going online. Missing: ${onboarding.missingDocuments.map(providerDocumentLabel).join(', ')}.`
+        ? t('availabilityDocuments', { missing: onboarding.missingDocuments.map(providerDocumentLabel).join(', ') })
         : !onboarding.planComplete
-          ? 'Choose your access plan before going online for dispatch.'
-          : 'Your documents are under review. RescueGo will activate your account after verification.'
+          ? t('availabilityPlan')
+          : t('availabilityReview')
   const admin = createAdminClient()
   const [
     activeRequestResult,
@@ -433,47 +436,49 @@ export default async function ProviderDashboardPage({
   }, 0)
   const upgradePrompt = provider.plan === 'pay_per_job'
     ? {
-        title: `You're on Pay Per Job - ${PAY_PER_JOB_PROMO_FEE_AED} AED flat fee per accepted job`,
-        subtitle: 'Upgrade to a monthly plan when you want predictable capacity and stronger queue priority.',
+        title: t('ppjUpgradeTitle', { fee: PAY_PER_JOB_PROMO_FEE_AED }),
+        subtitle: t('ppjUpgradeSubtitle'),
         creditNote: (provider.ppj_recovery_credits ?? 0) > 0
-          ? `${provider.ppj_recovery_credits} PPJ recovery credit${provider.ppj_recovery_credits === 1 ? '' : 's'} available for future accepted requests.`
+          ? provider.ppj_recovery_credits === 1
+            ? t('ppjRecoveryCredits', { count: provider.ppj_recovery_credits! })
+            : t('ppjRecoveryCreditsPlural', { count: provider.ppj_recovery_credits! })
           : null,
         href: '/provider/subscribe',
-        label: 'Upgrade to a monthly plan',
+        label: t('upgradeMonthlyPlan'),
       }
     : provider.plan === 'starter'
       ? {
-          title: 'Starter includes 15 monthly jobs.',
-          subtitle: 'Upgrade to Pro for 35 monthly jobs and high queue priority.',
+          title: t('starterUpgradeTitle'),
+          subtitle: t('starterUpgradeSubtitle'),
           creditNote: allowance.creditBalance > 0
-            ? `${allowance.creditBalance} preserved upgrade credits are available this billing cycle.`
+            ? t('preservedUpgradeCredits', { count: allowance.creditBalance })
             : null,
           href: '/provider/subscribe?plan=pro',
-          label: 'Increase monthly capacity',
+          label: t('increaseMonthlyCapacity'),
         }
       : provider.plan === 'pro'
         ? {
-            title: 'Pro includes 35 monthly jobs.',
-            subtitle: 'Upgrade to Business for unlimited jobs and no premium commission.',
+            title: t('proUpgradeTitle'),
+            subtitle: t('proUpgradeSubtitle'),
             creditNote: allowance.creditBalance > 0
-              ? `${allowance.creditBalance} preserved upgrade credits are available this billing cycle.`
+              ? t('preservedUpgradeCredits', { count: allowance.creditBalance })
               : null,
             href: '/provider/subscribe?plan=business',
-            label: 'Upgrade to Business',
+            label: t('upgradeBusiness'),
           }
         : null
   const recentActivityItems = (recentJobs ?? []).map((job) => {
-    const activity = recentActivityStatus(job)
+    const activity = recentActivityStatus(job, t)
     return {
       id: job.id,
-      problemLabel: job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Service',
+      problemLabel: job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : t('serviceDefault'),
       badgeLabel: activity.label,
       badgeVariant: activity.badge,
-      location: safeActivityLocation(job.requests?.location_address),
+      location: safeActivityLocation(job.requests?.location_address, t),
       amount: job.completed_at || job.requests?.status === 'completed'
-        ? job.requests?.final_price ? `${job.requests.final_price} AED` : 'Completed'
-        : '-',
-      date: activity.date ? new Date(activity.date).toLocaleDateString('en-AE') : 'Date unavailable',
+        ? job.requests?.final_price ? `${job.requests.final_price} AED` : t('completed')
+        : t('dash'),
+      date: activity.date ? new Date(activity.date).toLocaleDateString('en-AE') : t('dateUnavailable'),
     }
   })
 
@@ -483,7 +488,7 @@ export default async function ProviderDashboardPage({
       <main className="min-h-screen bg-[#F8FAFC]">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           <ProviderDashboardHeader
-            name={provider.users?.name?.split(' ')[0] ?? 'Provider'}
+            name={provider.users?.name?.split(' ')[0] ?? t('providerDefault')}
             rating={provider.rating}
             status={provider.status}
             planLabel={getPlanLabel(provider.plan)}
@@ -503,7 +508,7 @@ export default async function ProviderDashboardPage({
           {operationalReady && (
             <div className="mb-6 flex max-w-3xl items-center gap-3 rounded-lg border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-sm text-[#0F6E56]">
               <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
-              <span>Your provider account is active for RescueGo dispatch operations.</span>
+              <span>{t('activeDispatchNotice')}</span>
             </div>
           )}
 
@@ -523,21 +528,20 @@ export default async function ProviderDashboardPage({
             <Card className="mb-6 border-slate-200 bg-white shadow-sm">
               <CardBody>
                 <div className="max-w-2xl">
-                  <h2 className="text-lg font-semibold text-slate-900">Operations unlock after onboarding is complete</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">{t('notReadyTitle')}</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Finish the required provider setup and admin approval before accessing dispatch tools, request queues,
-                    earnings, and live availability controls.
+                    {t('notReadyDesc')}
                   </p>
                   {provider.status === 'suspended' ? (
                     <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
-                      Your account is suspended. Contact support to resolve your account status.{' '}
+                      {t('suspendedSupport')}{' '}
                       <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline hover:text-red-900">
-                        Email support
+                        {t('emailSupport')}
                       </a>
                     </p>
                   ) : (
                     <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                      Your operational dashboard will appear here automatically once your account is active.
+                      {t('dashboardAppearsActive')}
                     </p>
                   )}
                 </div>
@@ -551,11 +555,11 @@ export default async function ProviderDashboardPage({
               {/* SUSPENDED NOTICE */}
               {provider.status === 'suspended' && (
                 <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
-                  <p className="font-semibold text-red-800">Account Suspended</p>
+                  <p className="font-semibold text-red-800">{t('accountSuspended')}</p>
                   <p className="mt-1 text-sm text-red-700">
-                    Contact support to resolve your account status.{' '}
+                    {t('contactSupport')}{' '}
                     <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline hover:text-red-900">
-                      Email support
+                      {t('emailSupport')}
                     </a>
                   </p>
                 </div>
@@ -597,8 +601,8 @@ export default async function ProviderDashboardPage({
               {/* BUSINESS PLAN NOTICE */}
               {provider.plan === 'business' && (
                 <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm font-semibold text-slate-800">You are on the highest plan.</p>
-                  <p className="mt-0.5 text-xs text-slate-500">Business includes unlimited jobs, highest priority, and no premium commission.</p>
+                  <p className="text-sm font-semibold text-slate-800">{t('highestPlanTitle')}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{t('highestPlanDesc')}</p>
                 </div>
               )}
 
@@ -610,18 +614,20 @@ export default async function ProviderDashboardPage({
                       <div>
                         <h2 className="font-semibold text-green-900">
                           {provider.ppj_recovery_credits === 1
-                            ? 'You have 1 recovery credit from a customer cancellation.'
-                            : `You have ${provider.ppj_recovery_credits} recovery credits available.`}
+                            ? t('oneRecoveryCredit')
+                            : t('multipleRecoveryCredits', { count: provider.ppj_recovery_credits! })}
                         </h2>
                         <p className="mt-1 text-sm text-green-800">
-                          These credits automatically replace future PPJ acceptance payments.
+                          {t('recoveryCreditsDesc')}
                         </p>
                         <p className="mt-1 text-xs text-green-700">
-                          Your next PPJ acceptance will use an available credit automatically.
+                          {t('nextPpjCredit')}
                         </p>
                       </div>
                       <Badge variant="success" className="w-fit">
-                        {provider.ppj_recovery_credits} credit{provider.ppj_recovery_credits === 1 ? '' : 's'}
+                        {provider.ppj_recovery_credits === 1
+                          ? t('creditCount', { count: provider.ppj_recovery_credits! })
+                          : t('creditCountPlural', { count: provider.ppj_recovery_credits! })}
                       </Badge>
                     </div>
                   </CardBody>
@@ -634,18 +640,18 @@ export default async function ProviderDashboardPage({
                   <CardBody>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <h2 className="font-semibold text-amber-900">Payment received. Finalizing job assignment...</h2>
+                        <h2 className="font-semibold text-amber-900">{t('paymentFinalizingTitle')}</h2>
                         <p className="mt-1 text-sm text-amber-800">
                           {recentPpjPayment
-                            ? 'This payment is protected. If the customer cancels before assignment finishes, a recovery credit will be added automatically. Exact customer location and contact details appear only after assignment.'
-                            : 'RescueGo is assigning this request now. Exact customer location and contact details appear only after assignment.'}
+                            ? t('paymentProtectedDesc')
+                            : t('assignmentDesc')}
                         </p>
                       </div>
                       <a
                         href="/provider/dashboard"
                         className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
                       >
-                        Refresh status
+                        {t('refreshStatus')}
                       </a>
                     </div>
                   </CardBody>
@@ -658,9 +664,9 @@ export default async function ProviderDashboardPage({
                   <CardBody>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <h2 className="font-semibold text-green-900">Customer cancelled. Your payment was protected.</h2>
+                        <h2 className="font-semibold text-green-900">{t('protectedCancelledTitle')}</h2>
                         <p className="mt-1 text-sm text-green-800">
-                          A PPJ recovery credit was restored automatically and will replace your next eligible acceptance payment.
+                          {t('protectedCancelledDesc')}
                         </p>
                       </div>
                       <Badge variant="success" className="w-fit">Credit restored</Badge>
@@ -726,7 +732,7 @@ export default async function ProviderDashboardPage({
                                 <div className="mt-0.5 text-xs text-slate-500">{activeLocation.detail}</div>
                               ) : null}
                               <div className="mt-1 text-xs text-slate-500">
-                                {formatApproxDistance(activeRequest.distance_to_provider_m)}
+                                {formatApproxDistance(activeRequest.distance_to_provider_m, t)}
                               </div>
                             </div>
                           </div>

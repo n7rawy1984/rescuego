@@ -1,5 +1,6 @@
 'use client'
 import { Suspense, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { CreditCard, ShieldCheck } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
@@ -7,6 +8,7 @@ import StripeElementsProvider from '@/components/stripe/StripeElementsProvider'
 import PaymentElementForm from '@/components/stripe/PaymentElementForm'
 
 function OveragePayContent() {
+  const t = useTranslations('payment.overage')
   const params = useSearchParams()
   const requestId = params.get('request_id')
   const fee = params.get('fee')
@@ -57,11 +59,11 @@ function OveragePayContent() {
             } catch {}
             setClientSecret(data.client_secret)
           } else {
-            setError(data.error ?? 'This payment session is no longer valid.')
+            setError(data.error ?? t('sessionExpired'))
           }
         }
       } catch {
-        if (!cancelled) setError('Could not load payment session. Please go back and try again.')
+        if (!cancelled) setError(t('loadError'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -69,14 +71,14 @@ function OveragePayContent() {
 
     window.setTimeout(() => { init() }, 0)
     return () => { cancelled = true }
-  }, [requestId])
+  }, [requestId, t])
 
   if (loading) {
     return (
       <div className="mx-auto max-w-md rounded-3xl border border-[#DDE7EE] bg-white p-8 text-center text-slate-500 shadow-xl shadow-slate-200/50">
         <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#1D9E75]" aria-hidden="true" />
-        <p className="font-semibold text-slate-800">Preparing secure payment...</p>
-        <p className="mt-1 text-sm text-slate-500">Opening the Stripe payment form safely.</p>
+        <p className="font-semibold text-slate-800">{t('preparing')}</p>
+        <p className="mt-1 text-sm text-slate-500">{t('openingStripe')}</p>
       </div>
     )
   }
@@ -84,13 +86,13 @@ function OveragePayContent() {
   if (error || !clientSecret || !requestId) {
     return (
       <div className="mx-auto max-w-md rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
-        <p className="font-semibold text-red-600">{error ?? 'Invalid or expired payment session.'}</p>
-        <p className="mt-2 text-sm text-slate-500">Please go back to the dashboard and try again.</p>
+        <p className="font-semibold text-red-600">{error ?? t('invalidSession')}</p>
+        <p className="mt-2 text-sm text-slate-500">{t('tryAgain')}</p>
         <a
           href="/provider/dashboard"
           className="mt-4 inline-flex min-h-10 items-center justify-center rounded-xl border border-[#DDE7EE] px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
         >
-          Back to Dashboard
+          {t('backDashboard')}
         </a>
       </div>
     )
@@ -102,19 +104,18 @@ function OveragePayContent() {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#DCFCE7]">
           <CreditCard className="h-7 w-7 text-[#0F6E56]" aria-hidden="true" />
         </div>
-        <p className="text-xs font-bold uppercase tracking-wide text-[#0F6E56]">Monthly capacity overage</p>
-        <h1 className="mb-2 mt-1 text-2xl font-semibold text-slate-950">Overage payment</h1>
+        <p className="text-xs font-bold uppercase tracking-wide text-[#0F6E56]">{t('eyebrow')}</p>
+        <h1 className="mb-2 mt-1 text-2xl font-semibold text-slate-950">{t('heading')}</h1>
         <p className="mb-6 text-slate-600">
-          Pay <strong className="text-[#0F6E56]">{fee} AED</strong> to accept this extra job.
+          {t.rich('payAmount', { fee: fee ?? '', strong: (chunks) => <strong className="text-[#0F6E56]">{chunks}</strong> })}
         </p>
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start text-sm leading-6 text-amber-800">
-          <strong>What happens next:</strong> Once payment is confirmed, the request will be automatically accepted
-          and appear as your active job. Exact customer location is shown after assignment.
+          <strong>{t('nextLabel')}</strong> {t('nextDescription')}
         </div>
         <div className="mb-6 rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] px-4 py-3 text-start text-xs leading-5 text-[#0F6E56]">
           <div className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <p>Secure payment powered by Stripe. Your card details are encrypted and never stored by RescueGo.</p>
+            <p>{t('securePayment')}</p>
           </div>
         </div>
         <StripeElementsProvider clientSecret={clientSecret}>
@@ -124,10 +125,19 @@ function OveragePayContent() {
           href="/provider/dashboard"
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-[#DDE7EE] px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
         >
-          Back to Dashboard
+          {t('backDashboard')}
         </a>
       </div>
     </div>
+  )
+}
+
+function OveragePayFallback() {
+  return (
+    <>
+      <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#1D9E75]" aria-hidden="true" />
+      <p className="font-semibold text-slate-800">Loading...</p>
+    </>
   )
 }
 
@@ -136,7 +146,7 @@ export default function OveragePayPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
-        <Suspense fallback={<div className="mx-auto max-w-md rounded-3xl border border-[#DDE7EE] bg-white p-8 text-center text-slate-500 shadow-sm">Loading secure payment...</div>}>
+        <Suspense fallback={<div className="mx-auto max-w-md rounded-3xl border border-[#DDE7EE] bg-white p-8 text-center text-slate-500 shadow-sm"><OveragePayFallback /></div>}>
           <OveragePayContent />
         </Suspense>
       </main>

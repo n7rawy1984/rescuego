@@ -1,4 +1,5 @@
 'use client'
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -94,6 +95,7 @@ function stepNumber(step: 'profile' | 'documents' | 'plan' | 'review' | 'ready')
 
 export default function ProviderRegisterPage() {
   const router = useRouter()
+  const t = useTranslations('provider.register')
   const [step, setStep] = useState(1)
   const [userId, setUserId] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<ProviderPlanId>(getInitialSelectedPlan)
@@ -159,8 +161,8 @@ export default function ProviderRegisterPage() {
               checked: true,
               role: 'admin',
               actionHref: '/admin/dashboard',
-              actionLabel: 'Go to Admin Dashboard',
-              message: 'You are already signed in as an admin.',
+              actionLabel: t('adminDashboard'),
+              message: t('adminSignedIn'),
             })
             setHydratingAccount(false)
           }
@@ -173,8 +175,8 @@ export default function ProviderRegisterPage() {
               checked: true,
               role: 'customer',
               actionHref: '/customer/request',
-              actionLabel: 'Request Help',
-              message: 'You are already signed in as a customer.',
+              actionLabel: t('requestHelp'),
+              message: t('customerSignedIn'),
             })
             setHydratingAccount(false)
           }
@@ -251,7 +253,7 @@ export default function ProviderRegisterPage() {
           setAccessToken(null)
           setUserId('')
           setHydratingAccount(false)
-          setInitialLoadError('Connection lost. Please check your internet connection and try again.')
+          setInitialLoadError(t('connectionLostRetry'))
         }
       }
     }
@@ -261,7 +263,7 @@ export default function ProviderRegisterPage() {
     return () => {
       cancelled = true
     }
-  }, [initialLoadAttempt, router])
+  }, [initialLoadAttempt, router, t])
 
   function retryInitialLoad() {
     setHydratingAccount(true)
@@ -291,7 +293,7 @@ export default function ProviderRegisterPage() {
     e.preventDefault()
     if (loading) return
     setLoading(true)
-    setLoadingLabel(resumeProvider.isProvider ? 'Saving your provider profile...' : 'Creating your account...')
+    setLoadingLabel(resumeProvider.isProvider ? t('savingProfile') : t('creatingAccount'))
     setError('')
     try {
       const supabase = createClient()
@@ -316,8 +318,8 @@ export default function ProviderRegisterPage() {
           } else {
             const loginRedirect = `/auth/login?redirect=${encodeURIComponent(currentRegisterPath())}`
             setError(authError?.message
-              ? `${authError.message}. If you already registered, sign in to continue provider setup: ${loginRedirect}`
-              : `Registration failed. If you already registered, sign in to continue provider setup: ${loginRedirect}`)
+              ? t('alreadyRegisteredSignIn', { message: authError.message, loginRedirect })
+              : t('registrationFailedSignIn', { loginRedirect }))
             setLoading(false)
             setLoadingLabel('')
             return
@@ -326,7 +328,7 @@ export default function ProviderRegisterPage() {
       }
 
       setAccessToken(sessionAccessToken)
-      setLoadingLabel('Setting up your provider profile...')
+      setLoadingLabel(t('settingUpProfile'))
       const profileRes = await fetch('/api/providers/profile', {
         method: 'POST',
         headers: {
@@ -342,7 +344,7 @@ export default function ProviderRegisterPage() {
       const profile = await profileRes.json().catch(() => null) as { id?: string; error?: string } | null
 
       if (profileRes.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setLoading(false)
         setLoadingLabel('')
         return
@@ -393,7 +395,7 @@ export default function ProviderRegisterPage() {
       const result = await res.json().catch(() => null) as { error?: string } | null
 
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setLoading(false)
         setLoadingLabel('')
         return
@@ -439,7 +441,7 @@ export default function ProviderRegisterPage() {
         })
 
         if (res.status === 401) {
-          setError('Your session expired. Please sign in again.')
+          setError(t('sessionExpired'))
           setLoading(false)
           setLoadingLabel('')
           return
@@ -473,7 +475,7 @@ export default function ProviderRegisterPage() {
       })
       const { url, error: checkoutError } = await res.json()
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setLoading(false)
         setLoadingLabel('')
         return
