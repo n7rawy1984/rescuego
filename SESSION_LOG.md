@@ -2,6 +2,64 @@
 
 ---
 
+## Session: June 7, 2026 (continued 4) — Post-Audit Bug Fixes
+
+### Summary
+Fixed critical bugs discovered during live testing after audit fix phases 1-9. All issues stemmed from the Phase 4 state machine (`en_route`/`arrived` statuses) not being propagated to all code paths.
+
+### Bugs Fixed
+
+| Bug | Root Cause | Fix | Commit |
+|-----|-----------|-----|--------|
+| Provider Accept button disabled | Migration 021 dropped SELECT on `provider_locations`; user-scoped client returned null | Switched to admin client in dashboard | Phase 1 |
+| React hydration #418 | loading.tsx rendered `<Navbar />` (client state) while page rendered `<NavbarServer />` (server props) — tree mismatch during Suspense | Created `NavbarSkeleton` (static server component); replaced in all 10 loading.tsx files | `hydration fix` |
+| Provider /api/provider/location 403 | CSRF blocked same-origin requests with no Origin header | Changed CSRF to only block when Origin IS present but mismatches | `csrf fix` |
+| Customer loses request on en_route | `GET /api/requests` line 70: `.in('status', [...])` missing `en_route`/`arrived` | Added both statuses to GET + POST filters | `en_route fix` |
+| Customer realtime not updating | `requests` table not in `supabase_realtime` publication + 60s polling too slow | Migration 030 (idempotent publication add) + reduced polling to 5s for active states | `realtime fix` |
+| Provider complete 409 | `complete_provider_job_atomic` RPC: status filter missing `en_route`/`arrived` | Migration 029: rewrote all 3 RPCs | `rpc fix` |
+| Customer cancel 409 | `cancel_request_and_compensate_atomic` RPC: same issue | Migration 029 | `rpc fix` |
+| Provider accept 409 (PPJ credit) | Old 4-param `accept_provider_request_atomic` overload from migration 015 still existed alongside new 5-param version | Added `DROP FUNCTION IF EXISTS` for old signature in migration 029 | `overload fix` |
+| Pre-flight guards missing statuses | `ppj-checkout/route.ts` + `accept/route.ts` active-job checks missing `en_route`/`arrived` | Added both statuses to pre-flight `.in()` filters | `preflight fix` |
+
+### Migrations Added
+- **027** — `payout_log` UNIQUE constraint on `stripe_payout_id` (idempotent)
+- **028** — `release_job_atomic` updated + `expire_stuck_active_requests` RPC
+- **029** — All 3 main RPCs rewritten with `en_route`/`arrived`; old 4-param accept overload dropped
+- **030** — `requests` table added to `supabase_realtime` publication (idempotent)
+
+### Key Architectural Finding
+PostgreSQL `CREATE OR REPLACE FUNCTION` only replaces functions with **identical argument types**. Migration 024 added `p_plan_limit INTEGER` (5 params) but migration 015's 4-param version was never dropped — creating an ambiguous overload. Migration 029 now explicitly drops the old signature.
+
+### Files Changed (this session)
+- `src/app/api/requests/route.ts` — en_route/arrived in GET + POST status filters
+- `src/app/api/provider/ppj-checkout/route.ts` — en_route/arrived in active-job pre-flight
+- `src/app/api/provider/requests/accept/route.ts` — en_route/arrived in active-job pre-flight
+- `src/app/customer/request/page.tsx` — 5s polling for active states (was 60s)
+- `src/app/layout.tsx` — suppressHydrationWarning on html/body
+- `src/components/layout/Navbar.tsx` — suppressHydrationWarning on nav
+- `src/components/layout/NavbarServer.tsx` — removed dynamic key prop
+- `src/components/layout/NavbarSkeleton.tsx` — NEW (static loading skeleton)
+- `src/app/*/loading.tsx` (10 files) — NavbarSkeleton instead of Navbar
+- `src/proxy.ts` — CSRF allows missing Origin (same-origin fetch)
+- `supabase/migrations/027_payout_log_unique_constraint.sql` — idempotent
+- `supabase/migrations/028_stuck_job_auto_release.sql` — deduplicated
+- `supabase/migrations/029_rpc_add_en_route_arrived_statuses.sql` — 3 RPCs + DROP old overload
+- `supabase/migrations/030_requests_realtime_publication.sql` — idempotent
+
+### Database Verification
+All 6 RPCs verified against live Supabase — signatures and bodies match migrations exactly:
+- `accept_provider_request_atomic(UUID, UUID, BOOLEAN, BOOLEAN, INTEGER)` ✓
+- `complete_provider_job_atomic(UUID, UUID, INTEGER)` ✓
+- `cancel_request_and_compensate_atomic(UUID, UUID, TIMESTAMPTZ)` ✓
+- `release_job_atomic(UUID, UUID)` ✓
+- `advance_provider_job_state(UUID, UUID, TEXT, TEXT, TEXT)` ✓
+- `expire_stuck_active_requests(TIMESTAMPTZ)` ✓
+
+### Status
+All known issues resolved. Ready for live testing.
+
+---
+
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
 ### Final Summary
