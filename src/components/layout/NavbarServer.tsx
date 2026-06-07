@@ -23,5 +23,11 @@ export default async function NavbarServer() {
     // Fall through with unauthenticated defaults
   }
 
-  return <Navbar initialAuthenticated={authenticated} initialRole={role} />
+  return (
+    <Navbar
+      key={`nav-${authenticated}-${role}`}
+      initialAuthenticated={authenticated}
+      initialRole={role}
+    />
+  )
 }

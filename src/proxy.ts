@@ -48,11 +48,14 @@ export async function proxy(request: NextRequest) {
       const referer = request.headers.get('referer')
       const requestOrigin = origin || (referer ? new URL(referer).origin : null)
 
-      if (!requestOrigin || !ALLOWED_ORIGINS.some((a) => requestOrigin === a)) {
-        return NextResponse.json(
-          { error: 'Forbidden', message: 'Invalid request origin' },
-          { status: 403 }
-        )
+      if (requestOrigin && !ALLOWED_ORIGINS.some((a) => requestOrigin === a)) {
+        const requestHost = request.nextUrl.origin
+        if (requestOrigin !== requestHost) {
+          return NextResponse.json(
+            { error: 'Forbidden', message: 'Invalid request origin' },
+            { status: 403 }
+          )
+        }
       }
     }
   }
