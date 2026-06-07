@@ -2,6 +2,56 @@
 
 ---
 
+## Session: June 6, 2026 (continued 5) — Phase 4B Admin Operations Center
+
+### What was done
+
+1. **4B-1 — `admin/requests` filter tabs extended for new states**
+   - `RequestFilter` type extended with `'en_route' | 'arrived'`
+   - `REQUEST_FILTERS` array: "En Route" and "Arrived" tabs added between Accepted and In Progress
+   - `STATUS_LABELS` record added — all 8 statuses mapped to clean human labels; replaces the old `charAt(0).toUpperCase()` hack that rendered `"En_route"`
+   - `requestBadgeVariant`: `en_route` and `arrived` → `'warning'`
+   - `lifecycleLabel`: explicit cases for `en_route` → `'Provider en route'`, `arrived` → `'Provider on site'`, `in_progress` → `'Job in progress'`
+   - File: `src/app/admin/requests/page.tsx`
+
+2. **4B-2 — `admin/dashboard` Request Status card broken out**
+   - 4 new count queries in `Promise.all`: `accepted`, `en_route`, `arrived`, `in_progress`
+   - Old catch-all "Other" row (with description text) removed
+   - Request Status card now shows explicit rows for all 7 live states: Open, Accepted, En Route, Arrived, In Progress, Completed, Expired
+   - File: `src/app/admin/dashboard/page.tsx`
+
+3. **4B-3 — Stuck jobs alert on admin dashboard**
+   - `now` constant captured once; `stuckCutoff = now − 2 hours`
+   - Admin client query: `jobs` where `en_route_at < stuckCutoff` and `completed_at IS NULL`, inner-joined to `requests` filtered to `['en_route', 'arrived']` status
+   - Red alert banner rendered above stats grid when any stuck jobs exist
+   - Per-job row: problem type, address, En Route/Arrived badge, hours stalled
+   - Each row links to `/admin/requests?filter={status}`
+   - Lint fix: `Date.now()` replaced by `now.getTime()` throughout (both `stuckCutoff` and `staleHours` calculation)
+   - File: `src/app/admin/dashboard/page.tsx`
+
+4. **4B-4 — New `/admin/performance` provider leaderboard page**
+   - Sort tabs: Completed Jobs (default) / Rating / Revenue / Jobs This Month
+   - Three parallel admin-client queries: all providers + user name, all completed jobs (aggregated client-side by `provider_id`), all rating counts
+   - Leaderboard table columns: rank, provider name + verified badge, status, plan, rating, reviews, completed jobs, jobs this month, revenue
+   - Plan badge: `business → success`, `pro → info`, `starter → warning`, `pay_per_job → default (PPJ)`
+   - Empty state handled
+   - "Provider Performance" link added to admin dashboard footer nav
+   - Files: `src/app/admin/performance/page.tsx` (new), `src/app/admin/performance/loading.tsx` (new)
+
+### Files changed
+- `src/app/admin/requests/page.tsx` — STATUS_LABELS, en_route/arrived filter tabs + lifecycle labels
+- `src/app/admin/dashboard/page.tsx` — 4 new count queries, Request Status card, stuck jobs alert, Performance nav link, Date.now() lint fix
+- `src/app/admin/performance/page.tsx` — created
+- `src/app/admin/performance/loading.tsx` — created
+
+### Deferred issues (updated)
+- `NEXT_PUBLIC_LAUNCH_PROMO=true` — add to Vercel if promo should be active
+- `removeTracing: true` vs CWV — decision required
+- Deprecated Supabase edge functions — manual verification in Supabase dashboard
+- Phase 2B (roadmap) — RTL & Arabic Foundation
+
+---
+
 ## Session: June 6, 2026 (continued 4) — Deferred items + Phase 4 Provider State Machine
 
 ### What was done
