@@ -113,6 +113,10 @@
 | 020_release_job_atomic | ✅ |
 | 021_phase1c_rls_hardening | ✅ |
 | 022_phase1c_remaining | ✅ |
+| 023_provider_documents_bucket_rls | ✅ |
+| 024_accept_rpc_overage_guard | ✅ |
+| 025_provider_state_machine | ✅ |
+| 026_advance_state_atomic | ✅ |
 
 ---
 
@@ -146,4 +150,28 @@ Tasks:
 **Phase 1C — Deep RLS Hardening ✅ complete**
 - [x] Migration 021: 6 over-broad RLS policies dropped/hardened
 - [x] Migration 022: reset_monthly_job_counters revoked, ratings UNIQUE(job_id) confirmed
+- [x] Migration 023: Storage bucket `provider-documents` RLS policies
+- [x] Migration 024: Overage TOCTOU guard inside accept_provider_request_atomic
+
+**Phase 3 — Realtime & Notifications ✅ complete**
+- [x] Customer realtime subscription on active request
+- [x] Provider ProviderRealtimeRefresh component
+- [x] Polling raised to 60s heartbeat fallback
+
+**Phase 4 — Provider State Machine ✅ complete**
+- [x] Migration 025: en_route/arrived states, provider_state_machine CHECK constraint
+- [x] Migration 026: advance_provider_job_state atomic RPC
+- [x] JobStateAdvanceButton component
+- [x] Customer 5-step progress timeline UI
+
+**Phase 4B — Admin Operations Center ✅ partial**
+- [x] Stuck jobs alert banner (en_route/arrived > 2 hours)
+- [x] Provider performance leaderboard page
+- [x] Extended filter tabs (all states)
+- [ ] Complaint inbox, export tools, manual intervention (future)
+
+**Phase 2B — RTL & Arabic ✅ partial**
+- [x] 2B-1: Cairo font + RTL infrastructure
+- [x] 2B-2: Physical → logical directional classes (18 files)
+- [ ] 2B-3: Arabic strings + full RTL activation ← **NEXT TASK**
 

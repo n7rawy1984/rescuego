@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0F6E56"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#grad)" opacity="0.3"/>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1D9E75;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0F6E56;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <text x="600" y="280" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white" text-anchor="middle">RescueGo</text>
+  <text x="600" y="360" font-family="Arial, sans-serif" font-size="32" fill="#E1F5EE" text-anchor="middle">Roadside Recovery UAE</text>
+  <text x="600" y="420" font-family="Arial, sans-serif" font-size="24" fill="#9FE1CB" text-anchor="middle">Trusted providers. Fast response. All emirates.</text>
+</svg>

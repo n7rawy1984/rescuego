@@ -65,7 +65,7 @@
 
 ---
 
-## Phase 1A — Monitoring, Performance & Stability ✅ (Tasks 1–7)
+## Phase 1A — Monitoring, Performance & Stability ✅
 **الهدف:** تقليل اللاج والـ stale state قبل أي realtime complexity.
 
 - [x] Sentry verification + event smoke test
@@ -76,42 +76,41 @@
 - [x] polling reduction (adaptive interval, customer request page)
 - [x] Core Web Vitals baseline (preconnect + sentry.client.config.ts)
 - [x] bundle size review (12 unused dependencies removed)
-- [ ] production slow-query identification ← **NEXT TASK**
+- [x] production slow-query identification (migration 017 applied)
 
 **النتيجة:** Stable and observable production runtime.
 
 ---
 
-## Phase 1B — Critical Architecture Hardening ✅ (جزئي)
+## Phase 1B — Critical Architecture Hardening ✅
 **الهدف:** تقوية قلب الـ marketplace قبل scale الحقيقي.
 
 **تم:**
 - [x] accept flow → RPC/transaction (migration 011)
 - [x] complete flow → RPC/transaction (migration 014)
 - [x] lifecycle mutation atomicity
+- [x] LAUNCH_PROMO → NEXT_PUBLIC_LAUNCH_PROMO env var
+- [x] PPJ fees → NEXT_PUBLIC_PPJ_* env vars
+- [x] cron reliability + vercel.json + GET handlers + maxDuration
+- [x] cancel double-compensation → cancel_request_and_compensate_atomic (migration 019)
+- [x] release atomicity → release_job_atomic (migration 020)
 
-**متبقي:**
-- [ ] cron reliability + monitoring
-- [ ] LAUNCH_PROMO → config خارج الكود
-- [ ] PPJ fees → configurable server-side
-- [ ] ops cron monitoring
-- [ ] lifecycle rollback safety
+**النتيجة:** All critical lifecycle mutations are atomic.
 
 ---
 
-## Phase 1C — Deep RLS Hardening & Least-Privilege Redesign
+## Phase 1C — Deep RLS Hardening & Least-Privilege Redesign ✅
 **الهدف:** تضييق RLS الواسعة بدون كسر lifecycle.
 
-**الجداول المستهدفة:** requests / providers / provider_locations / request_locks / ratings
+**تم:**
+- [x] 6 over-broad RLS policies dropped/hardened (migration 021)
+- [x] reset_monthly_job_counters revoked from public (migration 022)
+- [x] ratings UNIQUE(job_id) confirmed (migration 022)
+- [x] Storage bucket `provider-documents` RLS policies added (migration 023)
+- [x] Overage TOCTOU fix: guard inside accept_provider_request_atomic (migration 024)
+- [x] server-only guards on admin.ts, server.ts, ops-auth.ts, stripe.ts, rate-limit.ts
 
-- [ ] policy واحدة كل مرة + smoke test بعدها مباشرة
-- [ ] scoped views أو RPCs بدل broad SELECT
-- [ ] منع direct browser access للحقول الحساسة
-- [ ] realtime-safe RLS review
-- [ ] admin-only access isolation
-- [ ] provider/customer least-privilege separation
-
-⚠️ أي policy change لا يجب أن يكسر: dashboards / realtime / assignment / PPJ / provider visibility / customer recovery / admin views.
+**النتيجة:** Least-privilege RLS with no broad SELECT policies remaining.
 
 ---
 
@@ -168,69 +167,59 @@
 
 ---
 
-## Phase 3 — Realtime & Notifications Foundation
+## Phase 3 — Realtime & Notifications Foundation ✅
 **الهدف:** تحويل المنتج من refresh-driven إلى operationally aware.
 
-**Customer realtime:** request accepted / released / completed / cancelled / provider reassigned
+**تم:**
+- [x] Customer request page: Supabase realtime subscription on active request
+- [x] Provider dashboard: ProviderRealtimeRefresh component (new open requests + active job changes)
+- [x] Poll interval raised to 60s (heartbeat fallback only)
+- [x] Privacy-safe payloads (no PII in realtime channels)
+- [x] Customer/provider scoped realtime channels
+- [x] Reconnect handling via Supabase client
 
-**Provider realtime:** new request / reopened / customer cancelled / assignment changed / active job changed
-
-**القواعد:**
-- lightweight toast/banner فقط
-- لا duplicate subscriptions
-- لا GPS streaming
-- لا live map tracking بعد
-- Push notifications مؤجّلة حتى يتحسم قرار Phase 2C
-
-**المطلوب:**
-- [ ] Supabase realtime cleanup
-- [ ] reconnect handling
-- [ ] stale-state reduction
-- [ ] lightweight notification layer
-- [ ] polling reduction where realtime is safe
-- [ ] privacy-safe payloads
-- [ ] customer/provider scoped realtime channels
+**النتيجة:** Real-time updates for both customer and provider without polling dependency.
 
 ---
 
-## Phase 4 — Operations & Trust V1
+## Phase 4 — Operations & Trust V1 ✅
 **الهدف:** العميل يشعر أن الخدمة تتحرك فعليًا.
 
-**Provider states:** accepted → en_route → arrived → completed / released / no_show
+**تم:**
+- [x] Provider state transitions: accepted → en_route → arrived → in_progress (migration 025)
+- [x] advance_provider_job_state atomic RPC (migration 026)
+- [x] JobStateAdvanceButton component ("On My Way" / "I've Arrived" / "Start Job")
+- [x] Customer-facing 5-step progress timeline UI
+- [x] Provider dashboard integration with state machine
+- [x] Admin visibility for delayed/stuck jobs (stuck jobs alert on dashboard)
 
-**Customer timeline:** Request received → Provider assigned → On the way → Arrived → Completed
-
-- [ ] provider state transitions + UX
-- [ ] customer-facing progress timeline UI
-- [ ] delayed provider escalation
+**متبقي (future phases):**
+- [ ] delayed provider escalation + automatic release rules
 - [ ] customer report issue
-- [ ] automatic release rules
-- [ ] no-show tracking
-- [ ] provider reliability foundation
-- [ ] admin visibility for delayed/stuck jobs
+- [ ] no-show tracking + provider reliability scoring
 
 لا live GPS streaming في V1.
 
 ---
 
-## Phase 4B — Admin Operations Center
+## Phase 4B — Admin Operations Center ✅ (جزئي)
 **الهدف:** الأدمن يقدر يشغّل المنصة من أول يوم production فعلي.
 
-⚠️ يتوازى مع Phase 4 — مش بعدها.
+**تم:**
+- [x] live requests dashboard with extended status filter tabs (en_route, arrived)
+- [x] stuck jobs alert banner (en_route/arrived > 2 hours)
+- [x] provider performance leaderboard page (/admin/performance)
+- [x] request filters/search (All/Open/Accepted/En Route/Arrived/In Progress/Completed/Cancelled/Expired)
+- [x] Request Status card with all 7 live states
+- [x] revenue overview
 
-- [ ] live requests dashboard
-- [ ] stuck jobs view
-- [ ] no-show alerts
+**متبقي:**
 - [ ] complaint inbox
-- [ ] provider performance overview
-- [ ] request filters/search
-- [ ] payment exceptions
-- [ ] revenue overview
-- [ ] audit logs
-- [ ] operational alerts
 - [ ] admin export tools
 - [ ] manual intervention tools
 - [ ] incident recovery procedures
+- [ ] operational alerts (automated)
+- [ ] audit logs
 
 ---
 
@@ -416,25 +405,28 @@
 |---|---|
 | Phase 0 | ✅ مكتمل |
 | Phase 1 | ✅ مكتمل |
-| Phase 1A | ✅ Tasks 1–7 مكتملة / Task 8 ناقص |
-| Phase 1B | ✅ جزئي (RPC transactions done) |
+| Phase 1A | ✅ مكتمل (all 8 tasks) |
+| Phase 1B | ✅ مكتمل |
+| Phase 1C | ✅ مكتمل |
 | Phase 2A | ✅ جزئي (Admin + Customer + Pricing UI) |
 | Phase 2B.1 | ✅ Design System foundation |
-| Phase 1C | ⏳ قادم |
-| Phase 2B (RTL) | ⏳ قادم |
-| Phase 3–16 | ⏳ قادم |
+| Phase 2B | ✅ جزئي (2B-1 infra + 2B-2 logical classes done) |
+| Phase 3 | ✅ مكتمل (realtime subscriptions) |
+| Phase 4 | ✅ مكتمل (state machine + advance-state) |
+| Phase 4B | ✅ جزئي (stuck jobs, performance, filters done) |
+| Phase 5–16 | ⏳ قادم |
 
-**Next Task:** Phase 1A Task 8 — Production slow-query identification
+**Next Task:** Phase 2B-3 — Arabic strings + RTL activation
 
 ---
 
 ## Migrations Applied
-001 → 016 ✅ (Next = 017)
+001 → 026 ✅ (Next = 027)
 
 ## Critical Rules
 - commission_rate = 0, commission_amount = 0 — intentional حتى Phase 8
-- PPJ fee = 15 AED — server-side only
+- PPJ fee = 15 AED (promo) — server-side only, controlled by NEXT_PUBLIC_LAUNCH_PROMO
 - Google Maps — links only, no SDK حتى Phase 6
 - Stripe — TEST mode حتى Phase 10
-- accept_request_atomic + complete_provider_job_atomic — never bypass
+- accept_request_atomic + complete_provider_job_atomic + advance_provider_job_state — never bypass
 - RLS changes — one at a time + smoke test

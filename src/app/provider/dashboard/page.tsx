@@ -247,7 +247,7 @@ export default async function ProviderDashboardPage({
         .maybeSingle<DashboardRequestRow>()
       : Promise.resolve({ data: null, error: null }),
     operationalReady
-      ? supabase
+      ? admin
         .from('provider_locations')
         .select('updated_at')
         .eq('provider_id', user.id)

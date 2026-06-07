@@ -616,7 +616,7 @@ async function processStripeEvent(
       currency: payout.currency.toUpperCase(),
       arrival_date: new Date(payout.arrival_date * 1000).toISOString().split('T')[0],
       status: payout.status,
-    })
+    }, { onConflict: 'stripe_payout_id' })
     throwIfError(error, 'Failed to upsert payout')
   }
 

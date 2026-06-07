@@ -1,7 +1,7 @@
 # RescueGo — Complete Project Handoff
 
-**Last updated:** June 5, 2026  
-**Status:** Phase 1A tasks 1–7 complete. Task 8 (slow-query identification) is next.  
+**Last updated:** June 7, 2026  
+**Status:** Phases 0–4B complete. Migrations 001–026 applied. Next: Phase 2B-3 (Arabic strings + RTL activation).  
 **Branch:** main  
 **Domain:** rescuego.ae
 
@@ -85,33 +85,37 @@ src/
     database.ts           # All TypeScript interfaces for DB rows + enums
     index.ts              # Re-exports database.ts + SUBSCRIPTION_PLANS constant + runtime consts
 proxy.ts                  # Next.js middleware (token refresh + unauthenticated redirect)
-supabase/migrations/      # 001–016 SQL migrations (all applied in production)
+supabase/migrations/      # 001–026 SQL migrations (all applied in production)
 sentry.client.config.ts   # Browser Sentry init
 sentry.server.config.ts   # Server Sentry init
 sentry.edge.config.ts     # Edge Sentry init
 ```
 
 ### Key design decisions
-- **No Radix UI / shadcn.** All UI components are custom native-HTML + Tailwind. Radix packages were scaffolded but never wired; `npm uninstall` pending.
+- **No Radix UI / shadcn.** All UI components are custom native-HTML + Tailwind. Radix packages removed.
 - **No Maps SDK.** Google Maps links only. Maps SDK planned for Phase 6.
-- **No realtime.** All data is polled (customer request page: 12s/20s adaptive). Realtime planned for Phase 3.
+- **Realtime implemented (Phase 3).** Supabase realtime subscriptions for customer + provider dashboards. Polling reduced to 60s heartbeat fallback.
 - **service_role** Supabase client is **server-side only** (`src/lib/supabase/admin.ts`). All API routes that need to bypass RLS use `createAdminClient()`.
 - **`proxy.ts`** is Next.js middleware (not `middleware.ts`; Next.js 16 renames the file). It refreshes Supabase tokens and redirects unauthenticated users. It does NOT check roles — roles are enforced at page level and by RLS.
+- **i18n** via `next-intl` with Arabic (ar) and English (en) locales. RTL infrastructure in place (Cairo font, logical CSS classes).
 
 ---
 
 ## 3. Current Project Status
 
-### Completed phases (as of June 5, 2026)
+### Completed phases (as of June 7, 2026)
 - Phase 0 — QA-FINAL
 - Phase 1 — Security hardening + Sentry verified
-- Phase 1B.4 — Realtime & polling stability
-- Phase 1B.5 — Lifecycle recovery hardening (migration 014)
-- Phase 2A.1 — Admin UI polish
-- Phase 2A.2 — Customer/Provider UI polish
-- Phase 2A.4 — Pricing & Subscription UI polish
+- Phase 1A — Monitoring, Performance & Stability (all 8 tasks)
+- Phase 1B — Critical Architecture Hardening (all lifecycle mutations atomic)
+- Phase 1C — Deep RLS Hardening (migrations 021-024)
+- Phase 2A — UI Polish (Admin + Customer + Pricing pages)
 - Phase 2B.1 — Design System foundation
-- Phase 1A Tasks 1–7 (Auth perf, logout lag, dashboard loading, query profiling, polling, CWV baseline, bundle audit)
+- Phase 2B-1 — RTL infrastructure (Cairo font, logical classes)
+- Phase 2B-2 — Physical → logical directional class migration (18 files)
+- Phase 3 — Realtime & Notifications (customer + provider subscriptions)
+- Phase 4 — Provider State Machine (en_route/arrived states, advance-state RPC)
+- Phase 4B — Admin Operations Center (stuck jobs, performance, filters)
 
 ### Phase 1A completion status
 | Task | Status | Summary |
@@ -122,29 +126,31 @@ sentry.edge.config.ts     # Edge Sentry init
 | Task 4 — Supabase query profiling | ✅ Complete | migration 016, location + accept route parallelized |
 | Task 5 — Polling reduction | ✅ Complete | Adaptive 12s/20s interval on customer page |
 | Task 6 — CWV baseline | ✅ Complete | sentry.client.config.ts created, preconnect added |
-| Task 7 — Bundle size audit | ✅ Complete | Findings documented; npm uninstall pending user action |
-| Task 8 — Production slow-query identification | ⏳ Next | Audit-only, no code changes expected |
+| Task 7 — Bundle size audit | ✅ Complete | 12 unused dependencies removed from package.json |
+| Task 8 — Production slow-query identification | ✅ Complete | migration 017 applied |
+
+### Additional completed work (Phases 1B–4B)
+- Phase 1B: LAUNCH_PROMO env, PPJ fees env, cron reliability (vercel.json), cancel/release atomicity (migrations 019-020)
+- Phase 1C: 6 RLS policies hardened (021), function revoked (022), storage bucket RLS (023), overage TOCTOU (024)
+- Phase 3: Customer realtime subscription + provider ProviderRealtimeRefresh component + polling raised to 60s
+- Phase 4: Provider state machine (025), advance_provider_job_state RPC (026), JobStateAdvanceButton UI
+- Phase 4B: Stuck jobs alert banner, provider performance leaderboard, extended filter tabs, all-state visibility
+- Pre-launch hardening: C-1/C-2/C-3, H-1/H-2/H-3/H-4
 
 ### Next up (in order)
-1. Phase 1A Task 8 — Production slow-query identification
-2. Phase 1B remaining — cron reliability, DB indexes, LAUNCH_PROMO config
-3. Phase 1C — Deep RLS hardening + `server-only` guards
-4. Phase 2B — RTL & Arabic foundation
-5. Phase 2C — Mobile/PWA strategy
-6. Phase 3 — Realtime & Notifications
-7. Phase 4 — Operations & Trust V1
-8. Phase 4B — Admin Operations Center
-9. Phase 5 — Provider KYC & UAE Compliance
-10. Phase 6 — Dispatch Logic V2 (Google Maps SDK enters here)
-11. Phase 7 — Pricing Engine V2
-12. Phase 8 — Quote Approval + Commission activation
-13. Phase 9 — Premium Jobs & Commission
-14. Phase 10 — Billing Integrity (switch to Stripe live keys here)
-15. Phase 11 — Fraud Detection
-16. Phase 12 — Legal & UAE Compliance
-17. Phase 13 — SEO Domination
-18. Phase 14 — Growth & Provider Acquisition
-19. Phase 15 — Scale Architecture
+1. Phase 2B-3 — Arabic strings + RTL activation
+2. Phase 2C — Mobile/PWA strategy
+3. Phase 5 — Provider KYC & UAE Compliance
+4. Phase 6 — Dispatch Logic V2 (Google Maps SDK enters here)
+5. Phase 7 — Pricing Engine V2
+6. Phase 8 — Quote Approval + Commission activation
+7. Phase 9 — Premium Jobs & Commission
+8. Phase 10 — Billing Integrity (switch to Stripe live keys here)
+9. Phase 11 — Fraud Detection
+10. Phase 12 — Legal & UAE Compliance
+11. Phase 13 — SEO Domination
+12. Phase 14 — Growth & Provider Acquisition
+13. Phase 15 — Scale Architecture
 
 ---
 
@@ -362,32 +368,33 @@ open → accepted → in_progress → completed
 
 ## 7. Database Schema Summary
 
-### Tables (16 migrations applied)
+### Tables (26 migrations applied)
 
 | Table | Purpose |
 |---|---|
 | `users` | All users (customers, providers, admins). Role column controls access. |
 | `providers` | Extended provider profile. 1:1 with users (same UUID). Plan, status, billing fields. |
 | `provider_locations` | Live GPS location. 1:1 with providers. PostGIS Point. Staleness = 5 min. |
-| `requests` | Customer roadside requests. All lifecycle statuses. |
-| `jobs` | Created when request is accepted. Links request ↔ provider. Commission fields (always 0 until Phase 8). |
-| `ratings` | 1:1 with jobs. Stars 1–5 + optional comment. Trigger updates provider rating. |
+| `requests` | Customer roadside requests. All lifecycle statuses (open/accepted/en_route/arrived/in_progress/completed/cancelled/expired). |
+| `jobs` | Created when request is accepted. Links request-provider. State machine timestamps (en_route_at, arrived_at). Commission fields (always 0 until Phase 8). |
+| `ratings` | 1:1 with jobs (UNIQUE on job_id). Stars 1-5 + optional comment. Trigger updates provider rating. |
 | `request_locks` | Optimistic locks during PPJ/overage payment flow. TTL = 60s. |
 | `stripe_events` | Idempotency log for Stripe webhook processing. |
 | `payout_log` | Stripe payouts (upserted from webhook). |
 | `price_estimates` | Static price ranges per problem type. Seeded in migration 001. |
-| `ppj_payments` | PPJ payment records (pending → paid/failed). |
-| `overage_payments` | Overage payment records (pending → paid/failed). |
+| `ppj_payments` | PPJ payment records (pending/paid/failed). |
+| `overage_payments` | Overage payment records (pending/paid/failed). |
 
-### Key RLS rules
+### Key RLS rules (hardened in Phase 1C)
 
 - Users: can only read/update their own row. Admin bypasses all.
-- Providers: can read own row + active providers visible to customers. Admin bypasses.
-- provider_locations: providers can insert/update own. Active providers' locations visible to all authenticated users.
-- Requests: customers see own requests. Active providers see `open` requests. Provider sees their `accepted_by` requests. Admin sees all.
+- Providers: can read own row. No broad SELECT policy for customers (removed in migration 021).
+- provider_locations: providers can insert/update own. No broad SELECT (removed in 021).
+- Requests: customers see own requests. Providers access open requests via RPC only (privacy masking). Provider sees their `accepted_by` requests. Admin sees all.
 - Jobs: providers see own. Admin sees all.
-- Ratings: customers can insert (verified via job ownership). Public read.
-- stripe_events / payout_log: admin-only.
+- Ratings: authenticated users can insert (verified via job ownership). UNIQUE on job_id.
+- stripe_events / payout_log / request_locks: admin-only (all broad policies removed in 021).
+- Storage (`provider-documents`): providers can read/write their own folder only (migration 023).
 
 ### RLS function
 `is_admin()` — `SECURITY DEFINER`, stable, filters `users.id = auth.uid() AND role = 'admin'`.
@@ -486,8 +493,13 @@ All variables required in Vercel dashboard (Production + Preview). Never hardcod
 ### Ops (internal cron, OPS_CRON_SECRET required)
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/ops/monthly-allowance-reset` | POST | Reset jobs_this_month for Starter/Pro on new billing period |
-| `/api/ops/expire-requests` | POST | Expire stale open requests |
+| `/api/ops/monthly-allowance-reset` | GET/POST | Reset jobs_this_month for Starter/Pro on new billing period |
+| `/api/ops/expire-requests` | GET/POST | Expire stale open requests + clear stuck webhook events |
+
+### Provider State Machine
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/provider/jobs/advance-state` | POST | Advance job state (accepted→en_route→arrived→in_progress) |
 
 ---
 
@@ -495,35 +507,34 @@ All variables required in Vercel dashboard (Production + Preview). Never hardcod
 
 ### Active (requires user decision)
 - **`removeTracing: true` vs CWV capture** (`next.config.ts:108`): Sentry tracing tree-shaken from bundle. `browserTracingIntegration` needed for INP/LCP/CLS is a no-op. Decision: keep (smaller bundle, errors-only) OR remove + add `browserTracingIntegration + tracesSampleRate: 0.05` to `sentry.client.config.ts`.
-- **12 unused npm dependencies** (safe to remove, zero bundle impact):
-  ```
-  npm uninstall @radix-ui/react-avatar @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-separator @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-toast react-hook-form @hookform/resolvers date-fns
-  ```
 
 ### Deployment
 - `NEXT_PUBLIC_SITE_URL` missing from Vercel env vars
 - Stripe still in Sandbox/Test mode — switch to live keys at Phase 10
-- Storage bucket `provider-documents` has 0 RLS policies — see SETUP.md §4
+- Missing `og-image.jpg` and `logo.png` in `/public` (referenced in metadata)
+- Deprecated Supabase Edge Functions still present in `supabase/functions/` — verify none are triggered, then delete
 
 ### Performance (deferred from Phase 1A)
 - Login: sequential role fetch after login (`auth/login/page.tsx:135`)
 - Login: `router.refresh()` + 1200ms fallback timer (`login/page.tsx:57`)
-- Navbar: duplicates auth + role check on every page load
+- Navbar: duplicates auth + role check on every page load (extra 200ms latency)
 - Navbar: prefetches all 3 dashboards for every visitor
-- Home page (`page.tsx`): `getViewerState()` has 3 sequential DB queries for provider users, blocks HTML stream
+- Home page (`page.tsx`): `getViewerState()` has 3 sequential DB queries for provider users
 - Provider dashboard: fallback open requests query fires sequentially after nearby RPC
 - All loading.tsx skeletons are incomplete / don't match actual page layouts
-- Navbar CLS: skeleton→content shift on every page (architectural fix needed, deferred to Phase 2B)
 
-### Code quality (deferred to Phase 1C)
-- No `server-only` guards on `stripe.ts`, `logger.ts`, `env.ts`, `notifications.ts`, `rate-limit.ts`, `ops-auth.ts`
+### Code quality (partially addressed in Phase 1C)
+- [RESOLVED] `server-only` guards added to `stripe.ts`, `admin.ts`, `server.ts`, `ops-auth.ts`, `rate-limit.ts`
 - `SUBSCRIPTION_PLANS` defined in 3 places — dedup needed
-- `LAUNCH_PROMO = true` hardcoded in `src/types/index.ts:55` — should be `NEXT_PUBLIC_LAUNCH_PROMO` env var before promo ends
-- `bundlePagesRouterDependencies: true` in `next.config.ts` is redundant for a pure App Router project (negligible impact)
+- [RESOLVED] `LAUNCH_PROMO` now reads from `NEXT_PUBLIC_LAUNCH_PROMO` env var
+- `bundlePagesRouterDependencies: true` in `next.config.ts` is redundant for pure App Router (negligible)
 
 ### Security (ongoing)
 - CSP is in report-only mode since Phase 1 (`Content-Security-Policy-Report-Only` header)
 - Review CSP violation reports before enforcing
+- Rate limiter fails closed (429 for all) when Redis is not configured — needs graceful degradation or mandatory Redis
+- No automated test suite — regressions can ship undetected
+- `payout_log` upsert missing `onConflict: 'stripe_payout_id'` — potential duplicate rows
 
 ---
 

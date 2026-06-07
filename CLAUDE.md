@@ -83,34 +83,40 @@ Always tell user to run from terminal.
 ### مكتمل بالكامل
 - Phase 0 — QA-FINAL
 - Phase 1 — Security hardening + Sentry verified
-- Phase 1B.4 — Realtime & polling stability
-- Phase 1B.5 — Lifecycle recovery hardening (migration 014)
+- Phase 1A — Monitoring, Performance & Stability (all 8 tasks)
+- Phase 1B — Critical Architecture Hardening (complete)
+- Phase 1C — Deep RLS Hardening (migrations 021-024)
 - Phase 2A.1 — Admin UI polish
 - Phase 2A.2 — Customer/Provider UI polish
 - Phase 2A.4 — Pricing & Subscription UI polish
 - Phase 2B.1 — Design System foundation
-- Phase 1A Task 1 — Auth/login performance audit + proxy.ts DB call fix
-- Phase 1A Task 2 — Logout lag fix (signOut local scope)
-- Phase 1A Task 3 — Dashboard loading audit (Findings 1–4 fixed)
-- Phase 1A Task 4 — Supabase query profiling + migration 016 + location/accept route parallelization
-- Phase 1A Task 5 — Polling audit + adaptive interval fix (customer request page)
-- Phase 1A Task 6 — CWV baseline audit + preconnect fix (layout.tsx) + sentry.client.config.ts
-- Phase 1A Task 7 — Bundle size audit complete (see SESSION_LOG.md for findings)
-- Migrations: 001 → 016
+- Phase 2B-1 — RTL infrastructure (Cairo font, logical classes)
+- Phase 2B-2 — Physical → logical directional class migration (18 files)
+- Phase 3 — Realtime & Notifications (customer + provider subscriptions)
+- Phase 4 — Provider State Machine (en_route/arrived/advance-state)
+- Phase 4B — Admin Operations Center (stuck jobs, performance, extended filters)
+- Pre-launch hardening (C-1 through C-3, H-1 through H-4)
+- Migrations: 001 → 026
 
-### الجاي — Phase 1A Task 8
-Production slow-query identification.
-Tasks 6 + 7 complete — see SESSION_LOG.md for findings.
+### مكتمل حديثاً (بعد آخر تحديث)
+- Phase 1A Task 8 — Production slow-query identification (migration 017)
+- Phase 1B — Complete (LAUNCH_PROMO env, PPJ fees env, cron reliability, cancel/release atomicity)
+- Phase 1C — Complete (migrations 021-024: RLS hardening, storage bucket RLS, overage TOCTOU fix)
+- Phase 3 — Realtime & Notifications (customer + provider realtime subscriptions)
+- Phase 4 — Provider State Machine (en_route/arrived states, advance-state API, migration 025)
+- Phase 4B — Admin Operations Center (stuck jobs, performance leaderboard, filters)
+- Phase 2B (partial) — RTL infrastructure (Cairo font, logical classes, @custom-variant rtl)
+- Pre-launch hardening — C-1/C-2/C-3, H-1/H-2/H-3/H-4 (migration 026)
+- Migrations: 001 → 026
+
+### الجاي — Next Tasks
+- Phase 2B-3: Arabic strings + RTL activation
+- Phase 5: Provider KYC & UAE Compliance
+- Phase 6: Dispatch Logic V2
 
 ### المراحل القادمة بالترتيب
-- Phase 1A: Task 8 only remaining (slow-query identification) — tasks 1–7 complete
-- Phase 1B remaining: cron reliability / DB indexes / LAUNCH_PROMO config
-- Phase 1C: Deep RLS hardening
-- Phase 2B: RTL & Arabic foundation
+- Phase 2B remaining: Arabic strings (2B-3) + RTL activation
 - Phase 2C: Mobile/PWA strategy
-- Phase 3: Realtime & Notifications
-- Phase 4: Operations & Trust V1
-- Phase 4B: Admin Operations Center
 - Phase 5: Provider KYC & UAE Compliance
 - Phase 6: Dispatch Logic V2
 - Phase 7: Pricing Engine V2
