@@ -112,11 +112,13 @@ Always tell user to run from terminal.
 - Audit Phase 3: complete/route.ts state machine alignment + advance-state null fix
 - Audit Phase 4: NavbarServer eliminates duplicate client auth (~200ms savings per page)
 - Audit Phase 5: Deleted 5 deprecated Supabase edge functions
+- Audit Phase 6: CSP enforced + CSRF origin validation on all POST /api/* routes
 - Migrations: 001 → 027
 
 ### الجاي — Next Tasks
-- Audit Phase 6: CSP enforcement + CSRF header
 - Phase 2B-3: Arabic strings + RTL activation
+- Phase 5: Provider KYC & UAE Compliance
+- Phase 6: Dispatch Logic V2
 - Phase 2B-3: Arabic strings + RTL activation
 
 ### المراحل القادمة بالترتيب

@@ -4,6 +4,23 @@
 
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
+### Phase 6 — CSP Enforcement + CSRF Origin Validation
+**Status:** COMPLETE
+
+**Changes:**
+1. `next.config.ts` — Renamed variable `contentSecurityPolicyReportOnly` → `contentSecurityPolicy`. Changed header from `Content-Security-Policy-Report-Only` to `Content-Security-Policy`. XSS/injection now actively blocked.
+2. `src/proxy.ts` — Added CSRF origin validation for all POST `/api/*` routes. Checks `Origin` or `Referer` header against allowed origins. Rejects with 403 if no match.
+3. `src/proxy.ts` — Added early return for API routes after CSRF check (skips unnecessary Supabase token refresh for API calls).
+4. Matcher expanded to include `/api/:path*` for CSRF coverage.
+
+**CSRF exempt paths:** `/api/stripe/webhook` (external Stripe origin), `/api/ops/*` (cron Bearer token auth).
+
+**CSP policies unchanged:** `'unsafe-inline'` kept for script-src and style-src (required by Next.js + Stripe Elements). Will tighten with nonce/hash in future phase.
+
+**Trade-off:** CSRF relies on `Origin`/`Referer` headers which all modern browsers send. Older browsers without these headers will be rejected (acceptable — RescueGo targets modern mobile browsers in UAE).
+
+---
+
 ### Phase 5 — Deprecated Edge Functions Cleanup
 **Status:** COMPLETE
 

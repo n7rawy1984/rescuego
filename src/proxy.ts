@@ -22,12 +22,45 @@ const PUBLIC_OVERRIDES = [
   '/provider/subscribe',
 ]
 
+const CSRF_EXEMPT_PATHS = [
+  '/api/stripe/webhook',
+  '/api/ops/',
+]
+
+const ALLOWED_ORIGINS = [
+  process.env.NEXT_PUBLIC_SITE_URL,
+  'https://rescuego.ae',
+  'http://localhost:3000',
+].filter(Boolean) as string[]
+
 function getSafeRedirectTarget(request: NextRequest): string {
   const { pathname, search } = request.nextUrl
   return `${pathname}${search}`
 }
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  if (request.method === 'POST' && pathname.startsWith('/api/')) {
+    const isExempt = CSRF_EXEMPT_PATHS.some((p) => pathname.startsWith(p))
+    if (!isExempt) {
+      const origin = request.headers.get('origin')
+      const referer = request.headers.get('referer')
+      const requestOrigin = origin || (referer ? new URL(referer).origin : null)
+
+      if (!requestOrigin || !ALLOWED_ORIGINS.some((a) => requestOrigin === a)) {
+        return NextResponse.json(
+          { error: 'Forbidden', message: 'Invalid request origin' },
+          { status: 403 }
+        )
+      }
+    }
+  }
+
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   // The cookie dance below is required by @supabase/ssr: the client must be
@@ -57,7 +90,6 @@ export async function proxy(request: NextRequest) {
   // happens as a side effect.
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
     && !PUBLIC_OVERRIDES.some((override) => pathname.startsWith(override))
 
@@ -71,5 +103,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/provider/:path*', '/admin/:path*', '/customer/:path*'],
+  matcher: ['/provider/:path*', '/admin/:path*', '/customer/:path*', '/api/:path*'],
 }
