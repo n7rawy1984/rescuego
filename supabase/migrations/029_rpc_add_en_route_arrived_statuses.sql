@@ -186,6 +186,10 @@ GRANT EXECUTE ON FUNCTION public.cancel_request_and_compensate_atomic(UUID, UUID
 
 -- 3. Fix accept_provider_request_atomic: detect active job in en_route/arrived.
 -- Preserves p_plan_limit parameter from migration 024.
+-- Drop the old 4-param overload from migration 015 (never replaced by 024
+-- because it had a different signature). If it doesn't exist, this is a no-op.
+DROP FUNCTION IF EXISTS public.accept_provider_request_atomic(UUID, UUID, BOOLEAN, BOOLEAN);
+
 CREATE OR REPLACE FUNCTION public.accept_provider_request_atomic(
   p_provider_id UUID,
   p_request_id UUID,
