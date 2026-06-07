@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     supabase.from('users').select('role').eq('id', user.id).single(),
     admin.from('providers').select('id, status, plan, jobs_this_month, job_credit_balance').eq('id', user.id).single<ProviderRow>(),
     admin.from('provider_locations').select('provider_id').eq('provider_id', user.id).gte('updated_at', onlineSince).maybeSingle(),
-    admin.from('requests').select('id').eq('accepted_by', user.id).in('status', ['accepted', 'in_progress']).limit(1).maybeSingle(),
+    admin.from('requests').select('id').eq('accepted_by', user.id).in('status', ['accepted', 'en_route', 'arrived', 'in_progress']).limit(1).maybeSingle(),
   ])
 
   if (profile?.role !== 'provider') {

@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     .from('requests')
     .select('id')
     .eq('accepted_by', user.id)
-    .in('status', ['accepted', 'in_progress'])
+    .in('status', ['accepted', 'en_route', 'arrived', 'in_progress'])
     .limit(1)
     .maybeSingle()
 
