@@ -123,6 +123,73 @@
       "requests": "completed requests",
       "rating": "customer rating",
       "response": "min avg response"
+    },
+    "page": {
+      "badge": "UAE roadside recovery marketplace",
+      "heroTitle": "Broken down in the UAE? Help is minutes away.",
+      "heroSubtitle": "Fast access to trusted nearby recovery providers across the Emirates. Free for drivers, built for urgent roadside moments.",
+      "heroCard": {
+        "liveRequest": "Live request",
+        "recoveryDispatch": "Recovery dispatch",
+        "location": "Location",
+        "locationValue": "Sheikh Zayed Road, Dubai",
+        "service": "Service",
+        "serviceValue": "Tow Truck",
+        "eta": "ETA",
+        "etaValue": "18 min",
+        "status": "Status",
+        "statusValue": "Provider en route"
+      },
+      "trustPoints": {
+        "0": "Trusted roadside assistance network",
+        "1": "Secure Stripe payments",
+        "2": "Fast UAE-wide dispatch",
+        "3": "Verified providers"
+      },
+      "howItWorks": {
+        "eyebrow": "How it works",
+        "title": "A simple request flow",
+        "subtitle": "Drivers can ask for help quickly, while providers get a focused path to accept and complete work."
+      },
+      "steps": {
+        "0": { "title": "Pin your location", "text": "Share the breakdown location, choose the issue, and see a clear estimated service range before submitting." },
+        "1": { "title": "Provider accepts", "text": "A vetted recovery provider accepts the request from their dashboard and confirms they are on the way." },
+        "2": { "title": "Complete and rate", "text": "Pay the provider directly after service, then leave a rating to keep the marketplace trustworthy." }
+      },
+      "services": {
+        "eyebrow": "Roadside services",
+        "title": "Built around common UAE breakdowns",
+        "0": { "title": "Flat tire", "descriptor": "" },
+        "1": { "title": "Battery issue", "descriptor": "" },
+        "2": { "title": "Tow truck", "descriptor": "Recovery & towing support" },
+        "3": { "title": "Urgent support", "descriptor": "24/7 request flow" }
+      },
+      "providers": {
+        "eyebrow": "For providers",
+        "title": "A cleaner way to receive recovery jobs",
+        "subtitle": "Providers can register, upload documents, subscribe or use pay-per-job access, then manage open requests from the dashboard.",
+        "plans": {
+          "0": { "name": "Starter", "price": "249 AED/mo", "jobs": "15 jobs/month", "commission": "15% premium commission over 400 AED", "priority": "Normal priority" },
+          "1": { "name": "Pro", "price": "449 AED/mo", "jobs": "35 jobs/month", "commission": "10% premium commission over 400 AED", "priority": "High priority", "badge": "Most Popular" },
+          "2": { "name": "Business", "price": "849 AED/mo", "jobs": "Unlimited jobs", "commission": "0% premium commission", "priority": "Always shown first" }
+        }
+      },
+      "faq": {
+        "eyebrow": "FAQ",
+        "title": "Common questions",
+        "0": { "question": "Is RescueGo free for drivers?", "answer": "Yes. Drivers do not pay RescueGo. The customer pays the recovery provider directly after the service." },
+        "1": { "question": "How do providers join?", "answer": "Providers register, upload required documents, select a plan, and wait for admin review before activation." },
+        "2": { "question": "Does RescueGo handle customer payments?", "answer": "No. Customers pay providers directly. Stripe is only used for provider subscriptions and platform charges." }
+      },
+      "cta": {
+        "adminDashboard": "Admin Dashboard",
+        "continueSetup": "Continue provider setup",
+        "providerDashboard": "Provider Dashboard",
+        "requestHelp": "Request Help",
+        "requestRecovery": "Request Recovery Now",
+        "joinAsProvider": "Join as Provider",
+        "registerProvider": "Register Provider Account"
+      }
     }
   },
   "auth": {
@@ -319,6 +386,92 @@
     "monthly": "/month",
     "perJob": "/per job",
     "popular": "Most Popular",
+    "activePlan": "Active Plan",
+    "currentPlan": "Current Plan",
+    "providerPricing": "Provider pricing",
+    "heroTitle": "Simple, transparent pricing",
+    "heroSubtitle": "For recovery providers. Customers always use RescueGo for free.",
+    "joinAsProvider": "Join as Provider",
+    "requestRecoveryFree": "Request Recovery (Free)",
+    "manageTitle": "Manage or upgrade your subscription",
+    "manageDescription": "You are already subscribed to RescueGo. Compare the subscription plans below, then open Stripe Billing to manage upgrades securely without creating a duplicate subscription.",
+    "ppj": {
+      "title": "Start free with Pay Per Job",
+      "description": "Accept roadside assistance requests without a monthly commitment. Pay only a flat acceptance fee when you take a job.",
+      "features": {
+        "0": "No monthly subscription",
+        "1": "No percentage commission",
+        "2": "Launch promo: {fee} AED per accepted request",
+        "3": "Upgrade anytime when you are ready for more predictable monthly growth"
+      },
+      "startFree": "Start Free",
+      "usePayPerJob": "Use Pay Per Job",
+      "continuePayPerJob": "Continue with Pay Per Job"
+    },
+    "grow": {
+      "title": "Ready to grow faster?",
+      "description": "Our subscription plans are built for recovery providers who want more visibility, more monthly jobs, and a clearer path to predictable revenue.",
+      "benefits": {
+        "0": "Get monthly jobs included",
+        "1": "Improve queue priority",
+        "2": "Reduce costs as you scale",
+        "3": "Unlock better growth potential"
+      }
+    },
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "positioning": "Best for new providers starting with steady monthly jobs.",
+        "cta": "Choose Starter",
+        "features": {
+          "0": "15 jobs/month included",
+          "1": "12 AED overage per extra job",
+          "2": "15% premium commission only over 400 AED",
+          "3": "Normal queue priority",
+          "4": "Provider dashboard access",
+          "5": "Customer ratings and reviews"
+        }
+      },
+      "pro": {
+        "name": "Pro",
+        "positioning": "Best for growing providers who want more jobs and higher priority.",
+        "cta": "Upgrade to Pro",
+        "features": {
+          "0": "35 jobs/month included",
+          "1": "12 AED overage per extra job",
+          "2": "10% premium commission only over 400 AED",
+          "3": "High queue priority",
+          "4": "Provider dashboard access",
+          "5": "Customer ratings and reviews"
+        }
+      },
+      "business": {
+        "name": "Business",
+        "positioning": "Best for serious operators who want unlimited jobs and no premium commission.",
+        "cta": "Go Business",
+        "features": {
+          "0": "Unlimited jobs",
+          "1": "No overage fees",
+          "2": "No premium commission",
+          "3": "Highest priority",
+          "4": "Provider dashboard access",
+          "5": "Verified badge eligibility"
+        }
+      }
+    },
+    "comparison": {
+      "title": "Subscription plan comparison",
+      "feature": "Feature",
+      "rows": {
+        "monthlyFee": { "label": "Monthly Fee", "starter": "249 AED", "pro": "449 AED", "business": "849 AED" },
+        "jobsMonth": { "label": "Jobs/Month", "starter": "15", "pro": "35", "business": "Unlimited" },
+        "overageFee": { "label": "Overage Fee", "starter": "12 AED/job", "pro": "12 AED/job", "business": "None" },
+        "commission": { "label": "Commission", "starter": "15% only on premium jobs over 400 AED", "pro": "10% only on premium jobs over 400 AED", "business": "0%" },
+        "queuePriority": { "label": "Queue Priority", "starter": "Normal", "pro": "High", "business": "Always First" },
+        "verifiedBadge": { "label": "Verified Badge", "starter": "No", "pro": "No", "business": "Yes" }
+      }
+    },
+    "launchPromo": "Launch Offer: Pay Per Job at just {fee} AED flat. Limited time only.",
     "starter": {
       "name": "Starter",
       "price": "99",
@@ -341,15 +494,6 @@
       "name": "Pay Per Job",
       "price": "15",
       "description": "No monthly commitment"
-    },
-    "comparison": {
-      "title": "Compare Plans",
-      "feature": "Feature",
-      "monthlyJobs": "Monthly Jobs",
-      "commission": "Commission",
-      "priority": "Request Priority",
-      "support": "Support",
-      "badge": "Verified Badge"
     },
     "faq": {
       "title": "FAQ"
@@ -475,11 +619,55 @@
   },
   "about": {
     "title": "About RescueGo",
-    "mission": "Our mission is to make roadside recovery fast, reliable, and transparent for every driver in the UAE."
+    "mission": "Our mission is to make roadside recovery fast, reliable, and transparent for every driver in the UAE.",
+    "heroSubtitle": "The UAE's first open marketplace for roadside recovery. Built for drivers, powered by providers.",
+    "problem": {
+      "title": "The Problem We Solve",
+      "p1": "In the UAE, when your car breaks down — whether on Sheikh Zayed Road, the Abu Dhabi highway, or in the desert — you have no reliable way to find a nearby, trusted recovery provider quickly.",
+      "p2": "Existing solutions are fragmented: phone calls, WhatsApp groups, or apps tied to a single company. No open marketplace exists. Until now."
+    },
+    "before": {
+      "label": "Before",
+      "title": "Before RescueGo",
+      "items": {
+        "0": "Call 10 numbers to find someone available",
+        "1": "No idea if provider is legitimate",
+        "2": "No tracking — just wait and hope",
+        "3": "Price negotiated on the spot",
+        "4": "No way to rate or review"
+      }
+    },
+    "solution": {
+      "title": "The RescueGo Solution",
+      "p1": "RescueGo connects drivers with broken-down vehicles to nearby, vetted recovery providers in real time. Providers pay to access the platform — customers use it completely free.",
+      "p2": "We never touch customer money. You pay the provider directly, cash or card. We just connect you."
+    },
+    "after": {
+      "label": "After",
+      "title": "With RescueGo",
+      "items": {
+        "0": "One tap — providers notified instantly",
+        "1": "Emirates ID verified providers only",
+        "2": "Live GPS tracking on map",
+        "3": "Price range shown before you request",
+        "4": "Mandatory ratings after every job"
+      }
+    },
+    "builder": {
+      "title": "Built by Mohamed Elnahrawy",
+      "description": "RescueGo was designed and built as a production-grade SaaS product for the UAE market. The platform uses modern technology — Supabase, Next.js, Stripe, and Google Maps — to deliver a real-time, reliable experience for both drivers and providers.",
+      "link": "Visit elnahrawy.com"
+    },
+    "cta": {
+      "title": "Ready to get started?",
+      "requestRecovery": "Request Recovery (Free)",
+      "joinProvider": "Join as Provider"
+    }
   },
   "notFound": {
     "title": "Page Not Found",
-    "description": "The page you're looking for doesn't exist or has been moved.",
-    "backHome": "Back to Home"
+    "description": "This page doesn't exist or has been moved. If you're broken down, help is still available.",
+    "backHome": "Go Home",
+    "requestRecovery": "Request Recovery"
   }
 }

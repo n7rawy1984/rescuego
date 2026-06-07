@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
 import {
   ArrowRight,
   BatteryCharging,
@@ -23,97 +24,6 @@ export const metadata: Metadata = {
   description:
     'Broken down in the UAE? Find a trusted nearby recovery provider in minutes. Free for drivers, built for urgent roadside recovery across the Emirates.',
   alternates: { canonical: 'https://rescuego.ae' },
-}
-
-const steps = [
-  {
-    number: '01',
-    title: 'Pin your location',
-    icon: MapPin,
-    text: 'Share the breakdown location, choose the issue, and see a clear estimated service range before submitting.',
-  },
-  {
-    number: '02',
-    title: 'Provider accepts',
-    icon: ShieldCheck,
-    text: 'A vetted recovery provider accepts the request from their dashboard and confirms they are on the way.',
-  },
-  {
-    number: '03',
-    title: 'Complete and rate',
-    icon: Star,
-    text: 'Pay the provider directly after service, then leave a rating to keep the marketplace trustworthy.',
-  },
-]
-
-const services = [
-  { title: 'Flat tire', icon: Wrench },
-  { title: 'Battery issue', icon: BatteryCharging },
-  { title: 'Tow truck', icon: Truck, descriptor: 'Recovery & towing support' },
-  { title: 'Urgent support', icon: Clock3, descriptor: '24/7 request flow' },
-]
-
-const providerPlans = [
-  {
-    name: 'Starter',
-    price: '249 AED/mo',
-    jobs: '15 jobs/month',
-    commission: '15% premium commission over 400 AED',
-    priority: 'Normal priority',
-  },
-  {
-    name: 'Pro',
-    price: '449 AED/mo',
-    jobs: '35 jobs/month',
-    commission: '10% premium commission over 400 AED',
-    priority: 'High priority',
-    badge: 'Most Popular',
-  },
-  {
-    name: 'Business',
-    price: '849 AED/mo',
-    jobs: 'Unlimited jobs',
-    commission: '0% premium commission',
-    priority: 'Always shown first',
-  },
-]
-
-const trustPoints = [
-  'Trusted roadside assistance network',
-  'Secure Stripe payments',
-  'Fast UAE-wide dispatch',
-  'Verified providers',
-]
-
-const faqs = [
-  {
-    question: 'Is RescueGo free for drivers?',
-    answer:
-      'Yes. Drivers do not pay RescueGo. The customer pays the recovery provider directly after the service.',
-  },
-  {
-    question: 'How do providers join?',
-    answer:
-      'Providers register, upload required documents, select a plan, and wait for admin review before activation.',
-  },
-  {
-    question: 'Does RescueGo handle customer payments?',
-    answer:
-      'No. Customers pay providers directly. Stripe is only used for provider subscriptions and platform charges.',
-  },
-]
-
-const faqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: faqs.map((faq) => ({
-    '@type': 'Question',
-    name: faq.question,
-    acceptedAnswer: {
-      '@type': 'Answer',
-      text: faq.answer,
-    },
-  })),
 }
 
 function SectionTitle({
@@ -146,6 +56,8 @@ type ViewerState = {
   providerSubscriptionId: string | null
   providerSetupState: 'incomplete' | 'pending' | 'active' | null
 }
+
+type LandingPageTranslate = Awaited<ReturnType<typeof getTranslations<'landing.page'>>>
 
 async function getViewerState(): Promise<ViewerState> {
   const supabase = await createClient()
@@ -203,15 +115,15 @@ async function getViewerState(): Promise<ViewerState> {
   }
 }
 
-function primaryCtasForViewer(viewer: ViewerState) {
+function primaryCtasForViewer(viewer: ViewerState, t: LandingPageTranslate) {
   if (viewer.role === 'admin') {
     return {
       primaryHref: '/admin/dashboard',
-      primaryLabel: 'Admin Dashboard',
+      primaryLabel: t('cta.adminDashboard'),
       secondaryHref: null,
       secondaryLabel: null,
       providerHref: '/admin/dashboard',
-      providerLabel: 'Admin Dashboard',
+      providerLabel: t('cta.adminDashboard'),
     }
   }
 
@@ -220,8 +132,8 @@ function primaryCtasForViewer(viewer: ViewerState) {
       ? '/provider/register'
       : '/provider/dashboard'
     const providerLabel = viewer.providerSetupState === 'incomplete'
-      ? 'Continue provider setup'
-      : 'Provider Dashboard'
+      ? t('cta.continueSetup')
+      : t('cta.providerDashboard')
 
     return {
       primaryHref: providerHref,
@@ -236,27 +148,64 @@ function primaryCtasForViewer(viewer: ViewerState) {
   if (viewer.role === 'customer') {
     return {
       primaryHref: '/customer/request',
-      primaryLabel: 'Request Help',
+      primaryLabel: t('cta.requestHelp'),
       secondaryHref: null,
       secondaryLabel: null,
       providerHref: '/customer/request',
-      providerLabel: 'Request Help',
+      providerLabel: t('cta.requestHelp'),
     }
   }
 
   return {
     primaryHref: '/customer/request',
-    primaryLabel: 'Request Recovery Now',
+    primaryLabel: t('cta.requestRecovery'),
     secondaryHref: '/provider/register',
-    secondaryLabel: 'Join as Provider',
+    secondaryLabel: t('cta.joinAsProvider'),
     providerHref: '/provider/register',
-    providerLabel: 'Register Provider Account',
+    providerLabel: t('cta.registerProvider'),
   }
 }
 
 export default async function HomePage() {
+  const t = await getTranslations('landing.page')
   const viewer = await getViewerState()
-  const ctas = primaryCtasForViewer(viewer)
+  const ctas = primaryCtasForViewer(viewer, t)
+  const steps = [0, 1, 2].map((i) => ({
+    number: ['01', '02', '03'][i],
+    title: t(`steps.${i}.title`),
+    icon: [MapPin, ShieldCheck, Star][i],
+    text: t(`steps.${i}.text`),
+  }))
+  const services = [0, 1, 2, 3].map((i) => ({
+    title: t(`services.${i}.title`),
+    icon: [Wrench, BatteryCharging, Truck, Clock3][i],
+    descriptor: t(`services.${i}.descriptor`),
+  }))
+  const providerPlans = [0, 1, 2].map((i) => ({
+    name: t(`providers.plans.${i}.name`),
+    price: t(`providers.plans.${i}.price`),
+    jobs: t(`providers.plans.${i}.jobs`),
+    commission: t(`providers.plans.${i}.commission`),
+    priority: t(`providers.plans.${i}.priority`),
+    badge: i === 1 ? t('providers.plans.1.badge') : null,
+  }))
+  const trustPoints = [0, 1, 2, 3].map((i) => t(`trustPoints.${i}`))
+  const faqs = [0, 1, 2].map((i) => ({
+    question: t(`faq.${i}.question`),
+    answer: t(`faq.${i}.answer`),
+  }))
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer,
+      },
+    })),
+  }
 
   return (
     <>
@@ -272,16 +221,15 @@ export default async function HomePage() {
             <div className="min-w-0">
               <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold text-amber-100">
                 <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
-                UAE roadside recovery marketplace
+                {t('badge')}
               </div>
 
               <h1 className="max-w-3xl text-4xl font-bold leading-[1.12] text-white sm:text-5xl lg:text-[3.5rem]">
-                Broken down in the UAE? Help is minutes away.
+                {t('heroTitle')}
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">
-                Fast access to trusted nearby recovery providers across the Emirates.
-                Free for drivers, built for urgent roadside moments.
+                {t('heroSubtitle')}
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -317,10 +265,10 @@ export default async function HomePage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-wide text-[#0F6E56]">
-                      Live request
+                      {t('heroCard.liveRequest')}
                     </p>
                     <p className="mt-1 text-xl font-bold leading-tight sm:text-2xl">
-                      Recovery dispatch
+                      {t('heroCard.recoveryDispatch')}
                     </p>
                   </div>
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#1D9E75] text-white">
@@ -331,29 +279,29 @@ export default async function HomePage() {
                 <div className="mt-5 space-y-3">
                   <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Location
+                      {t('heroCard.location')}
                     </p>
-                    <p className="mt-1 font-semibold">Sheikh Zayed Road, Dubai</p>
+                    <p className="mt-1 font-semibold">{t('heroCard.locationValue')}</p>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        Service
+                        {t('heroCard.service')}
                       </p>
-                      <p className="mt-1 font-semibold">Tow Truck</p>
+                      <p className="mt-1 font-semibold">{t('heroCard.serviceValue')}</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        ETA
+                        {t('heroCard.eta')}
                       </p>
-                      <p className="mt-1 font-semibold">18 min</p>
+                      <p className="mt-1 font-semibold">{t('heroCard.etaValue')}</p>
                     </div>
                   </div>
                   <div className="rounded-lg bg-[#1D9E75] p-4 text-white">
                     <p className="text-xs font-bold uppercase tracking-wide text-amber-100">
-                      Status
+                      {t('heroCard.status')}
                     </p>
-                    <p className="mt-1 text-base font-semibold">Provider en route</p>
+                    <p className="mt-1 text-base font-semibold">{t('heroCard.statusValue')}</p>
                   </div>
                 </div>
               </div>
@@ -364,9 +312,9 @@ export default async function HomePage() {
         <section className="py-16 sm:py-20" id="how-it-works">
           <div className="mx-auto max-w-7xl px-5 sm:px-6 md:px-8 lg:px-10 xl:px-12">
             <SectionTitle
-              eyebrow="How it works"
-              title="A simple request flow"
-              text="Drivers can ask for help quickly, while providers get a focused path to accept and complete work."
+              eyebrow={t('howItWorks.eyebrow')}
+              title={t('howItWorks.title')}
+              text={t('howItWorks.subtitle')}
             />
             <div className="grid gap-6 md:grid-cols-3">
               {steps.map((step) => {
@@ -396,8 +344,8 @@ export default async function HomePage() {
         <section className="bg-slate-50 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-5 sm:px-6 md:px-8 lg:px-10 xl:px-12">
             <SectionTitle
-              eyebrow="Roadside services"
-              title="Built around common UAE breakdowns"
+              eyebrow={t('services.eyebrow')}
+              title={t('services.title')}
             />
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {services.map((service) => {
@@ -425,9 +373,9 @@ export default async function HomePage() {
           <div className="mx-auto grid max-w-7xl gap-10 px-5 sm:px-6 md:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:px-10 xl:px-12">
             <div>
               <SectionTitle
-                eyebrow="For providers"
-                title="A cleaner way to receive recovery jobs"
-                text="Providers can register, upload documents, subscribe or use pay-per-job access, then manage open requests from the dashboard."
+                eyebrow={t('providers.eyebrow')}
+                title={t('providers.title')}
+                text={t('providers.subtitle')}
               />
               <Link
                 href={ctas.providerHref}
@@ -461,7 +409,7 @@ export default async function HomePage() {
 
         <section className="bg-slate-50 py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-5 sm:px-6 md:px-8">
-            <SectionTitle eyebrow="FAQ" title="Common questions" />
+            <SectionTitle eyebrow={t('faq.eyebrow')} title={t('faq.title')} />
             <Accordion items={faqs} />
           </div>
         </section>
