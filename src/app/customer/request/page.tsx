@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { BatteryCharging, CheckCircle2, Clock3, HelpCircle, History, LocateFixed, MapPin, PhoneCall, ShieldCheck, Truck, Wrench } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import Navbar from '@/components/layout/Navbar'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -12,11 +13,11 @@ import { createClient } from '@/lib/supabase/client'
 import type { ProblemType, RequestStatus } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
-const PROBLEM_OPTIONS: { type: ProblemType; label: string; description: string; Icon: LucideIcon }[] = [
-  { type: 'flat_tire', label: 'Flat Tire', description: 'Tyre change or repair support', Icon: Wrench },
-  { type: 'battery', label: 'Battery Issue', description: 'Jump start or battery help', Icon: BatteryCharging },
-  { type: 'tow', label: 'Tow Required', description: 'Recovery truck needed', Icon: Truck },
-  { type: 'other', label: 'Other Issue', description: 'Tell the provider what happened', Icon: HelpCircle },
+const PROBLEM_OPTIONS: { type: ProblemType; labelKey: string; descKey: string; Icon: LucideIcon }[] = [
+  { type: 'flat_tire', labelKey: 'flatTire', descKey: 'flatTireDesc', Icon: Wrench },
+  { type: 'battery', labelKey: 'batteryIssue', descKey: 'batteryIssueDesc', Icon: BatteryCharging },
+  { type: 'tow', labelKey: 'towRequired', descKey: 'towRequiredDesc', Icon: Truck },
+  { type: 'other', labelKey: 'otherIssue', descKey: 'otherIssueDesc', Icon: HelpCircle },
 ]
 
 type SubmitResponse = {
@@ -88,6 +89,8 @@ export default function RequestPage() {
   const addressInputRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(true)
   const assignedRequestRef = useRef<string | null>(null)
+  const t = useTranslations('customer.request')
+  const commonT = useTranslations('common')
 
   useEffect(() => {
     return () => {
@@ -99,11 +102,11 @@ export default function RequestPage() {
     const activeRes = await fetch('/api/requests')
 
     if (activeRes.status === 401) {
-      throw new Error('Your session expired. Please sign in again.')
+      throw new Error(t('sessionExpired'))
     }
 
     if (!activeRes.ok) {
-      throw new Error('We couldn\'t load your current request. Please try again.')
+      throw new Error(t('loadErrorDefault'))
     }
 
     const activeData = await activeRes.json().catch(() => null) as ActiveRequestResponse | null
@@ -115,7 +118,7 @@ export default function RequestPage() {
       && nextActiveRequest.status === 'open'
       && !nextActiveRequest.accepted_by
     ) {
-      setStatusMessage('Your provider is no longer assigned. We are searching for another provider.')
+      setStatusMessage(t('providerReassigned'))
     }
     assignedRequestRef.current = nextActiveRequest?.accepted_by ? nextActiveRequest.id : null
     setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
@@ -125,7 +128,7 @@ export default function RequestPage() {
     setUnratedJobsCount(activeData?.unrated_jobs_count ?? 0)
     if (activeData?.customer_phone) setPhone(activeData.customer_phone)
     setInitialRequestError('')
-  }, [])
+  }, [t])
 
   useEffect(() => {
     let cancelled = false
@@ -138,10 +141,10 @@ export default function RequestPage() {
           setUnratedJobsCount(0)
           const message = caught instanceof Error
             ? caught.message
-            : 'We couldn\'t load your current request. Please try again.'
+            : t('loadErrorDefault')
           setInitialRequestError(
             typeof navigator !== 'undefined' && !navigator.onLine
-              ? 'Connection lost. Please check your internet connection and try again.'
+              ? t('connectionLost')
               : message
           )
         }
@@ -231,10 +234,10 @@ export default function RequestPage() {
     } catch (caught) {
       const message = caught instanceof Error
         ? caught.message
-        : 'We couldn\'t load your current request. Please try again.'
+        : t('loadErrorDefault')
       setInitialRequestError(
         typeof navigator !== 'undefined' && !navigator.onLine
-          ? 'Connection lost. Please check your internet connection and try again.'
+          ? t('connectionLost')
           : message
       )
     } finally {
@@ -272,7 +275,7 @@ export default function RequestPage() {
     setLocationPermissionDenied(false)
 
     if (!navigator.geolocation) {
-      setError('Location is not supported by this browser. Please enter your address manually.')
+      setError(t('locationNotSupported'))
       setLocationLoading(false)
       return
     }
@@ -283,15 +286,15 @@ export default function RequestPage() {
         const lng = roundDispatchCoordinate(pos.coords.longitude)
         setCoords({ lng, lat })
         setAddress(`Current GPS location (${lat}, ${lng})`)
-        setLocationMessage('Location added for this request only. You can edit the address if needed.')
+        setLocationMessage(t('locationAdded'))
         setLocationPermissionDenied(false)
         setLocationLoading(false)
       },
       (locationError) => {
         const denied = locationError.code === locationError.PERMISSION_DENIED
         const message = denied
-          ? 'We couldn\'t access your location. You can enter your address manually and still request help.'
-          : 'Could not get your location. Please enter your address manually.'
+          ? t('locationDenied')
+          : t('locationFailed')
         setError(message)
         setLocationPermissionDenied(denied)
         setLocationLoading(false)
@@ -307,14 +310,14 @@ export default function RequestPage() {
     setAddress(value)
     if (coords) {
       setCoords(null)
-      setLocationMessage('Using manual location entry. GPS coordinates were cleared.')
+      setLocationMessage(t('manualLocation'))
     }
   }
 
   async function handleSubmit() {
     if (loading) return
     if (!problemType || !phone.trim() || !address.trim()) {
-      setError('Please select a problem type, phone number, and location details.')
+      setError(t('validationError'))
       return
     }
 
@@ -336,7 +339,7 @@ export default function RequestPage() {
       const data = await res.json().catch(() => null) as SubmitResponse | null
 
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setLoading(false)
         return
       }
@@ -349,7 +352,7 @@ export default function RequestPage() {
           setError('')
           return
         }
-        setError(data?.error ?? 'Unable to submit request right now. Please try again.')
+        setError(data?.error ?? t('submitError'))
         setLoading(false)
         return
       }
@@ -368,7 +371,7 @@ export default function RequestPage() {
       setSubmitted(true)
       setLoading(false)
     } catch {
-      setError('Connection lost. Please check your internet connection and try again.')
+      setError(t('connectionLost'))
       setLoading(false)
     }
   }
@@ -389,13 +392,13 @@ export default function RequestPage() {
       const result = await res.json().catch(() => null) as { error?: string; late_cancellation?: boolean } | null
 
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setCancelling(false)
         return
       }
 
       if (!res.ok && res.status !== 202) {
-        setError(result?.error ?? 'Unable to cancel this request right now.')
+        setError(result?.error ?? t('cancelError'))
         setCancelling(false)
         return
       }
@@ -403,12 +406,12 @@ export default function RequestPage() {
       resetForm()
       setStatusMessage(
         result?.late_cancellation
-          ? 'Your request was cancelled. Provider compensation was handled automatically.'
-          : 'Your request was cancelled.'
+          ? t('cancelledLate')
+          : t('cancelledSimple')
       )
       setCancelling(false)
     } catch {
-      setError('Connection lost. Please check your internet connection and try again.')
+      setError(t('connectionLost'))
       setCancelling(false)
     }
   }
@@ -422,9 +425,9 @@ export default function RequestPage() {
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
               <Clock3 className="h-6 w-6 animate-pulse" aria-hidden="true" />
             </div>
-            <p className="text-lg font-semibold text-slate-950">Checking your current request</p>
+            <p className="text-lg font-semibold text-slate-950">{t('loading')}</p>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-              RescueGo is making sure you do not accidentally create a duplicate roadside request.
+              {t('loadingDesc')}
             </p>
             <div className="mt-6 space-y-3 text-left">
               <div className="h-3 w-full animate-pulse rounded-full bg-slate-100" />
@@ -446,10 +449,10 @@ export default function RequestPage() {
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
               <HelpCircle className="h-6 w-6" aria-hidden="true" />
             </div>
-            <h1 className="text-xl font-semibold text-slate-950">We couldn&apos;t load your current request</h1>
+            <h1 className="text-xl font-semibold text-slate-950">{t('loadError')}</h1>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">{initialRequestError}</p>
             <Button className="mt-6 min-h-11 w-full sm:w-auto" onClick={retryInitialRequestLoad}>
-              Try again
+              {t('tryAgain')}
             </Button>
           </div>
         </main>
@@ -477,9 +480,9 @@ export default function RequestPage() {
         <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
           <div className="mx-auto max-w-2xl">
             <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Job completed</p>
-              <h1 className="mt-1 text-2xl font-semibold text-slate-950">Rate your recovery service</h1>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Please rate your completed job before submitting another request.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('jobCompleted')}</p>
+              <h1 className="mt-1 text-2xl font-semibold text-slate-950">{t('rateTitle')}</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{t('rateSubtitle')}</p>
             </div>
 
             <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
@@ -489,10 +492,10 @@ export default function RequestPage() {
                   {getProblemLabel(completedUnratedRequest.request.problem_type)}
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
-                  Provider: {completedUnratedRequest.provider_name ?? 'Recovery provider'}
+                  {t('providerLabel', { name: completedUnratedRequest.provider_name ?? t('providerAssignedDefault') })}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  {completedUnratedRequest.request.location_address ?? 'Location unavailable'}
+                  {completedUnratedRequest.request.location_address ?? t('locationUnavailable')}
                   {completedUnratedRequest.request.final_price ? ` - ${completedUnratedRequest.request.final_price} AED` : ''}
                 </p>
               </div>
@@ -512,19 +515,19 @@ export default function RequestPage() {
     const isOpen = visibleRequest.status === 'open'
     const showCancellationAbuseWarning = !isOpen && lateCancellations24h >= 2
     const title = isOpen
-      ? 'Request Sent!'
+      ? t('requestSent')
       : visibleRequest.status === 'accepted'
-        ? 'Provider Accepted'
-        : 'Service In Progress'
+        ? t('providerAcceptedTitle')
+        : t('serviceInProgress')
     const description = isOpen
-      ? 'Your request is live and visible to nearby providers.'
+      ? t('requestLive')
       : visibleRequest.status === 'accepted'
-        ? 'A provider accepted your request and will contact you directly.'
+        ? t('providerAcceptedDesc')
         : visibleRequest.status === 'en_route'
-          ? 'Your provider is on the way to your location.'
+          ? t('providerEnRouteDesc')
           : visibleRequest.status === 'arrived'
-            ? 'Your provider has arrived at your location.'
-            : 'Your recovery service is currently in progress.'
+            ? t('providerArrivedDesc')
+            : t('inProgressDesc')
 
     return (
       <>
@@ -542,14 +545,14 @@ export default function RequestPage() {
                 </div>
                 <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#0F6E56]">
                   <span className="h-2 w-2 rounded-full bg-[#1D9E75]" aria-hidden="true" />
-                  {isOpen ? 'Searching for provider'
-                    : visibleRequest.status === 'en_route' ? 'Provider on the way'
-                    : visibleRequest.status === 'arrived' ? 'Provider arrived'
-                    : 'Provider assigned'}
+                  {isOpen ? t('searchingProvider')
+                    : visibleRequest.status === 'en_route' ? t('providerOnWay')
+                    : visibleRequest.status === 'arrived' ? t('providerArrivedBadge')
+                    : t('providerAssigned')}
                 </div>
                 <h1 className="text-2xl font-semibold text-slate-950">{title}</h1>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{description}</p>
-                <p className="mt-3 text-xs font-medium text-slate-400">Request #{visibleRequest.id.slice(0, 8).toUpperCase()}</p>
+                <p className="mt-3 text-xs font-medium text-slate-400">{t('requestNumber', { id: visibleRequest.id.slice(0, 8).toUpperCase() })}</p>
               </div>
 
               <div className="space-y-5 p-5 sm:p-6">
@@ -560,7 +563,7 @@ export default function RequestPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-slate-950">{getProblemLabel(visibleRequest.problem_type)}</div>
-                    <div className="mt-1 break-words text-sm text-slate-500">{visibleRequest.location_address ?? 'Location not recorded'}</div>
+                    <div className="mt-1 break-words text-sm text-slate-500">{visibleRequest.location_address ?? t('locationNotRecorded')}</div>
                   </div>
                 </div>
               </div>
@@ -569,11 +572,11 @@ export default function RequestPage() {
                 <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-left">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned provider</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('assignedProvider')}</div>
                       <div className="mt-1 text-base font-semibold text-slate-950">
-                        {visibleRequest.provider_name ?? 'Recovery provider assigned'}
+                        {visibleRequest.provider_name ?? t('providerAssignedDefault')}
                       </div>
-                      <p className="mt-1 text-xs text-[#0F6E56]">Keep your phone nearby. Your provider may call for exact access details.</p>
+                      <p className="mt-1 text-xs text-[#0F6E56]">{t('keepPhoneNearby')}</p>
                     </div>
                     {visibleRequest.provider_phone ? (
                       <a
@@ -581,7 +584,7 @@ export default function RequestPage() {
                         className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 sm:w-auto"
                       >
                         <PhoneCall className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Call provider
+                        {t('callProvider')}
                       </a>
                     ) : null}
                   </div>
@@ -590,51 +593,51 @@ export default function RequestPage() {
 
               <div className="rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-950">Request progress</h2>
+                  <h2 className="text-sm font-semibold text-slate-950">{t('requestProgress')}</h2>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                    {visibleRequest.status === 'in_progress' ? 'In Progress'
-                      : visibleRequest.status === 'arrived' ? 'Provider Arrived'
-                      : visibleRequest.status === 'en_route' ? 'On The Way'
-                      : visibleRequest.status === 'accepted' ? 'Accepted'
-                      : 'Open'}
+                    {visibleRequest.status === 'in_progress' ? t('statusInProgress')
+                      : visibleRequest.status === 'arrived' ? t('statusArrived')
+                      : visibleRequest.status === 'en_route' ? t('statusEnRoute')
+                      : visibleRequest.status === 'accepted' ? t('statusAccepted')
+                      : t('statusOpen')}
                   </span>
                 </div>
                 <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-xs font-bold text-white">1</div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Provider notified</p>
-                    <p className="text-xs text-slate-500">Nearby providers can see and accept your request now</p>
+                    <p className="text-sm font-semibold text-slate-800">{t('step1Title')}</p>
+                    <p className="text-xs text-slate-500">{t('step1Desc')}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${['accepted','en_route','arrived','in_progress'].includes(visibleRequest.status) ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Provider accepts</p>
-                    <p className="text-xs text-slate-500">You&apos;ll receive a call from the provider directly</p>
+                    <p className="text-sm font-semibold text-slate-800">{t('step2Title')}</p>
+                    <p className="text-xs text-slate-500">{t('step2Desc')}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${['en_route','arrived','in_progress'].includes(visibleRequest.status) ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>3</div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Provider on the way</p>
+                    <p className="text-sm font-semibold text-slate-800">{t('step3Title')}</p>
                     <p className="text-xs text-slate-500">
-                      {visibleRequest.status === 'arrived' ? 'Your provider has arrived at your location.' : visibleRequest.status === 'en_route' ? 'Your provider is heading to your location now.' : 'Provider will head to your location after accepting.'}
+                      {visibleRequest.status === 'arrived' ? t('step3DescArrived') : visibleRequest.status === 'en_route' ? t('step3DescEnRoute') : t('step3DescDefault')}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${visibleRequest.status === 'in_progress' ? 'bg-[#1D9E75] text-white' : 'bg-slate-200 text-slate-500'}`}>4</div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Pay provider directly</p>
-                    <p className="text-xs text-slate-500">Cash or card. RescueGo never charges drivers.</p>
+                    <p className="text-sm font-semibold text-slate-800">{t('step4Title')}</p>
+                    <p className="text-xs text-slate-500">{t('step4Desc')}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-500">5</div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Service complete</p>
-                    <p className="text-xs text-slate-500">Rate your provider to keep RescueGo quality high.</p>
+                    <p className="text-sm font-semibold text-slate-800">{t('step5Title')}</p>
+                    <p className="text-xs text-slate-500">{t('step5Desc')}</p>
                   </div>
                 </div>
                 </div>
@@ -642,7 +645,7 @@ export default function RequestPage() {
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left">
                 <p className="text-sm text-amber-800">
-                  <strong>Tip:</strong> Keep your phone nearby. Your provider will call you once they accept.
+                  <strong>Tip:</strong> {t('tip')}
                 </p>
               </div>
 
@@ -652,10 +655,10 @@ export default function RequestPage() {
                   disabled={cancelling}
                   className="inline-flex h-10 items-center justify-center rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {cancelling ? 'Cancelling...' : isOpen ? 'Cancel request' : 'Cancel assigned request'}
+                  {cancelling ? t('cancelling') : isOpen ? t('cancelRequestOpen') : t('cancelRequestAssigned')}
                 </button>
                 <p className="text-sm text-slate-400">
-                  Complete or cancel this request before submitting another.
+                  {t('completeOrCancel')}
                 </p>
               </div>
               </div>
@@ -665,18 +668,20 @@ export default function RequestPage() {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="cancel-request-title">
               <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
                 <h2 id="cancel-request-title" className="text-lg font-bold text-slate-900">
-                  Cancel this recovery request?
+                  {t('cancelDialogTitle')}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {isOpen
-                    ? 'Your request has not been assigned yet, so you can cancel it freely.'
-                    : `${visibleRequest.provider_name ? `${visibleRequest.provider_name} may` : 'Your provider may'} already be traveling to your location. RescueGo will handle provider compensation automatically.`}
+                    ? t('cancelDialogOpen')
+                    : visibleRequest.provider_name
+                      ? t('cancelDialogAssigned', { name: visibleRequest.provider_name })
+                      : t('cancelDialogAssignedDefault')}
                 </p>
                 {showCancellationAbuseWarning && (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left">
-                    <p className="text-sm font-semibold text-amber-900">Please cancel only when necessary.</p>
+                    <p className="text-sm font-semibold text-amber-900">{t('cancelAbuseTitle')}</p>
                     <p className="mt-1 text-xs leading-5 text-amber-800">
-                      Repeated cancellations after provider assignment may temporarily restrict your account in the future.
+                      {t('cancelAbuseDesc')}
                     </p>
                   </div>
                 )}
@@ -687,7 +692,7 @@ export default function RequestPage() {
                     disabled={cancelling}
                     className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Keep request
+                    {t('keepRequest')}
                   </button>
                   <button
                     type="button"
@@ -695,7 +700,7 @@ export default function RequestPage() {
                     disabled={cancelling}
                     className="inline-flex h-10 items-center justify-center rounded-lg bg-red-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {cancelling ? 'Cancelling...' : 'Cancel request'}
+                    {cancelling ? t('cancelling') : t('cancelRequestOpen')}
                   </button>
                 </div>
               </div>
@@ -725,9 +730,9 @@ export default function RequestPage() {
                     <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-950">You have a completed job waiting for rating.</p>
+                    <p className="font-semibold text-slate-950">{t('unratedJobTitle')}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                    Please rate your provider to keep RescueGo quality high.
+                    {t('unratedJobDesc')}
                     </p>
                   </div>
                 </div>
@@ -735,7 +740,7 @@ export default function RequestPage() {
                   href="/customer/ratings"
                   className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
                 >
-                  Rate now
+                  {t('rateNow')}
                 </Link>
               </div>
             </div>
@@ -744,10 +749,10 @@ export default function RequestPage() {
           <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Customer request</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Request roadside help</h1>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('pageEyebrow')}</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{t('pageTitle')}</h1>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                  Tell us what happened, share where you are, and nearby verified providers can accept your request.
+                  {t('pageSubtitle')}
                 </p>
               </div>
               <Link
@@ -755,31 +760,31 @@ export default function RequestPage() {
                 className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#DDE7EE] bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
                 <History className="mr-2 h-4 w-4" aria-hidden="true" />
-                Request history
+                {t('requestHistory')}
               </Link>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <ShieldCheck className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
-                <p className="mt-2 text-sm font-semibold text-slate-800">Verified providers</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Your exact details are shared only after assignment.</p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">{t('verifiedProviders')}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{t('verifiedProvidersDesc')}</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <MapPin className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
-                <p className="mt-2 text-sm font-semibold text-slate-800">Location supported</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Use GPS or enter a clear landmark manually.</p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">{t('locationSupported')}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{t('locationSupportedDesc')}</p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <PhoneCall className="h-5 w-5 text-[#1D9E75]" aria-hidden="true" />
-                <p className="mt-2 text-sm font-semibold text-slate-800">Direct contact</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">The assigned provider can call to coordinate access.</p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">{t('directContact')}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{t('directContactDesc')}</p>
               </div>
             </div>
-            <div className="mt-6 grid gap-2 sm:grid-cols-3" aria-label={`Step ${step} of 3`}>
+            <div className="mt-6 grid gap-2 sm:grid-cols-3" aria-label={`${t('stepLabel')} ${step} ${t('stepOf')} 3`}>
               {[
-                ['1', 'Issue'],
-                ['2', 'Location'],
-                ['3', 'Confirm'],
+                ['1', t('stepIssue')],
+                ['2', t('stepLocation')],
+                ['3', t('stepConfirm')],
               ].map(([value, label], index) => {
                 const current = step === index + 1
                 const complete = step > index + 1
@@ -807,8 +812,8 @@ export default function RequestPage() {
           {step === 1 && (
             <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5">
-                <h2 className="text-xl font-semibold text-slate-950">What happened?</h2>
-                <p className="mt-1 text-sm text-slate-500">Choose the closest match so providers can quickly understand the job.</p>
+                <h2 className="text-xl font-semibold text-slate-950">{t('whatHappened')}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t('whatHappenedDesc')}</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {PROBLEM_OPTIONS.map((opt) => {
@@ -822,8 +827,8 @@ export default function RequestPage() {
                       <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#0F6E56]">
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
-                      <div className="font-semibold text-slate-800">{opt.label}</div>
-                      <p className="mt-1 text-sm leading-5 text-slate-500">{opt.description}</p>
+                      <div className="font-semibold text-slate-800">{t(opt.labelKey)}</div>
+                      <p className="mt-1 text-sm leading-5 text-slate-500">{t(opt.descKey)}</p>
                     </button>
                   )
                 })}
@@ -831,65 +836,65 @@ export default function RequestPage() {
               {problemType && (
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
                   <p>
-                    <strong>How pricing works:</strong> Your recovery provider will agree a price with you directly before starting the job. RescueGo never charges drivers.
+                    <strong>{t('pricingLabel')}</strong> {t('pricingInfo')}
                   </p>
                 </div>
               )}
-              <Button className="mt-6 min-h-12 w-full" disabled={!problemType} onClick={() => setStep(2)}>Continue</Button>
+              <Button className="mt-6 min-h-12 w-full" disabled={!problemType} onClick={() => setStep(2)}>{t('continue')}</Button>
             </div>
           )}
 
           {step === 2 && (
             <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5">
-                <h2 className="text-xl font-semibold text-slate-950">Where should help go?</h2>
-                <p className="mt-1 text-sm text-slate-500">Add a phone number and clear location details for the assigned provider.</p>
+                <h2 className="text-xl font-semibold text-slate-950">{t('whereHelp')}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t('whereHelpDesc')}</p>
               </div>
               <div className="flex flex-col gap-4">
               <Input
                 id="phone"
                 type="tel"
-                label="Phone number"
+                label={t('phoneLabel')}
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
-                placeholder="+971 50 000 0000"
+                placeholder={t('phonePlaceholder')}
                 required
               />
               <p className="-mt-2 text-xs text-slate-500">
-                Your assigned provider will use this number to call you after accepting the request.
+                {t('phoneHint')}
               </p>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <Button variant="outline" onClick={useMyLocation} loading={locationLoading} className="min-h-11 w-full bg-white">
                   <LocateFixed className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Use my current location
+                  {t('useMyLocation')}
                 </Button>
                 <p className="mt-3 text-xs leading-5 text-slate-500">
-                  RescueGo requests your location once and only uses it to find nearby providers for this recovery request.
+                  {t('locationPrivacy')}
                 </p>
               </div>
               <Input
                 ref={addressInputRef}
                 id="address"
-                label="Emirate, area, or landmark"
+                label={t('addressLabel')}
                 value={address}
                 onChange={e => handleAddressChange(e.target.value)}
-                placeholder="e.g. Dubai Mall parking, Al Wasl Road, Dubai"
+                placeholder={t('addressPlaceholder')}
               />
               {locationMessage && (
                 <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{locationMessage}</p>
               )}
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="note" className="text-sm font-medium text-slate-700">Operational notes (optional)</label>
+                <label htmlFor="note" className="text-sm font-medium text-slate-700">{t('noteLabel')}</label>
                 <textarea
                   id="note"
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1D9E75] min-h-[100px] resize-none"
-                  placeholder="Building name, parking level, gate/security instructions, or nearby landmark"
+                  placeholder={t('notePlaceholder')}
                   maxLength={500}
                 />
                 <p className="text-xs text-slate-500">
-                  These details are shown only to the provider assigned to your request.
+                  {t('notePrivacy')}
                 </p>
               </div>
               {error && (
@@ -897,14 +902,14 @@ export default function RequestPage() {
                   <p className="text-sm text-red-500">{error}</p>
                   {locationPermissionDenied && (
                     <p className="mt-1 text-xs text-red-400">
-                      Click the location icon in your browser address bar to allow location access.
+                      {t('locationPermHint')}
                     </p>
                   )}
                 </div>
               )}
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button variant="ghost" onClick={() => setStep(1)} className="min-h-11 flex-1">Back</Button>
-                <Button className="min-h-11 flex-1" disabled={!phone.trim() || !address.trim()} onClick={() => setStep(3)}>Continue</Button>
+                <Button variant="ghost" onClick={() => setStep(1)} className="min-h-11 flex-1">{commonT('back')}</Button>
+                <Button className="min-h-11 flex-1" disabled={!phone.trim() || !address.trim()} onClick={() => setStep(3)}>{t('continue')}</Button>
               </div>
               </div>
             </div>
@@ -913,41 +918,41 @@ export default function RequestPage() {
           {step === 3 && (
             <div className="rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5">
-                <h2 className="text-xl font-semibold text-slate-950">Confirm your request</h2>
-                <p className="mt-1 text-sm text-slate-500">Review the details before sending them to nearby providers.</p>
+                <h2 className="text-xl font-semibold text-slate-950">{t('confirmTitle')}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t('confirmDesc')}</p>
               </div>
               <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-sm text-slate-500">Problem</span>
+                  <span className="text-sm text-slate-500">{t('problemLabel')}</span>
                   <span className="font-semibold capitalize text-slate-800">{problemType?.replace('_', ' ')}</span>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                  <span className="text-sm text-slate-500">Location</span>
+                  <span className="text-sm text-slate-500">{t('locationLabel')}</span>
                   <span className="max-w-full break-words font-semibold text-slate-800 sm:max-w-[65%] sm:text-right">{address}</span>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-sm text-slate-500">Phone</span>
+                  <span className="text-sm text-slate-500">{t('phoneConfirmLabel')}</span>
                   <span className="font-semibold text-slate-800 sm:text-right">{phone}</span>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                  <span className="text-sm text-slate-500">Payment</span>
-                  <span className="text-sm font-medium text-slate-700 sm:text-right">Agreed directly with provider</span>
+                  <span className="text-sm text-slate-500">{t('paymentLabel')}</span>
+                  <span className="text-sm font-medium text-slate-700 sm:text-right">{t('paymentValue')}</span>
                 </div>
                 {note && (
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                    <span className="text-sm text-slate-500">Note</span>
+                    <span className="text-sm text-slate-500">{t('noteConfirmLabel')}</span>
                     <span className="max-w-full break-words font-medium text-slate-700 sm:max-w-[65%] sm:text-right">{note}</span>
                   </div>
                 )}
               </div>
               <div className="my-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm leading-6 text-amber-800">Payment is made directly to the provider after service. RescueGo does not charge you.</p>
+                <p className="text-sm leading-6 text-amber-800">{t('paymentDisclaimer')}</p>
               </div>
               {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button variant="ghost" onClick={() => setStep(2)} className="min-h-11 flex-1">Back</Button>
+                <Button variant="ghost" onClick={() => setStep(2)} className="min-h-11 flex-1">{commonT('back')}</Button>
                 <Button className="min-h-11 flex-1" loading={loading} onClick={handleSubmit}>
-                  {loading ? 'Submitting...' : 'Submit Request'}
+                  {loading ? t('submitting') : t('submitRequest')}
                 </Button>
               </div>
             </div>

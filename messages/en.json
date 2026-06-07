@@ -152,34 +152,83 @@
         "subtitle": "Drivers can ask for help quickly, while providers get a focused path to accept and complete work."
       },
       "steps": {
-        "0": { "title": "Pin your location", "text": "Share the breakdown location, choose the issue, and see a clear estimated service range before submitting." },
-        "1": { "title": "Provider accepts", "text": "A vetted recovery provider accepts the request from their dashboard and confirms they are on the way." },
-        "2": { "title": "Complete and rate", "text": "Pay the provider directly after service, then leave a rating to keep the marketplace trustworthy." }
+        "0": {
+          "title": "Pin your location",
+          "text": "Share the breakdown location, choose the issue, and see a clear estimated service range before submitting."
+        },
+        "1": {
+          "title": "Provider accepts",
+          "text": "A vetted recovery provider accepts the request from their dashboard and confirms they are on the way."
+        },
+        "2": {
+          "title": "Complete and rate",
+          "text": "Pay the provider directly after service, then leave a rating to keep the marketplace trustworthy."
+        }
       },
       "services": {
+        "0": {
+          "title": "Flat tire",
+          "descriptor": ""
+        },
+        "1": {
+          "title": "Battery issue",
+          "descriptor": ""
+        },
+        "2": {
+          "title": "Tow truck",
+          "descriptor": "Recovery & towing support"
+        },
+        "3": {
+          "title": "Urgent support",
+          "descriptor": "24/7 request flow"
+        },
         "eyebrow": "Roadside services",
-        "title": "Built around common UAE breakdowns",
-        "0": { "title": "Flat tire", "descriptor": "" },
-        "1": { "title": "Battery issue", "descriptor": "" },
-        "2": { "title": "Tow truck", "descriptor": "Recovery & towing support" },
-        "3": { "title": "Urgent support", "descriptor": "24/7 request flow" }
+        "title": "Built around common UAE breakdowns"
       },
       "providers": {
         "eyebrow": "For providers",
         "title": "A cleaner way to receive recovery jobs",
         "subtitle": "Providers can register, upload documents, subscribe or use pay-per-job access, then manage open requests from the dashboard.",
         "plans": {
-          "0": { "name": "Starter", "price": "249 AED/mo", "jobs": "15 jobs/month", "commission": "15% premium commission over 400 AED", "priority": "Normal priority" },
-          "1": { "name": "Pro", "price": "449 AED/mo", "jobs": "35 jobs/month", "commission": "10% premium commission over 400 AED", "priority": "High priority", "badge": "Most Popular" },
-          "2": { "name": "Business", "price": "849 AED/mo", "jobs": "Unlimited jobs", "commission": "0% premium commission", "priority": "Always shown first" }
+          "0": {
+            "name": "Starter",
+            "price": "249 AED/mo",
+            "jobs": "15 jobs/month",
+            "commission": "15% premium commission over 400 AED",
+            "priority": "Normal priority"
+          },
+          "1": {
+            "name": "Pro",
+            "price": "449 AED/mo",
+            "jobs": "35 jobs/month",
+            "commission": "10% premium commission over 400 AED",
+            "priority": "High priority",
+            "badge": "Most Popular"
+          },
+          "2": {
+            "name": "Business",
+            "price": "849 AED/mo",
+            "jobs": "Unlimited jobs",
+            "commission": "0% premium commission",
+            "priority": "Always shown first"
+          }
         }
       },
       "faq": {
+        "0": {
+          "question": "Is RescueGo free for drivers?",
+          "answer": "Yes. Drivers do not pay RescueGo. The customer pays the recovery provider directly after the service."
+        },
+        "1": {
+          "question": "How do providers join?",
+          "answer": "Providers register, upload required documents, select a plan, and wait for admin review before activation."
+        },
+        "2": {
+          "question": "Does RescueGo handle customer payments?",
+          "answer": "No. Customers pay providers directly. Stripe is only used for provider subscriptions and platform charges."
+        },
         "eyebrow": "FAQ",
-        "title": "Common questions",
-        "0": { "question": "Is RescueGo free for drivers?", "answer": "Yes. Drivers do not pay RescueGo. The customer pays the recovery provider directly after the service." },
-        "1": { "question": "How do providers join?", "answer": "Providers register, upload required documents, select a plan, and wait for admin review before activation." },
-        "2": { "question": "Does RescueGo handle customer payments?", "answer": "No. Customers pay providers directly. Stripe is only used for provider subscriptions and platform charges." }
+        "title": "Common questions"
       },
       "cta": {
         "adminDashboard": "Admin Dashboard",
@@ -272,7 +321,7 @@
       "notesPlaceholder": "Describe your problem in detail (optional)",
       "phone": "Contact Number",
       "submit": "Send Request",
-      "submitting": "Sending...",
+      "submitting": "Submitting...",
       "submitted": "Request sent",
       "waitingProvider": "Waiting for a provider...",
       "providerAccepted": "Your request was accepted",
@@ -283,20 +332,177 @@
       "cancelRequest": "Cancel Request",
       "cancelConfirm": "Are you sure you want to cancel?",
       "cancelNote": "Your request will be cancelled. A cancellation fee may apply if the provider is already en route.",
-      "cancelled": "Request cancelled"
+      "cancelled": "Request cancelled",
+      "loading": "Checking your current request",
+      "loadingDesc": "RescueGo is making sure you do not accidentally create a duplicate roadside request.",
+      "loadError": "We couldn't load your current request",
+      "sessionExpired": "Your session expired. Please sign in again.",
+      "loadErrorDefault": "We couldn't load your current request. Please try again.",
+      "connectionLost": "Connection lost. Please check your internet connection and try again.",
+      "tryAgain": "Try again",
+      "providerReassigned": "Your provider is no longer assigned. We are searching for another provider.",
+      "rateTitle": "Rate your recovery service",
+      "rateSubtitle": "Please rate your completed job before submitting another request.",
+      "jobCompleted": "Job completed",
+      "providerLabel": "Provider: {name}",
+      "locationUnavailable": "Location unavailable",
+      "requestSent": "Request Sent!",
+      "providerAcceptedTitle": "Provider Accepted",
+      "serviceInProgress": "Service In Progress",
+      "requestLive": "Your request is live and visible to nearby providers.",
+      "providerAcceptedDesc": "A provider accepted your request and will contact you directly.",
+      "providerEnRouteDesc": "Your provider is on the way to your location.",
+      "providerArrivedDesc": "Your provider has arrived at your location.",
+      "inProgressDesc": "Your recovery service is currently in progress.",
+      "searchingProvider": "Searching for provider",
+      "providerOnWay": "Provider on the way",
+      "providerArrivedBadge": "Provider arrived",
+      "providerAssigned": "Provider assigned",
+      "requestNumber": "Request #{id}",
+      "locationNotRecorded": "Location not recorded",
+      "assignedProvider": "Assigned provider",
+      "providerAssignedDefault": "Recovery provider assigned",
+      "keepPhoneNearby": "Keep your phone nearby. Your provider may call for exact access details.",
+      "callProvider": "Call provider",
+      "requestProgress": "Request progress",
+      "statusInProgress": "In Progress",
+      "statusArrived": "Provider Arrived",
+      "statusEnRoute": "On The Way",
+      "statusAccepted": "Accepted",
+      "statusOpen": "Open",
+      "step1Title": "Provider notified",
+      "step1Desc": "Nearby providers can see and accept your request now",
+      "step2Title": "Provider accepts",
+      "step2Desc": "You'll receive a call from the provider directly",
+      "step3Title": "Provider on the way",
+      "step3DescArrived": "Your provider has arrived at your location.",
+      "step3DescEnRoute": "Your provider is heading to your location now.",
+      "step3DescDefault": "Provider will head to your location after accepting.",
+      "step4Title": "Pay provider directly",
+      "step4Desc": "Cash or card. RescueGo never charges drivers.",
+      "step5Title": "Service complete",
+      "step5Desc": "Rate your provider to keep RescueGo quality high.",
+      "tip": "Keep your phone nearby. Your provider will call you once they accept.",
+      "cancelling": "Cancelling...",
+      "cancelRequestOpen": "Cancel request",
+      "cancelRequestAssigned": "Cancel assigned request",
+      "completeOrCancel": "Complete or cancel this request before submitting another.",
+      "cancelDialogTitle": "Cancel this recovery request?",
+      "cancelDialogOpen": "Your request has not been assigned yet, so you can cancel it freely.",
+      "cancelDialogAssigned": "{name} may already be traveling to your location. RescueGo will handle provider compensation automatically.",
+      "cancelDialogAssignedDefault": "Your provider may already be traveling to your location. RescueGo will handle provider compensation automatically.",
+      "cancelAbuseTitle": "Please cancel only when necessary.",
+      "cancelAbuseDesc": "Repeated cancellations after provider assignment may temporarily restrict your account in the future.",
+      "keepRequest": "Keep request",
+      "cancelledLate": "Your request was cancelled. Provider compensation was handled automatically.",
+      "cancelledSimple": "Your request was cancelled.",
+      "cancelError": "Unable to cancel this request right now.",
+      "unratedJobTitle": "You have a completed job waiting for rating.",
+      "unratedJobDesc": "Please rate your provider to keep RescueGo quality high.",
+      "rateNow": "Rate now",
+      "pageEyebrow": "Customer request",
+      "pageTitle": "Request roadside help",
+      "pageSubtitle": "Tell us what happened, share where you are, and nearby verified providers can accept your request.",
+      "requestHistory": "Request history",
+      "verifiedProviders": "Verified providers",
+      "verifiedProvidersDesc": "Your exact details are shared only after assignment.",
+      "locationSupported": "Location supported",
+      "locationSupportedDesc": "Use GPS or enter a clear landmark manually.",
+      "directContact": "Direct contact",
+      "directContactDesc": "The assigned provider can call to coordinate access.",
+      "stepIssue": "Issue",
+      "stepLocation": "Location",
+      "stepConfirm": "Confirm",
+      "whatHappened": "What happened?",
+      "whatHappenedDesc": "Choose the closest match so providers can quickly understand the job.",
+      "flatTire": "Flat Tire",
+      "flatTireDesc": "Tyre change or repair support",
+      "batteryIssue": "Battery Issue",
+      "batteryIssueDesc": "Jump start or battery help",
+      "towRequired": "Tow Required",
+      "towRequiredDesc": "Recovery truck needed",
+      "otherIssue": "Other Issue",
+      "otherIssueDesc": "Tell the provider what happened",
+      "pricingInfo": "Your recovery provider will agree a price with you directly before starting the job. RescueGo never charges drivers.",
+      "pricingLabel": "How pricing works:",
+      "continue": "Continue",
+      "whereHelp": "Where should help go?",
+      "whereHelpDesc": "Add a phone number and clear location details for the assigned provider.",
+      "phoneLabel": "Phone number",
+      "phonePlaceholder": "+971 50 000 0000",
+      "phoneHint": "Your assigned provider will use this number to call you after accepting the request.",
+      "useMyLocation": "Use my current location",
+      "locationPrivacy": "RescueGo requests your location once and only uses it to find nearby providers for this recovery request.",
+      "addressLabel": "Emirate, area, or landmark",
+      "addressPlaceholder": "e.g. Dubai Mall parking, Al Wasl Road, Dubai",
+      "noteLabel": "Operational notes (optional)",
+      "notePlaceholder": "Building name, parking level, gate/security instructions, or nearby landmark",
+      "notePrivacy": "These details are shown only to the provider assigned to your request.",
+      "locationNotSupported": "Location is not supported by this browser. Please enter your address manually.",
+      "locationDenied": "We couldn't access your location. You can enter your address manually and still request help.",
+      "locationFailed": "Could not get your location. Please enter your address manually.",
+      "locationAdded": "Location added for this request only. You can edit the address if needed.",
+      "manualLocation": "Using manual location entry. GPS coordinates were cleared.",
+      "locationPermHint": "Click the location icon in your browser address bar to allow location access.",
+      "validationError": "Please select a problem type, phone number, and location details.",
+      "submitError": "Unable to submit request right now. Please try again.",
+      "confirmTitle": "Confirm your request",
+      "confirmDesc": "Review the details before sending them to nearby providers.",
+      "problemLabel": "Problem",
+      "locationLabel": "Location",
+      "phoneConfirmLabel": "Phone",
+      "paymentLabel": "Payment",
+      "paymentValue": "Agreed directly with provider",
+      "noteConfirmLabel": "Note",
+      "paymentDisclaimer": "Payment is made directly to the provider after service. RescueGo does not charge you.",
+      "submitRequest": "Submit Request",
+      "stepLabel": "Step",
+      "stepOf": "of"
     },
     "history": {
       "title": "Request History",
       "empty": "No previous requests",
-      "viewActive": "View active request →",
+      "viewActive": "View active",
       "rateNow": "Rate now",
-      "needsRating": "Needs rating"
+      "needsRating": "Needs rating",
+      "eyebrow": "Customer history",
+      "pageTitle": "Your request history",
+      "subtitle": "Review past roadside recovery requests, completion details, prices, and rating status.",
+      "requestHelp": "Request help",
+      "noRequestsTitle": "No requests yet",
+      "noRequestsDesc": "Your roadside requests will appear here after you submit your first recovery request.",
+      "requestHelpNow": "Request help now",
+      "requestCount": "{count} request",
+      "requestCountPlural": "{count} requests",
+      "recentFirst": "Most recent activity appears first.",
+      "locationNotRecorded": "Location not recorded",
+      "completedAt": "Completed at {price} AED, paid directly to provider.",
+      "completedService": "Completed service.",
+      "rated": "Rated",
+      "statusOpen": "Open",
+      "statusAccepted": "Accepted",
+      "statusEnRoute": "On The Way",
+      "statusArrived": "Arrived",
+      "statusInProgress": "In Progress",
+      "statusCompleted": "Completed",
+      "statusCancelled": "Cancelled",
+      "statusExpired": "Expired"
     },
     "ratings": {
       "title": "My Ratings",
       "empty": "You haven't rated any service yet",
       "rateService": "Rate Service",
-      "thankYou": "Thank you for your rating!"
+      "thankYou": "Thank you for your rating!",
+      "eyebrow": "Customer ratings",
+      "pageTitle": "Rate completed jobs",
+      "subtitle": "Ratings help keep RescueGo provider quality high after every completed recovery.",
+      "noRatingsTitle": "No ratings waiting",
+      "noRatingsDesc": "Completed jobs that still need your rating will appear here.",
+      "ratingNeeded": "Rating needed",
+      "completedService": "Completed service",
+      "providerLabel": "Provider: {name}",
+      "locationUnavailable": "Location unavailable",
+      "completed": "Completed"
     }
   },
   "provider": {
@@ -463,12 +669,42 @@
       "title": "Subscription plan comparison",
       "feature": "Feature",
       "rows": {
-        "monthlyFee": { "label": "Monthly Fee", "starter": "249 AED", "pro": "449 AED", "business": "849 AED" },
-        "jobsMonth": { "label": "Jobs/Month", "starter": "15", "pro": "35", "business": "Unlimited" },
-        "overageFee": { "label": "Overage Fee", "starter": "12 AED/job", "pro": "12 AED/job", "business": "None" },
-        "commission": { "label": "Commission", "starter": "15% only on premium jobs over 400 AED", "pro": "10% only on premium jobs over 400 AED", "business": "0%" },
-        "queuePriority": { "label": "Queue Priority", "starter": "Normal", "pro": "High", "business": "Always First" },
-        "verifiedBadge": { "label": "Verified Badge", "starter": "No", "pro": "No", "business": "Yes" }
+        "monthlyFee": {
+          "label": "Monthly Fee",
+          "starter": "249 AED",
+          "pro": "449 AED",
+          "business": "849 AED"
+        },
+        "jobsMonth": {
+          "label": "Jobs/Month",
+          "starter": "15",
+          "pro": "35",
+          "business": "Unlimited"
+        },
+        "overageFee": {
+          "label": "Overage Fee",
+          "starter": "12 AED/job",
+          "pro": "12 AED/job",
+          "business": "None"
+        },
+        "commission": {
+          "label": "Commission",
+          "starter": "15% only on premium jobs over 400 AED",
+          "pro": "10% only on premium jobs over 400 AED",
+          "business": "0%"
+        },
+        "queuePriority": {
+          "label": "Queue Priority",
+          "starter": "Normal",
+          "pro": "High",
+          "business": "Always First"
+        },
+        "verifiedBadge": {
+          "label": "Verified Badge",
+          "starter": "No",
+          "pro": "No",
+          "business": "Yes"
+        }
       }
     },
     "launchPromo": "Launch Offer: Pay Per Job at just {fee} AED flat. Limited time only.",

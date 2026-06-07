@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -39,18 +40,18 @@ const statusColors: Record<RequestStatus, string> = {
   expired: 'border-slate-200 bg-slate-100 text-slate-600',
 }
 
-const statusLabels: Record<RequestStatus, string> = {
-  open: 'Open',
-  accepted: 'Accepted',
-  en_route: 'On The Way',
-  arrived: 'Arrived',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  expired: 'Expired',
-}
-
 export default async function CustomerHistoryPage() {
+  const t = await getTranslations('customer.history')
+  const statusLabelMap: Record<RequestStatus, string> = {
+    open: t('statusOpen'),
+    accepted: t('statusAccepted'),
+    en_route: t('statusEnRoute'),
+    arrived: t('statusArrived'),
+    in_progress: t('statusInProgress'),
+    completed: t('statusCompleted'),
+    cancelled: t('statusCancelled'),
+    expired: t('statusExpired'),
+  }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/customer/history')
@@ -90,17 +91,17 @@ export default async function CustomerHistoryPage() {
           <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Customer history</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Your request history</h1>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('eyebrow')}</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{t('pageTitle')}</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                  Review past roadside recovery requests, completion details, prices, and rating status.
+                  {t('subtitle')}
                 </p>
               </div>
               <Link
                 href="/customer/request"
                 className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
-                Request help
+                {t('requestHelp')}
               </Link>
             </div>
           </div>
@@ -110,15 +111,15 @@ export default async function CustomerHistoryPage() {
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
                 <History className="h-7 w-7" aria-hidden="true" />
               </div>
-              <p className="text-lg font-semibold text-slate-950">No requests yet</p>
+              <p className="text-lg font-semibold text-slate-950">{t('noRequestsTitle')}</p>
               <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                Your roadside requests will appear here after you submit your first recovery request.
+                {t('noRequestsDesc')}
               </p>
               <Link
                 href="/customer/request"
                 className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1D9E75] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
-                Request help now
+                {t('requestHelpNow')}
               </Link>
             </div>
           ) : (
@@ -126,8 +127,10 @@ export default async function CustomerHistoryPage() {
               <div className="border-b border-slate-100 p-5 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="font-semibold text-slate-950">{requests.length} request{requests.length !== 1 ? 's' : ''}</h2>
-                    <p className="mt-1 text-sm text-slate-500">Most recent activity appears first.</p>
+                    <h2 className="font-semibold text-slate-950">
+                      {requests.length === 1 ? t('requestCount', { count: 1 }) : t('requestCountPlural', { count: requests.length })}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">{t('recentFirst')}</p>
                   </div>
                   <div className="hidden rounded-2xl bg-slate-50 p-3 text-slate-500 sm:block">
                     <ReceiptText className="h-5 w-5" aria-hidden="true" />
@@ -152,7 +155,7 @@ export default async function CustomerHistoryPage() {
                             <div className="font-semibold text-slate-950">{getProblemLabel(req.problem_type)}</div>
                             <div className="mt-1 flex items-start gap-2 text-sm text-slate-500">
                               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-                              <span className="break-words">{req.location_address ?? 'Location not recorded'}</span>
+                              <span className="break-words">{req.location_address ?? t('locationNotRecorded')}</span>
                             </div>
                             <div className="mt-2 text-xs text-slate-400">
                               {new Date(req.created_at).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -161,20 +164,20 @@ export default async function CustomerHistoryPage() {
                         </div>
                         {req.status === 'completed' && (
                           <div className="ms-0 mt-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:ms-[52px]">
-                            {req.final_price ? `Completed at ${req.final_price} AED, paid directly to provider.` : 'Completed service.'}
+                            {req.final_price ? t('completedAt', { price: req.final_price }) : t('completedService')}
                           </div>
                         )}
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusColors[req.status]}`}>
-                          {statusLabels[req.status]}
+                          {statusLabelMap[req.status]}
                         </span>
                         {(req.status === 'open' || req.status === 'accepted' || req.status === 'in_progress') && (
                           <Link
                             href="/customer/request"
                             className="inline-flex items-center gap-1 rounded-full border border-[#9FE1CB] bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#0F6E56] hover:bg-[#c8f0e2] transition-colors"
                           >
-                            View active
+                            {t('viewActive')}
                             <ArrowRight className="h-3 w-3" aria-hidden="true" />
                           </Link>
                         )}
@@ -182,7 +185,7 @@ export default async function CustomerHistoryPage() {
                           ratedJobIds.has(jobByRequestId.get(req.id)!.id) ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-[#9FE1CB] bg-[#E1F5EE] px-2.5 py-1 text-xs font-semibold text-[#0F6E56]">
                               <Star className="h-3.5 w-3.5" aria-hidden="true" />
-                              Rated
+                              {t('rated')}
                             </span>
                           ) : (
                             <Link
@@ -190,7 +193,7 @@ export default async function CustomerHistoryPage() {
                               className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
                             >
                               <Star className="h-3.5 w-3.5" aria-hidden="true" />
-                              Rate now
+                              {t('rateNow')}
                             </Link>
                           )
                         )}

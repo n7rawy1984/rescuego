@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import Navbar from '@/components/layout/Navbar'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -31,6 +32,7 @@ type CompletedJobRow = {
 }
 
 export default async function CustomerRatingsPage() {
+  const t = await getTranslations('customer.ratings')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/customer/ratings')
@@ -63,10 +65,10 @@ export default async function CustomerRatingsPage() {
           <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Customer ratings</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Rate completed jobs</h1>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('eyebrow')}</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{t('pageTitle')}</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                  Ratings help keep RescueGo provider quality high after every completed recovery.
+                  {t('subtitle')}
                 </p>
               </div>
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
@@ -80,9 +82,9 @@ export default async function CustomerRatingsPage() {
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
                 <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
               </div>
-              <p className="text-lg font-semibold text-slate-950">No ratings waiting</p>
+              <p className="text-lg font-semibold text-slate-950">{t('noRatingsTitle')}</p>
               <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                Completed jobs that still need your rating will appear here.
+                {t('noRatingsDesc')}
               </p>
             </div>
           ) : (
@@ -94,20 +96,20 @@ export default async function CustomerRatingsPage() {
                       <div className="min-w-0">
                         <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
                           <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
-                          Rating needed
+                          {t('ratingNeeded')}
                         </div>
                         <h2 className="mt-3 text-lg font-semibold text-slate-950">
-                          {job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : 'Completed service'}
+                          {job.requests?.problem_type ? getProblemLabel(job.requests.problem_type) : t('completedService')}
                         </h2>
                         <div className="mt-3 grid gap-2 text-sm text-slate-500">
                           <p className="flex items-center gap-2">
                             <UserRound className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-                            Provider: {job.providers?.users?.name ?? 'Recovery provider'}
+                            {t('providerLabel', { name: job.providers?.users?.name ?? 'Recovery provider' })}
                           </p>
                           <p className="flex items-start gap-2">
                             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                             <span className="break-words">
-                              {job.requests?.location_address ?? 'Location unavailable'}
+                              {job.requests?.location_address ?? t('locationUnavailable')}
                               {job.requests?.final_price ? ` - ${job.requests.final_price} AED` : ''}
                             </span>
                           </p>
@@ -116,7 +118,7 @@ export default async function CustomerRatingsPage() {
                       <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
                         {job.completed_at
                           ? new Date(job.completed_at).toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })
-                          : 'Completed'}
+                          : t('completed')}
                       </div>
                     </div>
                   </div>
