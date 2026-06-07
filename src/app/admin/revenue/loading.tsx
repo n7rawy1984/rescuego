@@ -1,9 +1,9 @@
-import Navbar from '@/components/layout/Navbar'
+import NavbarSkeleton from '@/components/layout/NavbarSkeleton'
 
 export default function AdminRevenueLoading() {
   return (
     <>
-      <Navbar />
+      <NavbarSkeleton />
       <main className="min-h-screen bg-slate-50 px-4 py-8 pt-20">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

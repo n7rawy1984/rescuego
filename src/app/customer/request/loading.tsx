@@ -1,9 +1,9 @@
-import Navbar from '@/components/layout/Navbar'
+import NavbarSkeleton from '@/components/layout/NavbarSkeleton'
 
 export default function CustomerRequestLoading() {
   return (
     <>
-      <Navbar />
+      <NavbarSkeleton />
       <main className="rg-page-shell">
         <div className="rg-container-narrow">
           <div className="rg-page-header mb-8">

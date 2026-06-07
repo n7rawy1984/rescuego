@@ -1,9 +1,9 @@
-import Navbar from '@/components/layout/Navbar'
+import NavbarSkeleton from '@/components/layout/NavbarSkeleton'
 
 export default function ProviderPendingLoading() {
   return (
     <>
-      <Navbar />
+      <NavbarSkeleton />
       <main className="min-h-screen bg-[#F8FAFC] px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl">
           <div className="mb-6 space-y-2">

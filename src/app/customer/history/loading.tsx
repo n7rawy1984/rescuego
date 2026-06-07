@@ -1,9 +1,9 @@
-import Navbar from '@/components/layout/Navbar'
+import NavbarSkeleton from '@/components/layout/NavbarSkeleton'
 
 export default function CustomerHistoryLoading() {
   return (
     <>
-      <Navbar />
+      <NavbarSkeleton />
       <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
         <div className="mx-auto w-full max-w-4xl">
           <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-xl shadow-slate-200/50 sm:p-6">

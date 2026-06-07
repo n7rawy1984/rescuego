@@ -1,9 +1,9 @@
-import Navbar from '@/components/layout/Navbar'
+import NavbarSkeleton from '@/components/layout/NavbarSkeleton'
 
 export default function ProviderDashboardLoading() {
   return (
     <>
-      <Navbar />
+      <NavbarSkeleton />
       <main className="min-h-screen bg-slate-50 px-4 py-8 pt-20">
         <div className="mx-auto max-w-6xl">
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
