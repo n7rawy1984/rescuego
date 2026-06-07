@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { CheckCircle2, Circle, ShieldCheck } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
@@ -33,38 +34,39 @@ export default function ProviderOnboardingChecklist({
   verifiedBadge,
   documents,
 }: ProviderOnboardingChecklistProps) {
+  const t = useTranslations('components.providerOnboarding')
   const onboarding = getProviderOnboardingState({ name, email, phone, plan, status, documents })
   const missingDocumentLabels = onboarding.missingDocuments.map(providerDocumentLabel)
 
   const items: ChecklistItem[] = [
     {
-      label: 'Complete provider profile',
-      description: 'Add your name, email, and phone number so RescueGo can review your account.',
+      label: t('completeProfileLabel'),
+      description: t('completeProfileDescription'),
       complete: onboarding.profileComplete,
       actionHref: '/provider/register?step=profile',
-      actionLabel: 'Continue setup',
+      actionLabel: t('continueSetup'),
     },
     {
-      label: 'Upload required documents',
+      label: t('uploadDocumentsLabel'),
       description: missingDocumentLabels.length > 0
-        ? `Missing: ${missingDocumentLabels.join(', ')}.`
-        : 'Emirates ID, UAE driving license, and vehicle photo are ready for review.',
+        ? t('missingDocuments', { documents: missingDocumentLabels.join(', ') })
+        : t('documentsReadyDescription'),
       complete: onboarding.documentsComplete,
       actionHref: '/provider/register?step=documents',
-      actionLabel: 'Upload documents',
+      actionLabel: t('uploadDocuments'),
     },
     {
-      label: 'Choose access plan',
-      description: 'Use Pay Per Job or a subscription plan before taking requests.',
+      label: t('chooseAccessPlanLabel'),
+      description: t('chooseAccessPlanDescription'),
       complete: onboarding.planComplete,
       actionHref: '/provider/register?step=plan',
-      actionLabel: 'Choose access plan',
+      actionLabel: t('chooseAccessPlan'),
     },
     {
-      label: 'Admin approval',
+      label: t('adminApprovalLabel'),
       description: status === 'suspended'
-        ? 'Your provider account is suspended. Contact support to resolve your account status.'
-        : 'Your documents are under review. RescueGo will activate your account after verification.',
+        ? t('suspendedDescription')
+        : t('reviewDescription'),
       complete: onboarding.activeReady,
     },
   ]
@@ -83,13 +85,13 @@ export default function ProviderOnboardingChecklist({
               <ShieldCheck className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-semibold text-green-900">Provider account ready</p>
+              <p className="font-semibold text-green-900">{t('accountReadyTitle')}</p>
               <p className="mt-1 text-sm text-green-700">
-                Your onboarding is complete. Keep your documents current to maintain trust with customers.
+                {t('accountReadyDescription')}
               </p>
             </div>
           </div>
-          {verifiedBadge ? <Badge variant="success">Trusted Recovery Partner</Badge> : null}
+          {verifiedBadge ? <Badge variant="success">{t('trustedRecoveryPartner')}</Badge> : null}
         </CardBody>
       </Card>
     )
@@ -102,26 +104,26 @@ export default function ProviderOnboardingChecklist({
           <div>
             <h2 className="text-base font-semibold text-slate-950">
               {status === 'suspended'
-                ? 'Provider account suspended'
+                ? t('accountSuspendedTitle')
                 : onboarding.pendingApproval
-                  ? 'Your documents are under review'
-                  : 'Provider onboarding'}
+                  ? t('documentsUnderReviewTitle')
+                  : t('providerOnboardingTitle')}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {status === 'suspended'
-                ? 'Contact support before accepting requests or going online.'
+                ? t('contactSupportBeforeAccepting')
                 : onboarding.pendingApproval
-                ? 'RescueGo will activate your account after verification. You cannot go online until approval is complete.'
-                : 'Complete the next step before your account is ready to receive requests.'}
+                ? t('approvalPendingDescription')
+                : t('completeNextStepDescription')}
             </p>
           </div>
           <Badge variant={status === 'active' ? 'success' : 'warning'} className="w-fit">
-            {completedCount}/{items.length} complete
+            {t('completeCount', { completed: completedCount, total: items.length })}
           </Badge>
         </div>
         <div className="mt-5">
           <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Setup progress</span>
+            <span>{t('setupProgress')}</span>
             <span>{progressPct}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -132,7 +134,7 @@ export default function ProviderOnboardingChecklist({
       <CardBody>
         {completedCount > 0 && !onboarding.pendingApproval ? (
           <p className="mb-4 text-xs font-medium text-slate-500">
-            {completedCount} completed step{completedCount === 1 ? '' : 's'} hidden to keep your next actions clear.
+            {t('completedStepsHidden', { count: completedCount })}
           </p>
         ) : null}
 
@@ -163,11 +165,11 @@ export default function ProviderOnboardingChecklist({
         {verifiedBadge ? (
           <div className="mt-4 flex items-start gap-2 rounded-xl bg-green-50 p-3 text-sm text-green-700">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <p>You are marked as a Trusted Recovery Partner in admin review.</p>
+            <p>{t('trustedMarkedReview')}</p>
           </div>
         ) : (
           <p className="mt-4 text-sm text-slate-500">
-            Verified providers typically build more customer confidence once admin review is complete.
+            {t('verifiedConfidenceDescription')}
           </p>
         )}
       </CardBody>

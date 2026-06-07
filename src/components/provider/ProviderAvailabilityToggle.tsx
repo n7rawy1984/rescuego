@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Power, Radio, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { distanceMeters, roundDispatchCoordinate } from '@/lib/geo'
@@ -33,13 +34,13 @@ type ReleaseResponse = {
   error?: string
 }
 
-function formatUpdatedAt(updatedAt: string | null): string {
-  if (!updatedAt) return 'No dispatch location shared yet.'
+function formatUpdatedAt(updatedAt: string | null, t: ReturnType<typeof useTranslations>): string {
+  if (!updatedAt) return t('noDispatchLocationShared')
 
   const date = new Date(updatedAt)
-  if (Number.isNaN(date.getTime())) return 'Dispatch location status unavailable.'
+  if (Number.isNaN(date.getTime())) return t('dispatchLocationStatusUnavailable')
 
-  return `Last shared ${date.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}`
+  return t('lastShared', { time: date.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' }) })
 }
 
 export default function ProviderAvailabilityToggle({
@@ -51,10 +52,11 @@ export default function ProviderAvailabilityToggle({
   activeRequestId = null,
   providerPlan,
 }: Props) {
+  const t = useTranslations('components.providerAvailability')
   const router = useRouter()
   const [online, setOnline] = useState(initialOnline)
   const [updatedAt, setUpdatedAt] = useState<string | null>(initialUpdatedAt)
-  const [lastCoords, setLastCoords] = useState<Coordinates | null>(null)
+  const [lastCoords, setLastCoords] = useState<Coordinates | null>()
   const [lastUpdateMs, setLastUpdateMs] = useState(0)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -68,7 +70,7 @@ export default function ProviderAvailabilityToggle({
   function getBrowserLocation(): Promise<Coordinates> {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error('Location is not supported by this browser.'))
+        reject(new Error(t('locationNotSupported')))
         return
       }
 
@@ -82,8 +84,8 @@ export default function ProviderAvailabilityToggle({
         (locationError) => {
           reject(new Error(
             locationError.code === locationError.PERMISSION_DENIED
-              ? 'Location permission was denied. You can stay offline or allow location access when ready.'
-              : 'Could not get your location. Please try again from your current dispatch area.'
+              ? t('locationPermissionDenied')
+              : t('locationFailed')
           ))
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
@@ -101,14 +103,14 @@ export default function ProviderAvailabilityToggle({
     try {
       const now = Date.now()
       if (online && now - lastUpdateMs < MIN_UPDATE_INTERVAL_MS) {
-        setMessage('Your dispatch location was updated recently. Try again in a couple of minutes.')
+        setMessage(t('updatedRecently'))
         setLoading(false)
         return
       }
 
       const coords = await getBrowserLocation()
       if (online && lastCoords && distanceMeters(lastCoords, coords) < MIN_MOVEMENT_METERS) {
-        setMessage('No meaningful movement detected. Keeping your current dispatch location.')
+        setMessage(t('noMeaningfulMovement'))
         setLoading(false)
         return
       }
@@ -121,19 +123,19 @@ export default function ProviderAvailabilityToggle({
       const data = await res.json().catch(() => null) as LocationResponse | null
 
       if (!res.ok) {
-        throw new Error(data?.error ?? 'Failed to share dispatch location.')
+        throw new Error(data?.error ?? t('shareLocationFailed'))
       }
 
       setOnline(true)
       setUpdatedAt(data?.updated_at ?? new Date().toISOString())
       setLastCoords(coords)
       setLastUpdateMs(now)
-      setMessage('You are online for nearby roadside requests.')
+      setMessage(t('onlineForRequests'))
       router.refresh()
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Failed to update dispatch availability.'
+      const message = caught instanceof Error ? caught.message : t('updateAvailabilityFailed')
       setError(message)
-      setLocationPermissionDenied(message.includes('permission was denied'))
+      setLocationPermissionDenied(message === t('locationPermissionDenied'))
     } finally {
       setLoading(false)
     }
@@ -159,16 +161,16 @@ export default function ProviderAvailabilityToggle({
       const data = await res.json().catch(() => null) as LocationResponse | null
 
       if (!res.ok) {
-        throw new Error(data?.error ?? 'Failed to go offline.')
+        throw new Error(data?.error ?? t('goOfflineFailed'))
       }
 
       setOnline(false)
       setUpdatedAt(null)
       setLastCoords(null)
-      setMessage('You are offline. RescueGo is not sharing your dispatch location.')
+      setMessage(t('offlineLocationNotShared'))
       router.refresh()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Failed to update dispatch availability.')
+      setError(caught instanceof Error ? caught.message : t('updateAvailabilityFailed'))
     } finally {
       setLoading(false)
     }
@@ -189,17 +191,17 @@ export default function ProviderAvailabilityToggle({
       const data = await res.json().catch(() => null) as ReleaseResponse | null
 
       if (!res.ok) {
-        throw new Error(data?.error ?? 'Unable to release this job right now.')
+        throw new Error(data?.error ?? t('releaseJobFailed'))
       }
 
       setOnline(false)
       setUpdatedAt(null)
       setLastCoords(null)
       setShowReleaseDialog(false)
-      setMessage('Job released. You are offline, and the request is available for another provider.')
+      setMessage(t('jobReleasedOffline'))
       router.refresh()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to release this job right now.')
+      setError(caught instanceof Error ? caught.message : t('releaseJobFailed'))
     } finally {
       setReleaseLoading(false)
     }
@@ -224,14 +226,14 @@ export default function ProviderAvailabilityToggle({
             <div className="flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${online ? 'animate-pulse bg-[#1D9E75]' : 'bg-[#E24B4A]'}`} aria-hidden="true" />
               <h2 className="text-base font-medium text-slate-950">
-                {online ? 'You are online for dispatch' : 'You are offline'}
+                {online ? t('onlineTitle') : t('offlineTitle')}
               </h2>
             </div>
             <p className="mt-1 text-sm text-slate-500">
-              {online ? formatUpdatedAt(updatedAt) : 'Go online when you are available for nearby roadside requests.'}
+              {online ? formatUpdatedAt(updatedAt, t) : t('goOnlinePrompt')}
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              Your location is only shared while you are online.
+              {t('locationSharedOnlineOnly')}
             </p>
           </div>
         </div>
@@ -248,7 +250,7 @@ export default function ProviderAvailabilityToggle({
             ) : (
               <Radio className="me-2 h-4 w-4" aria-hidden="true" />
             )}
-            {online ? 'Refresh Location' : 'Go Online'}
+            {online ? t('refreshLocation') : t('goOnline')}
           </Button>
           {online && (
             <Button
@@ -259,14 +261,14 @@ export default function ProviderAvailabilityToggle({
               className="h-11 w-full px-5 sm:w-auto"
             >
               <Power className="me-2 h-4 w-4" aria-hidden="true" />
-              Go Offline
+              {t('goOffline')}
             </Button>
           )}
         </div>
       </div>
       {disabled && (
         <p className="mt-4 rounded-xl bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
-          {disabledReason ?? 'Your account must be active before you can go online for dispatch.'}
+          {disabledReason ?? t('mustBeActive')}
         </p>
       )}
       {message && <p className="mt-4 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">{message}</p>}
@@ -275,7 +277,7 @@ export default function ProviderAvailabilityToggle({
           <p className="text-sm text-red-600">{error}</p>
           {locationPermissionDenied && (
             <p className="mt-1 text-xs text-red-400">
-              Click the location icon in your browser address bar to allow location access.
+              {t('locationPermissionHint')}
             </p>
           )}
         </div>
@@ -283,11 +285,11 @@ export default function ProviderAvailabilityToggle({
       {showReleaseDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="release-job-title">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h3 id="release-job-title" className="text-lg font-bold text-slate-900">Active job in progress</h3>
+            <h3 id="release-job-title" className="text-lg font-bold text-slate-900">{t('activeJobInProgress')}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {providerPlan === 'pay_per_job'
-                ? `Your ${PAY_PER_JOB_PROMO_FEE_AED} AED acceptance fee is non-refundable. PPJ acceptance usage will not be restored after provider-side release. Releasing this job will make it available to other providers and you will lose access to the exact customer location.`
-                : 'Releasing this job will make it available to other providers. This request will still count toward your monthly usage, and you will lose access to the exact customer location.'}
+                ? t('releasePayPerJobWarning', { fee: PAY_PER_JOB_PROMO_FEE_AED })
+                : t('releasePlanWarning')}
             </p>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
@@ -296,7 +298,7 @@ export default function ProviderAvailabilityToggle({
                 disabled={releaseLoading}
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Stay online
+                {t('stayOnline')}
               </button>
               <button
                 type="button"
@@ -304,7 +306,7 @@ export default function ProviderAvailabilityToggle({
                 disabled={releaseLoading || !activeRequestId}
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {releaseLoading ? 'Releasing...' : 'Release job and go offline'}
+                {releaseLoading ? t('releasing') : t('releaseJobAndGoOffline')}
               </button>
             </div>
           </div>

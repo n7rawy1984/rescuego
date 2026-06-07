@@ -1,22 +1,23 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import type { RequestStatus } from '@/types'
 
-const STATE_CONFIG: Record<string, { label: string; loadingLabel: string; color: string }> = {
+const STATE_CONFIG: Record<string, { labelKey: string; loadingLabelKey: string; color: string }> = {
   accepted: {
-    label: "On My Way",
-    loadingLabel: "Updating...",
+    labelKey: 'onMyWay',
+    loadingLabelKey: 'updating',
     color: "bg-blue-600 hover:bg-blue-700 text-white",
   },
   en_route: {
-    label: "I've Arrived",
-    loadingLabel: "Updating...",
+    labelKey: 'arrived',
+    loadingLabelKey: 'updating',
     color: "bg-amber-600 hover:bg-amber-700 text-white",
   },
   arrived: {
-    label: "Start Job",
-    loadingLabel: "Starting...",
+    labelKey: 'startJob',
+    loadingLabelKey: 'starting',
     color: "bg-[#0F6E56] hover:bg-[#0a5240] text-white",
   },
 }
@@ -28,6 +29,7 @@ interface Props {
 
 export default function JobStateAdvanceButton({ requestId, currentStatus }: Props) {
   const router = useRouter()
+  const t = useTranslations('components.jobStateAdvance')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -48,14 +50,14 @@ export default function JobStateAdvanceButton({ requestId, currentStatus }: Prop
       const result = await res.json().catch(() => null) as { error?: string } | null
 
       if (!res.ok) {
-        setError(result?.error ?? 'Unable to update job state. Please try again.')
+        setError(result?.error ?? t('errors.updateFailed'))
         setLoading(false)
         return
       }
 
       router.refresh()
     } catch {
-      setError('Connection lost. Please check your internet and try again.')
+      setError(t('errors.connectionLost'))
       setLoading(false)
     }
   }
@@ -68,7 +70,7 @@ export default function JobStateAdvanceButton({ requestId, currentStatus }: Prop
         disabled={loading}
         className={`inline-flex min-h-10 items-center justify-center rounded-lg px-5 text-sm font-semibold transition-colors disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${config.color}`}
       >
-        {loading ? config.loadingLabel : config.label}
+        {loading ? t(config.loadingLabelKey) : t(config.labelKey)}
       </button>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>

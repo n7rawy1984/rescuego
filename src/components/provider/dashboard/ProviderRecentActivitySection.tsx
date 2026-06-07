@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import { BriefcaseBusiness, History, MapPin } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Link from 'next/link'
@@ -16,21 +17,23 @@ type Props = {
   items: ActivityItem[]
 }
 
-export default function ProviderRecentActivitySection({ items }: Props) {
+export default async function ProviderRecentActivitySection({ items }: Props) {
+  const t = await getTranslations('components.providerRecentActivity')
+
   return (
     <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
         <div className="flex items-center gap-2">
           <History className="h-5 w-5 text-[#0F6E56]" aria-hidden="true" />
-          <h2 className="text-lg font-semibold text-slate-950">Recent Activity</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t('title')}</h2>
         </div>
         <Link href="/provider/history" className="text-sm font-medium text-[#0F6E56] hover:underline">
-          View all →
+          {t('viewAll')}
         </Link>
       </div>
       <div className="p-2">
         <p className="px-3 py-2 text-xs text-slate-500">
-          Completed jobs, customer cancellations, and released requests.
+          {t('description')}
         </p>
 
         {items.length > 0 ? (
@@ -62,9 +65,9 @@ export default function ProviderRecentActivitySection({ items }: Props) {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
               <BriefcaseBusiness className="h-5 w-5" aria-hidden="true" />
             </div>
-            <p className="font-semibold text-slate-800">No recent activity yet</p>
+            <p className="font-semibold text-slate-800">{t('emptyTitle')}</p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              Completed jobs, customer cancellations, and releases will appear here.
+              {t('emptyDescription')}
             </p>
           </div>
         )}

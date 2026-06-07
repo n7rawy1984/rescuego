@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { BatteryCharging, HelpCircle, MapPin, Search, Truck, Wrench } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -40,12 +41,6 @@ interface Props {
   ppjRecoveryCredits?: number
 }
 
-function formatDistance(meters: number | null): string {
-  if (meters === null) return 'Distance unavailable'
-  if (meters < 1000) return `${Math.round(meters)} m away`
-  return `${(meters / 1000).toFixed(1)} km away`
-}
-
 function storePaymentHandoff(kind: 'ppj' | 'overage', requestId: string, clientSecret: string, feeAed: number): boolean {
   try {
     window.sessionStorage.setItem(
@@ -68,13 +63,14 @@ export default function ProviderRequestList({
   ppjRecoveryCredits = 0,
 }: Props) {
   const router = useRouter()
+  const t = useTranslations('components.providerRequestList')
   const [hiddenRequestIds, setHiddenRequestIds] = useState<Set<string>>(() => new Set())
-  const [accepting, setAccepting] = useState<string | null>(null)
+  const [accepting, setAccepting] = useState<string | null>()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [showOverageModal, setShowOverageModal] = useState<string | null>(null)
+  const [showOverageModal, setShowOverageModal] = useState<string | null>()
   const [overageLoading, setOverageLoading] = useState(false)
-  const [confirmRequestId, setConfirmRequestId] = useState<string | null>(null)
+  const [confirmRequestId, setConfirmRequestId] = useState<string | null>()
 
   const refreshRequests = useCallback(async () => {
     router.refresh()
@@ -84,6 +80,12 @@ export default function ProviderRequestList({
     () => requests.filter((request) => !hiddenRequestIds.has(request.id)),
     [hiddenRequestIds, requests]
   )
+
+  const formatDistance = useCallback((meters: number | null): string => {
+    if (meters === null) return t('distanceUnavailable')
+    if (meters < 1000) return t('metersAway', { distance: Math.round(meters) })
+    return t('kilometersAway', { distance: (meters / 1000).toFixed(1) })
+  }, [t])
 
   useEffect(() => {
     const supabase = createClient()
@@ -122,11 +124,11 @@ export default function ProviderRequestList({
   function requestAcceptConfirmation(requestId: string) {
     if (accepting || overageLoading) return
     if (providerStatus !== 'active') {
-      setError('Your account must be active to accept requests.')
+      setError(t('accountMustBeActive'))
       return
     }
     if (!providerOnline) {
-      setError('Go online before accepting requests.')
+      setError(t('goOnlineBeforeAccepting'))
       return
     }
     setError('')
@@ -137,16 +139,16 @@ export default function ProviderRequestList({
   async function handleAccept(requestId: string) {
     if (accepting || overageLoading) return
     if (providerStatus !== 'active') {
-      setError('Your account must be active to accept requests.')
+      setError(t('accountMustBeActive'))
       return
     }
     if (!providerOnline) {
-      setError('Go online before accepting requests.')
+      setError(t('goOnlineBeforeAccepting'))
       return
     }
     const selectedRequest = requestItems.find((request) => request.id === requestId)
     if (!selectedRequest) {
-      setError('This request is no longer available.')
+      setError(t('requestNoLongerAvailable'))
       setConfirmRequestId(null)
       return
     }
@@ -165,21 +167,21 @@ export default function ProviderRequestList({
         const result = await res.json()
 
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setAccepting(null)
         setConfirmRequestId(null)
         return
       }
 
       if (!res.ok) {
-        setError(result.error ?? 'Unable to start billing session right now.')
+        setError(result.error ?? t('unableToStartBilling'))
         setAccepting(null)
         setConfirmRequestId(null)
         return
       }
 
       if (result.credit_applied) {
-        setNotice(result.message ?? 'One PPJ recovery credit was applied to this request.')
+        setNotice(result.message ?? t('ppjRecoveryCreditApplied'))
         setHiddenRequestIds((current) => new Set(current).add(requestId))
         router.refresh()
         setAccepting(null)
@@ -188,7 +190,7 @@ export default function ProviderRequestList({
       }
 
       if (!result.client_secret || !storePaymentHandoff('ppj', requestId, result.client_secret, result.fee_aed)) {
-        setError('Unable to open payment securely. Please try again.')
+        setError(t('unableToOpenPayment'))
         setAccepting(null)
         setConfirmRequestId(null)
         return
@@ -196,7 +198,7 @@ export default function ProviderRequestList({
 
         router.push(`/provider/ppj-pay?request_id=${requestId}&fee=${result.fee_aed}`)
       } catch {
-        setError('Network connection lost. Please try again.')
+        setError(t('networkConnectionLost'))
         setAccepting(null)
         setConfirmRequestId(null)
       }
@@ -212,7 +214,7 @@ export default function ProviderRequestList({
       const result = await res.json()
 
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setAccepting(null)
         setConfirmRequestId(null)
         return
@@ -226,7 +228,7 @@ export default function ProviderRequestList({
       }
 
       if (!res.ok) {
-        setError(result.error ?? 'Failed to accept request')
+        setError(result.error ?? t('failedToAcceptRequest'))
         setAccepting(null)
         setConfirmRequestId(null)
         return
@@ -236,7 +238,7 @@ export default function ProviderRequestList({
       setAccepting(null)
       setConfirmRequestId(null)
     } catch {
-      setError('Network connection lost. Please try again.')
+      setError(t('networkConnectionLost'))
       setAccepting(null)
       setConfirmRequestId(null)
     }
@@ -257,21 +259,21 @@ export default function ProviderRequestList({
       const result = await res.json()
 
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('sessionExpired'))
         setOverageLoading(false)
         setShowOverageModal(null)
         return
       }
 
       if (!res.ok) {
-        setError(result.error ?? 'Unable to start billing session right now.')
+        setError(result.error ?? t('unableToStartBilling'))
         setOverageLoading(false)
         setShowOverageModal(null)
         return
       }
 
       if (!result.client_secret || !storePaymentHandoff('overage', requestId, result.client_secret, result.fee_aed)) {
-        setError('Unable to open payment securely. Please try again.')
+        setError(t('unableToOpenPayment'))
         setOverageLoading(false)
         setShowOverageModal(null)
         return
@@ -279,7 +281,7 @@ export default function ProviderRequestList({
 
       router.push(`/provider/overage-pay?request_id=${requestId}&fee=${result.fee_aed}`)
     } catch {
-      setError('Network connection lost. Please try again.')
+      setError(t('networkConnectionLost'))
       setOverageLoading(false)
       setShowOverageModal(null)
     }
@@ -306,31 +308,31 @@ export default function ProviderRequestList({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <MapPin className="h-5 w-5 text-[#0F6E56]" aria-hidden="true" />
-              <h2 className="text-lg font-semibold text-slate-950">Nearby Roadside Requests</h2>
+              <h2 className="text-lg font-semibold text-slate-950">{t('nearbyRoadsideRequests')}</h2>
               <span className="rounded-full bg-[#E1F5EE] px-2 py-0.5 text-xs font-medium text-[#0F6E56]">
-                Request Intake
+                {t('requestIntake')}
               </span>
             </div>
             <p className="mt-2 text-sm text-slate-500">
               {requestItems.length > 0
                 ? requestFeedMode === 'fallback'
-                  ? `Showing ${requestItems.length} available open request${requestItems.length === 1 ? '' : 's'} while nearby location matching refreshes.`
+                  ? t('showingFallbackRequests', { count: requestItems.length })
                   : requestFeedMode === 'offline'
-                    ? `${requestItems.length} open request${requestItems.length === 1 ? '' : 's'} available. Go online to sort by distance.`
-                  : `${requestItems.length} open request${requestItems.length === 1 ? '' : 's'} near your dispatch area.`
-                : 'Open requests will appear here as customers submit them.'}
+                    ? t('openRequestsOffline', { count: requestItems.length })
+                  : t('openRequestsNearby', { count: requestItems.length })
+                : t('openRequestsWillAppear')}
             </p>
           </div>
           <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200">
             <span className={`h-2 w-2 rounded-full ${providerOnline ? 'bg-[#1D9E75]' : 'bg-slate-400'}`} />
-            Auto updates
+            {t('autoUpdates')}
           </span>
         </div>
       </CardHeader>
       <CardBody className="p-0">
         {!providerOnline && requestItems.length > 0 && (
           <div className="border-b border-amber-100 bg-amber-50 px-6 py-3 text-sm text-amber-800">
-            Go online to accept requests. Available requests are shown for awareness only while you are offline.
+            {t('offlineAwarenessNotice')}
           </div>
         )}
         {requestItems.length === 0 ? (
@@ -339,14 +341,14 @@ export default function ProviderRequestList({
               <Search className="h-5 w-5" aria-hidden="true" />
             </div>
             <p className="font-semibold text-slate-800">
-              No open requests right now
+              {t('noOpenRequests')}
             </p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
               {requestFeedMode === 'nearby'
-                ? 'Your request list is live. New nearby customer requests will appear here automatically.'
+                ? t('nearbyEmptyDescription')
                 : requestFeedMode === 'fallback'
-                  ? 'Nearby matching refreshed, and no open requests are currently available.'
-                : 'Go online to share your dispatch location and sort new requests by distance.'}
+                  ? t('fallbackEmptyDescription')
+                : t('offlineEmptyDescription')}
             </p>
           </div>
         ) : (
@@ -364,8 +366,8 @@ export default function ProviderRequestList({
                     <div className="mt-2 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                       <div className="min-w-0">
-                        <div className="break-words">Location hidden until accepted</div>
-                        <div className="text-xs text-slate-400">Exact customer location is shared after assignment.</div>
+                        <div className="break-words">{t('locationHiddenUntilAccepted')}</div>
+                        <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>
                       </div>
                     </div>
                     <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
@@ -374,12 +376,12 @@ export default function ProviderRequestList({
                     {providerPlan === 'pay_per_job' && (
                       <div className="mt-2 inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
                         {ppjRecoveryCredits > 0
-                          ? 'Recovery credit available'
+                          ? t('recoveryCreditAvailable')
                           : LAUNCH_PROMO
-                          ? `${PAY_PER_JOB_PROMO_FEE_AED} AED to accept (promo)`
+                          ? t('payPerJobPromoFeeToAccept', { fee: PAY_PER_JOB_PROMO_FEE_AED })
                           : req.distance_meters !== null && req.distance_meters >= PAY_PER_JOB_DISTANCE_THRESHOLD_M
-                            ? `${PAY_PER_JOB_FEE_FAR_AED} AED to accept`
-                            : `${PAY_PER_JOB_FEE_NEAR_AED} AED to accept`
+                            ? t('payPerJobFeeToAccept', { fee: PAY_PER_JOB_FEE_FAR_AED })
+                            : t('payPerJobFeeToAccept', { fee: PAY_PER_JOB_FEE_NEAR_AED })
                         }
                       </div>
                     )}
@@ -393,10 +395,10 @@ export default function ProviderRequestList({
                   disabled={providerStatus !== 'active' || !providerOnline || accepting !== null || overageLoading}
                 >
                   {!providerOnline
-                    ? 'Go online first'
+                    ? t('goOnlineFirst')
                     : providerPlan === 'pay_per_job'
-                      ? ppjRecoveryCredits > 0 ? 'Accept with credit' : 'Pay & Accept'
-                      : 'Accept'}
+                      ? ppjRecoveryCredits > 0 ? t('acceptWithCredit') : t('payAndAccept')
+                      : t('accept')}
                 </Button>
               </div>
             )})}
@@ -408,17 +410,17 @@ export default function ProviderRequestList({
       {confirmRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="accept-request-title">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h3 id="accept-request-title" className="text-lg font-bold text-slate-900">Accept this recovery request?</h3>
+            <h3 id="accept-request-title" className="text-lg font-bold text-slate-900">{t('acceptRequestTitle')}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {providerPlan === 'pay_per_job'
                 ? ppjRecoveryCredits > 0
-                  ? 'One PPJ recovery credit will be applied to this assignment. No Stripe payment is required for this accepted request. Exact customer location is shown only after assignment.'
-                  : `You will be charged the ${confirmPpjFee} AED Pay Per Job acceptance fee before this request is assigned to you. This fee is non-refundable if you release or abandon the job. Exact customer location is shown only after payment and assignment.`
-                : 'You are about to accept this customer request and become responsible for completing it. Exact customer location is shown after you accept.'}
+                  ? t('acceptWithCreditDescription')
+                  : t('payPerJobAcceptDescription', { fee: confirmPpjFee })
+                : t('standardAcceptDescription')}
             </p>
             <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
               <div className="font-semibold text-slate-800">{getProblemLabel(confirmRequest.problem_type)}</div>
-              <div className="mt-0.5 break-words text-xs text-slate-500">Location hidden until accepted</div>
+              <div className="mt-0.5 break-words text-xs text-slate-500">{t('locationHiddenUntilAccepted')}</div>
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
@@ -427,7 +429,7 @@ export default function ProviderRequestList({
                 disabled={accepting !== null}
               className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="button"
@@ -436,10 +438,10 @@ export default function ProviderRequestList({
                 className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
                 {accepting === confirmRequest.id
-                  ? 'Accepting...'
+                  ? t('accepting')
                   : providerPlan === 'pay_per_job' && ppjRecoveryCredits > 0
-                    ? 'Accept with credit'
-                    : 'Accept request'}
+                    ? t('acceptWithCredit')
+                    : t('acceptRequest')}
               </button>
             </div>
           </div>
@@ -448,10 +450,10 @@ export default function ProviderRequestList({
       {showOverageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Monthly Limit Reached</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">{t('monthlyLimitReached')}</h3>
             <p className="text-sm text-slate-600 mb-4">
-              You&apos;ve used all your jobs this month. Accept this request for a one-time overage fee of{' '}
-              <strong className="text-[#0F6E56]">{OVERAGE_FEE_AED} AED</strong>?
+              {t('overageConfirmPrefix')}{' '}
+              <strong className="text-[#0F6E56]">{t('aedAmount', { amount: OVERAGE_FEE_AED })}</strong>?
             </p>
             <div className="flex gap-3">
               <button
@@ -459,14 +461,14 @@ export default function ProviderRequestList({
                 disabled={overageLoading}
                 className="min-h-10 flex-1 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 onClick={() => handleOverageConfirm(showOverageModal)}
                 disabled={overageLoading}
                 className="min-h-10 flex-1 rounded-lg bg-[#1D9E75] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D9E75]"
               >
-                {overageLoading ? 'Setting up...' : `Pay ${OVERAGE_FEE_AED} AED`}
+                {overageLoading ? t('settingUp') : t('payAmount', { amount: OVERAGE_FEE_AED })}
               </button>
             </div>
           </div>

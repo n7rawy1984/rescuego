@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import { ShieldCheck, Star } from 'lucide-react'
 import Link from 'next/link'
 import type { ProviderStatus } from '@/types'
@@ -11,7 +12,7 @@ type Props = {
   hasRecentJobs: boolean
 }
 
-export default function ProviderDashboardHeader({
+export default async function ProviderDashboardHeader({
   name,
   rating,
   status,
@@ -19,6 +20,7 @@ export default function ProviderDashboardHeader({
   verified,
   hasRecentJobs,
 }: Props) {
+  const t = await getTranslations('components.providerDashboardHeader')
   const roundedRating = Math.round(rating)
 
   return (
@@ -26,13 +28,13 @@ export default function ProviderDashboardHeader({
       <div className="space-y-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-[#0F6E56]">
-            Provider Operations
+            {t('eyebrow')}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 text-balance sm:text-4xl">
-            Welcome, {name}
+            {t('welcome', { name })}
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
-            Manage availability, active jobs, request intake, and recent activity.
+            {t('description')}
           </p>
         </div>
 
@@ -57,7 +59,7 @@ export default function ProviderDashboardHeader({
           {verified && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-medium text-[#0F6E56]">
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              Trusted Partner
+              {t('trustedPartner')}
             </span>
           )}
         </div>
@@ -79,10 +81,10 @@ export default function ProviderDashboardHeader({
               {rating.toFixed(1)}
             </span>
           </div>
-          <p className="mt-1 text-sm text-amber-800">Your rating</p>
+          <p className="mt-1 text-sm text-amber-800">{t('yourRating')}</p>
           {!hasRecentJobs ? (
             <p className="mt-1 text-xs text-amber-700">
-              Your first reviews will appear after completed jobs.
+              {t('firstReviewsDescription')}
             </p>
           ) : null}
         </div>

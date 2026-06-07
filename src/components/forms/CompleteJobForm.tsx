@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -10,6 +11,7 @@ interface Props {
 
 export default function CompleteJobForm({ requestId }: Props) {
   const router = useRouter()
+  const t = useTranslations('components.completeJobForm')
   const [finalPrice, setFinalPrice] = useState('')
   const [loading, setLoading] = useState(false)
   const [completed, setCompleted] = useState(false)
@@ -21,7 +23,7 @@ export default function CompleteJobForm({ requestId }: Props) {
     const amount = Number(finalPrice)
 
     if (!Number.isInteger(amount) || amount <= 0) {
-      setError('Enter a valid final price in AED.')
+      setError(t('errors.invalidFinalPrice'))
       return
     }
 
@@ -37,13 +39,13 @@ export default function CompleteJobForm({ requestId }: Props) {
       const result = await res.json().catch(() => null) as { error?: string } | null
 
       if (res.status === 401) {
-        setError('Your session expired. Please sign in again.')
+        setError(t('errors.sessionExpired'))
         setLoading(false)
         return
       }
 
       if (!res.ok) {
-        setError(result?.error ?? 'Unable to complete job right now.')
+        setError(result?.error ?? t('errors.completeFailed'))
         setLoading(false)
         return
       }
@@ -51,7 +53,7 @@ export default function CompleteJobForm({ requestId }: Props) {
       setCompleted(true)
       router.refresh()
     } catch {
-      setError('Connection lost. Please check your internet connection and try again.')
+      setError(t('errors.connectionLost'))
       setLoading(false)
     }
   }
@@ -59,9 +61,9 @@ export default function CompleteJobForm({ requestId }: Props) {
   if (completed) {
     return (
       <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4" role="status" aria-live="polite">
-        <p className="text-sm font-semibold text-green-800">Job completed. Refreshing dashboard...</p>
+        <p className="text-sm font-semibold text-green-800">{t('completedTitle')}</p>
         <p className="mt-1 text-xs text-green-700">
-          This job will move from Active Job to Recent Completed Jobs once the dashboard refresh finishes.
+          {t('completedDescription')}
         </p>
       </div>
     )
@@ -75,14 +77,14 @@ export default function CompleteJobForm({ requestId }: Props) {
         type="number"
         min={1}
         max={10000}
-        label="Final price (AED)"
+        label={t('finalPriceLabel')}
         value={finalPrice}
         onChange={(event) => setFinalPrice(event.target.value)}
         placeholder="250"
         disabled={loading}
       />
       <Button type="submit" loading={loading}>
-        {loading ? 'Completing job...' : 'Complete Job'}
+        {loading ? t('completingJob') : t('completeJob')}
       </Button>
       </div>
       {error && <p className="text-sm text-red-500 sm:pb-2">{error}</p>}
