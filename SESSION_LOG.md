@@ -2,6 +2,71 @@
 
 ---
 
+## Session: June 7, 2026 — Pre-launch hardening (C-1 through C-3, H-1 through H-4) + lint fixes
+
+### What was done
+
+1. **C-1 — Rate limiter fail-closed in production without Redis**
+   - `fallbackRateLimit()` in `src/lib/rate-limit.ts`: in production, missing or unreachable Redis now returns `{ allowed: false, retryAfter: 60 }` instead of falling through to in-process memory map
+   - Logs `rate_limit_redis_unavailable_fail_closed` at `error` level (once per cold start)
+   - Dev/test environments still use in-memory fallback (behaviour unchanged locally)
+
+2. **C-2 — `OPS_CRON_SECRET` and Redis vars required at boot**
+   - `src/lib/env.ts`: added `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to `EnvName` type
+   - Split `SERVER_REQUIRED_ENVS` (checked at build + boot, throws) from new `RUNTIME_REQUIRED_ENVS` (checked at runtime only, `console.error` in production)
+   - `OPS_CRON_SECRET`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` moved to `RUNTIME_REQUIRED_ENVS` — missing them no longer breaks the build
+   - `runtimeWarningLogged` flag prevents duplicate warnings per process
+   - Build confirmed clean: 52 routes, zero errors
+
+3. **C-3 — `advance-state` two-step write replaced with atomic RPC**
+   - `supabase/migrations/026_advance_state_atomic.sql` (new, applied): creates `advance_provider_job_state(p_provider_id, p_request_id, p_from_status, p_to_status, p_timestamp_field)` — `requests` status update and `jobs` timestamp write in one Postgres transaction; returns `{ success, reason, next_status }`; returns `reason = 'no_matching_request'` if 0 rows affected (concurrent race)
+   - REVOKE from PUBLIC/anon; GRANT to service_role only
+   - `src/app/api/provider/jobs/advance-state/route.ts` rewritten: `VALID_TRANSITIONS` now carries `{ next, timestampField }` per state; single `admin.rpc('advance_provider_job_state', ...)` call replaces the two-step UPDATE; `no_matching_request` → 409; error message no longer echoes raw DB status string
+
+4. **H-1 — `Job` interface updated**
+   - `src/types/database.ts`: `en_route_at: string | null` and `arrived_at: string | null` added to `Job` interface — now matches migration 025 schema
+
+5. **H-2 — Counter increment optimistic concurrency**
+   - `src/app/api/requests/cancel/route.ts`: `.eq('cancellation_count', profile.cancellation_count ?? 0)` added to the counter `UPDATE` — acts as an optimistic lock so concurrent cancellations cannot overwrite each other's increment
+
+6. **H-3 — Profile read error no longer silently returns 403**
+   - Same file: `profileError` now explicitly checked; DB errors return `500 "Unable to verify account"` instead of falling through to a misleading 403 role-check failure
+
+7. **H-4 — Webhook `finalizeAcceptedRequest` passes `p_plan_limit`**
+   - `src/app/api/stripe/webhook/route.ts`: `p_plan_limit: -1` added to `accept_provider_request_atomic` call in `finalizeAcceptedRequest` — PPJ payment path correctly bypasses the overage guard (payment already collected); consistent with `accept/route.ts`
+
+8. **Lint fixes**
+   - `src/components/forms/JobStateAdvanceButton.tsx`: removed unused `Button` import
+   - `src/components/provider/ProviderRealtimeRefresh.tsx`: `scheduleRefresh` converted to `useCallback([router])`; added to both `useEffect` dependency arrays — resolves `react-hooks/exhaustive-deps` warnings
+
+### Files changed
+- `src/lib/rate-limit.ts` — fail-closed production fallback
+- `src/lib/env.ts` — RUNTIME_REQUIRED_ENVS split; Redis + OPS vars; dedup flag
+- `supabase/migrations/026_advance_state_atomic.sql` — created (apply in Supabase)
+- `src/app/api/provider/jobs/advance-state/route.ts` — atomic RPC, cleaner error messages
+- `src/types/database.ts` — Job interface: en_route_at, arrived_at
+- `src/app/api/requests/cancel/route.ts` — profileError guard, optimistic counter lock
+- `src/app/api/stripe/webhook/route.ts` — p_plan_limit: -1 in finalizeAcceptedRequest
+- `src/components/forms/JobStateAdvanceButton.tsx` — unused Button import removed
+- `src/components/provider/ProviderRealtimeRefresh.tsx` — scheduleRefresh useCallback, dep arrays fixed
+
+### Action required in Vercel before deploy
+- `UPSTASH_REDIS_REST_URL` — Upstash Redis REST URL
+- `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis REST token
+- `OPS_CRON_SECRET` — min 32 chars (`openssl rand -hex 32`)
+
+### Action required in Supabase before deploy
+- Apply migration `026_advance_state_atomic.sql`
+
+### Deferred issues (updated)
+- `NEXT_PUBLIC_LAUNCH_PROMO=true` — add to Vercel if promo should be active
+- `removeTracing: true` vs CWV — decision required
+- Deprecated Supabase edge functions — manual verification in Supabase dashboard
+- Phase 2B (roadmap) — RTL & Arabic Foundation
+- Medium findings (M-1 through M-7) — post-launch hardening pass
+
+---
+
 ## Session: June 6, 2026 (continued 5) — Phase 4B Admin Operations Center
 
 ### What was done
