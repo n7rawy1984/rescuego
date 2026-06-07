@@ -79,7 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const messages = await getMessages()
 
   return (
-    <html lang="ar" dir="ltr" className={cairo.variable}>
+    <html lang="ar" dir="rtl" className={cairo.variable}>
       <head>
         <script
           type="application/ld+json"
