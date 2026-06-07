@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -14,12 +14,12 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
   const router = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function scheduleRefresh() {
+  const scheduleRefresh = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       router.refresh()
     }, DEBOUNCE_MS)
-  }
+  }, [router])
 
   useEffect(() => {
     const supabase = createClient()
@@ -52,7 +52,7 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
       if (debounceRef.current) clearTimeout(debounceRef.current)
       void supabase.removeChannel(openRequestsChannel)
     }
-  }, [providerId])
+  }, [providerId, scheduleRefresh])
 
   useEffect(() => {
     if (!activeRequestId) return
@@ -80,7 +80,7 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
     return () => {
       void supabase.removeChannel(activeJobChannel)
     }
-  }, [activeRequestId])
+  }, [activeRequestId, scheduleRefresh])
 
   return null
 }

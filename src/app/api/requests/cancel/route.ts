@@ -53,13 +53,22 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('role, cancellation_count, late_cancellation_count')
     .eq('id', user.id)
     .single<CustomerCounterRow & { role: string | null }>()
 
-  if (profile?.role !== 'customer') {
+  if (profileError || !profile) {
+    logger.error({
+      event: 'customer_cancel_profile_read_failed',
+      customer_id: user.id,
+      error: profileError?.message ?? 'Profile not found',
+    })
+    return NextResponse.json({ error: 'Unable to verify account' }, { status: 500 })
+  }
+
+  if (profile.role !== 'customer') {
     return NextResponse.json({ error: 'Only customers can cancel recovery requests' }, { status: 403 })
   }
 
@@ -158,6 +167,7 @@ export async function POST(req: NextRequest) {
       late_cancellation_count: (profile.late_cancellation_count ?? 0) + (isLateCancellation ? 1 : 0),
     })
     .eq('id', user.id)
+    .eq('cancellation_count', profile.cancellation_count ?? 0)
 
   logger.info({
     event: 'customer_cancel_request_success',

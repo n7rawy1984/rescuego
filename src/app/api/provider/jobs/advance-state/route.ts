@@ -5,10 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
 
-const VALID_TRANSITIONS: Record<string, string> = {
-  accepted: 'en_route',
-  en_route: 'arrived',
-  arrived: 'in_progress',
+const VALID_TRANSITIONS: Record<string, { next: string; timestampField: string | null }> = {
+  accepted: { next: 'en_route',    timestampField: 'en_route_at' },
+  en_route: { next: 'arrived',     timestampField: 'arrived_at' },
+  arrived:  { next: 'in_progress', timestampField: null },
 }
 
 const advanceStateSchema = z.object({
@@ -19,6 +19,12 @@ type RequestRow = {
   id: string
   accepted_by: string | null
   status: string
+}
+
+type AdvanceStateRpcResult = {
+  success: boolean
+  reason: string | null
+  next_status: string | null
 }
 
 export async function POST(req: NextRequest) {
@@ -61,57 +67,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Job not found or not assigned to you' }, { status: 404 })
   }
 
-  const nextStatus = VALID_TRANSITIONS[request.status]
-  if (!nextStatus) {
-    return NextResponse.json(
-      { error: `Cannot advance from status: ${request.status}` },
-      { status: 409 }
-    )
+  const transition = VALID_TRANSITIONS[request.status]
+  if (!transition) {
+    return NextResponse.json({ error: 'Job cannot be advanced from its current state' }, { status: 409 })
   }
 
-  const timestampField = nextStatus === 'en_route'
-    ? 'en_route_at'
-    : nextStatus === 'arrived'
-      ? 'arrived_at'
-      : null
+  const { data: rpcRows, error: rpcError } = await admin.rpc('advance_provider_job_state', {
+    p_provider_id:     user.id,
+    p_request_id:      parsed.data.request_id,
+    p_from_status:     request.status,
+    p_to_status:       transition.next,
+    p_timestamp_field: transition.timestampField ?? '',
+  })
 
-  const now = new Date().toISOString()
+  const result = (rpcRows as AdvanceStateRpcResult[] | null)?.[0] ?? null
 
-  const { error: requestError } = await admin
-    .from('requests')
-    .update({ status: nextStatus })
-    .eq('id', parsed.data.request_id)
-    .eq('accepted_by', user.id)
-    .eq('status', request.status)
-
-  if (requestError) {
+  if (rpcError || !result?.success) {
+    const reason = rpcError?.message ?? result?.reason ?? 'unknown'
     logger.error({
-      event: 'advance_state_request_update_failed',
+      event: 'advance_state_rpc_failed',
       provider_id: user.id,
       request_id: parsed.data.request_id,
       from_status: request.status,
-      to_status: nextStatus,
-      error: requestError.message,
+      to_status: transition.next,
+      reason,
     })
-    return NextResponse.json({ error: 'Failed to advance job state' }, { status: 500 })
-  }
-
-  if (timestampField) {
-    const { error: jobError } = await admin
-      .from('jobs')
-      .update({ [timestampField]: now })
-      .eq('request_id', parsed.data.request_id)
-      .eq('provider_id', user.id)
-
-    if (jobError) {
-      logger.warn({
-        event: 'advance_state_job_timestamp_failed',
-        provider_id: user.id,
-        request_id: parsed.data.request_id,
-        timestamp_field: timestampField,
-        error: jobError.message,
-      })
+    if (result?.reason === 'no_matching_request') {
+      return NextResponse.json({ error: 'Job state has already changed or is not yours' }, { status: 409 })
     }
+    return NextResponse.json({ error: 'Failed to advance job state' }, { status: 500 })
   }
 
   logger.info({
@@ -119,8 +103,8 @@ export async function POST(req: NextRequest) {
     provider_id: user.id,
     request_id: parsed.data.request_id,
     from_status: request.status,
-    to_status: nextStatus,
+    to_status: transition.next,
   })
 
-  return NextResponse.json({ success: true, status: nextStatus })
+  return NextResponse.json({ success: true, status: result.next_status })
 }

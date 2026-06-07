@@ -83,6 +83,8 @@ export interface Job {
   commission_amount: number | null
   stripe_payment_intent_id: string | null
   completed_at: string | null
+  en_route_at: string | null
+  arrived_at: string | null
 }
 
 export interface Rating {

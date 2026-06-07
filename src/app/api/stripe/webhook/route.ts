@@ -255,6 +255,7 @@ async function finalizeAcceptedRequest(
     p_request_id: requestId,
     p_increment_jobs: true,
     p_consume_ppj_credit: false,
+    p_plan_limit: -1,
   })
 
   if (error) {

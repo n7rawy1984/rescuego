@@ -12,6 +12,8 @@ type EnvName =
   | 'NEXT_PUBLIC_APP_URL'
   | 'NEXT_PUBLIC_SITE_URL'
   | 'OPS_CRON_SECRET'
+  | 'UPSTASH_REDIS_REST_URL'
+  | 'UPSTASH_REDIS_REST_TOKEN'
 
 export function requireEnv(name: EnvName): string {
   const value = process.env[name]
@@ -43,6 +45,14 @@ const SERVER_REQUIRED_ENVS: EnvName[] = [
   'NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID',
 ]
 
+const RUNTIME_REQUIRED_ENVS: EnvName[] = [
+  'OPS_CRON_SECRET',
+  'UPSTASH_REDIS_REST_URL',
+  'UPSTASH_REDIS_REST_TOKEN',
+]
+
+let runtimeWarningLogged = false
+
 export function validateEnv(): void {
   const missing: string[] = []
   for (const key of SERVER_REQUIRED_ENVS) {
@@ -55,13 +65,24 @@ export function validateEnv(): void {
   }
 
   const opsSecret = process.env.OPS_CRON_SECRET
-  if (opsSecret !== undefined && opsSecret.length < 32) {
+  if (opsSecret && opsSecret.length < 32) {
     throw new Error(
       '[RescueGo] OPS_CRON_SECRET must be at least 32 characters. Generate one with: openssl rand -hex 32'
     )
   }
 
-  if (!process.env.NEXT_PUBLIC_SITE_URL && process.env.NODE_ENV === 'production') {
-    console.warn('[RescueGo] NEXT_PUBLIC_SITE_URL is not set. Password reset emails will use window.location.origin as fallback.')
+  if (process.env.NODE_ENV === 'production' && !runtimeWarningLogged) {
+    runtimeWarningLogged = true
+
+    const missingRuntime = RUNTIME_REQUIRED_ENVS.filter((key) => !process.env[key])
+    if (missingRuntime.length > 0) {
+      console.error(
+        `[RescueGo] Missing runtime environment variables (set in Vercel):\n  ${missingRuntime.join('\n  ')}`
+      )
+    }
+
+    if (!process.env.NEXT_PUBLIC_SITE_URL) {
+      console.warn('[RescueGo] NEXT_PUBLIC_SITE_URL is not set. Password reset emails will use window.location.origin as fallback.')
+    }
   }
 }

@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Button from '@/components/ui/Button'
 import type { RequestStatus } from '@/types'
 
 const STATE_CONFIG: Record<string, { label: string; loadingLabel: string; color: string }> = {
