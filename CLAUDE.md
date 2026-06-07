@@ -114,7 +114,8 @@ Always tell user to run from terminal.
 - Audit Phase 5: Deleted 5 deprecated Supabase edge functions
 - Audit Phase 6: CSP enforced + CSRF origin validation on all POST /api/* routes
 - Audit Phase 7: getSiteUrl() fallback, Google Maps API key docs, PROJECT_HANDOFF updated, SETUP.md migrations complete
-- Migrations: 001 → 027
+- Audit Phase 8: Stuck job auto-release (migration 028 + expire-requests cron updated)
+- Migrations: 001 → 028
 
 ### الجاي — Next Tasks
 - Phase 2B-3: Arabic strings + RTL activation

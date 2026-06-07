@@ -4,6 +4,21 @@
 
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
+### Phase 8 — Stuck Job Auto-Release
+**Status:** COMPLETE
+
+**Changes:**
+1. `supabase/migrations/028_stuck_job_auto_release.sql` — New migration:
+   - Updated `release_job_atomic` RPC to support `en_route`/`arrived` statuses (previously only `accepted`/`in_progress`). Also resets `en_route_at`/`arrived_at` fields on release.
+   - Added `expire_stuck_active_requests(p_stuck_cutoff)` RPC — bulk auto-releases requests stuck in `accepted`/`en_route`/`arrived` longer than cutoff. Uses `SKIP LOCKED` for concurrency safety.
+2. `src/app/api/ops/expire-requests/route.ts` — Added stuck job auto-release call alongside existing open-request expiry. Configurable via `OPS_STUCK_JOB_HOURS` env (default: 3h). Logs `stuck_jobs_auto_released` count.
+
+**Behavior:** Every 30 min (cron schedule), the expire-requests job now also releases jobs where the provider accepted but hasn't completed within 3 hours. The request returns to `open` so another provider can pick it up. Provider's release_count is incremented.
+
+**Configuration:** `OPS_STUCK_JOB_HOURS=3` (env, optional, default 3).
+
+---
+
 ### Phase 7 — Site URL Fallback + Google Maps Docs + PROJECT_HANDOFF Update
 **Status:** COMPLETE
 
