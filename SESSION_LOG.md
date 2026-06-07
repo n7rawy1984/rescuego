@@ -2,6 +2,39 @@
 
 ---
 
+## Session: June 7, 2026 (continued) — Phase 2B RTL & Arabic Foundation (2B-1 + 2B-2)
+
+### What was done
+
+1. **2B-1 — Infrastructure (Arabic font, CSP, RTL variant, dir/lang)**
+   - `src/app/layout.tsx`: Cairo font loaded via `next/font/google` (subsets: `arabic`, `latin`); `lang="ar"` set; `dir="ltr"` (parked until Arabic strings ready); font `variable` + `className` applied to `<html>` and `<body>`
+   - `next.config.ts`: CSP `font-src` → added `https://fonts.gstatic.com`; `style-src` → added `https://fonts.googleapis.com`
+   - `src/app/globals.css`: `@custom-variant rtl (&:where([dir="rtl"], [dir="rtl"] *))` declared; `var(--font-cairo)` prepended to body font-family stack
+
+2. **2B-2 — Physical → logical directional class migration (18 files)**
+   - All `ml-` → `ms-`, `mr-` → `me-`, `pl-` → `ps-`, `pr-` → `pe-`
+   - All `text-left` → `text-start`, `text-right` → `text-end`
+   - All `sm:text-right` → `sm:text-end`, `sm:text-left` → `sm:text-start`
+   - All `sm:ml-*` → `sm:ms-*`
+   - Verified: zero physical directional classes remaining in `src/components/` and `src/app/`
+   - Files: Button, Accordion, Navbar, ProviderDashboardHeader, ProviderAvailabilityToggle, ProviderRecentActivitySection, RatingForm, PaymentElementForm, admin/dashboard, admin/performance, admin/providers, admin/requests, admin/revenue, customer/history, auth/login, provider/history, provider/overage-pay, pricing
+
+3. **RTL activation parked**
+   - `dir="ltr"` kept until 2B-3 (Arabic strings) is complete — prevents English text from appearing mirrored
+   - When 2B-3 lands, flip one line: `dir="ltr"` → `dir="rtl"` and full RTL layout activates
+
+### Files changed
+- `src/app/layout.tsx` — Cairo font, lang="ar", dir="ltr", className
+- `src/app/globals.css` — @custom-variant rtl, font-family with Cairo
+- `next.config.ts` — CSP font-src + style-src whitelists
+- 18 component + page files — physical → logical Tailwind classes
+
+### Activation checklist (when 2B-3 is done)
+- `src/app/layout.tsx`: change `dir="ltr"` to `dir="rtl"`
+- All logical spacing classes + `@custom-variant rtl` will take effect automatically
+
+---
+
 ## Session: June 7, 2026 — Pre-launch hardening (C-1 through C-3, H-1 through H-4) + lint fixes
 
 ### What was done

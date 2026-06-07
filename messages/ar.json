@@ -1,0 +1,473 @@
+{
+  "common": {
+    "appName": "RescueGo",
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "retry": "إعادة المحاولة",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "save": "حفظ",
+    "submit": "إرسال",
+    "back": "رجوع",
+    "next": "التالي",
+    "close": "إغلاق",
+    "yes": "نعم",
+    "no": "لا",
+    "or": "أو",
+    "and": "و",
+    "aed": "د.إ",
+    "free": "مجاني",
+    "required": "مطلوب",
+    "optional": "اختياري",
+    "noData": "لا توجد بيانات",
+    "viewAll": "عرض الكل",
+    "learnMore": "اعرف المزيد",
+    "comingSoon": "قريباً",
+    "logout": "تسجيل الخروج",
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "phone": "رقم الهاتف",
+    "name": "الاسم",
+    "address": "العنوان",
+    "search": "بحث",
+    "filter": "تصفية",
+    "all": "الكل",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "pending": "قيد الانتظار",
+    "completed": "مكتمل",
+    "cancelled": "ملغي",
+    "expired": "منتهي",
+    "verified": "موثّق"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "pricing": "الأسعار",
+    "about": "عن RescueGo",
+    "login": "دخول",
+    "register": "تسجيل",
+    "dashboard": "لوحة التحكم",
+    "history": "السجل",
+    "ratings": "التقييمات",
+    "plan": "الباقة",
+    "request": "طلب مساعدة",
+    "providers": "مقدمي الخدمة",
+    "requests": "الطلبات",
+    "revenue": "الإيرادات",
+    "performance": "الأداء",
+    "logout": "خروج"
+  },
+  "landing": {
+    "hero": {
+      "title": "خدمة إنقاذ على الطريق في الإمارات",
+      "subtitle": "عطلان؟ احصل على مساعدة فورية من أقرب مقدم خدمة موثوق",
+      "cta": "اطلب مساعدة الآن",
+      "ctaProvider": "انضم كمقدم خدمة"
+    },
+    "features": {
+      "title": "لماذا RescueGo؟",
+      "fast": "استجابة سريعة",
+      "fastDesc": "مقدمو خدمة قريبون منك ومستعدون للمساعدة خلال دقائق",
+      "trusted": "مقدمو خدمة موثوقون",
+      "trustedDesc": "جميع مقدمي الخدمة موثقون ومعتمدون",
+      "transparent": "أسعار شفافة",
+      "transparentDesc": "اعرف التكلفة مسبقاً - لا رسوم مخفية",
+      "coverage": "تغطية شاملة",
+      "coverageDesc": "خدمة متاحة في جميع إمارات الدولة"
+    },
+    "services": {
+      "title": "خدماتنا",
+      "towing": "سحب سيارات",
+      "towingDesc": "نقل سيارتك بأمان إلى أي وجهة",
+      "battery": "بطارية",
+      "batteryDesc": "تشغيل أو استبدال بطارية سيارتك",
+      "tire": "إطارات",
+      "tireDesc": "تغيير أو إصلاح الإطار في الموقع",
+      "fuel": "وقود",
+      "fuelDesc": "توصيل وقود طوارئ لسيارتك",
+      "lockout": "فتح أقفال",
+      "lockoutDesc": "فتح سيارتك المقفلة بأمان",
+      "general": "مساعدة عامة",
+      "generalDesc": "أي مشكلة أخرى على الطريق"
+    },
+    "howItWorks": {
+      "title": "كيف يعمل RescueGo؟",
+      "step1": "أرسل طلب مساعدة",
+      "step1Desc": "حدد مشكلتك وموقعك",
+      "step2": "مقدم خدمة يقبل طلبك",
+      "step2Desc": "أقرب مقدم خدمة متاح يستجيب لطلبك",
+      "step3": "المساعدة في الطريق",
+      "step3Desc": "تتبع حالة طلبك لحظة بلحظة",
+      "step4": "تم الإنقاذ!",
+      "step4Desc": "قيّم تجربتك وانطلق بأمان"
+    },
+    "coverage": {
+      "title": "تغطية جميع الإمارات",
+      "dubai": "دبي",
+      "abuDhabi": "أبوظبي",
+      "sharjah": "الشارقة",
+      "ajman": "عجمان",
+      "rasAlKhaimah": "رأس الخيمة",
+      "fujairah": "الفجيرة",
+      "ummAlQuwain": "أم القيوين"
+    },
+    "cta": {
+      "title": "محتاج مساعدة؟",
+      "subtitle": "اطلب خدمة إنقاذ الآن واحصل على مساعدة خلال دقائق",
+      "button": "اطلب مساعدة"
+    },
+    "stats": {
+      "providers": "مقدم خدمة",
+      "requests": "طلب مكتمل",
+      "rating": "تقييم العملاء",
+      "response": "دقائق متوسط الاستجابة"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "تسجيل الدخول",
+      "subtitle": "أدخل بياناتك للوصول إلى حسابك",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "أدخل بريدك الإلكتروني",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "أدخل كلمة المرور",
+      "submit": "دخول",
+      "forgotPassword": "نسيت كلمة المرور؟",
+      "noAccount": "ليس لديك حساب؟",
+      "registerLink": "سجّل الآن",
+      "error": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+      "rateLimited": "محاولات كثيرة. حاول بعد قليل."
+    },
+    "register": {
+      "title": "إنشاء حساب",
+      "subtitle": "سجّل للحصول على خدمة إنقاذ فورية",
+      "name": "الاسم الكامل",
+      "namePlaceholder": "أدخل اسمك الكامل",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "أدخل بريدك الإلكتروني",
+      "phone": "رقم الهاتف",
+      "phonePlaceholder": "05xxxxxxxx",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "8 أحرف على الأقل",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "confirmPasswordPlaceholder": "أعد إدخال كلمة المرور",
+      "submit": "إنشاء حساب",
+      "hasAccount": "لديك حساب بالفعل؟",
+      "loginLink": "سجّل دخول",
+      "success": "تم إنشاء حسابك! تحقق من بريدك الإلكتروني.",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين"
+    },
+    "forgotPassword": {
+      "title": "استعادة كلمة المرور",
+      "subtitle": "أدخل بريدك الإلكتروني وسنرسل لك رابط استعادة",
+      "submit": "إرسال رابط الاستعادة",
+      "success": "تم إرسال رابط الاستعادة إلى بريدك الإلكتروني",
+      "backToLogin": "العودة لتسجيل الدخول"
+    },
+    "resetPassword": {
+      "title": "تعيين كلمة مرور جديدة",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور الجديدة",
+      "submit": "تعيين كلمة المرور",
+      "success": "تم تغيير كلمة المرور بنجاح"
+    }
+  },
+  "customer": {
+    "request": {
+      "title": "طلب مساعدة على الطريق",
+      "problemType": "نوع المشكلة",
+      "problemTypes": {
+        "towing": "سحب / نقل",
+        "battery": "بطارية",
+        "tire": "إطار",
+        "fuel": "وقود",
+        "lockout": "مفتاح مقفل",
+        "general": "مشكلة أخرى"
+      },
+      "location": "موقعك",
+      "locationHint": "حدد موقعك على الخريطة أو اسمح بتحديد الموقع تلقائياً",
+      "detectLocation": "تحديد موقعي",
+      "notes": "ملاحظات إضافية",
+      "notesPlaceholder": "صف مشكلتك بالتفصيل (اختياري)",
+      "phone": "رقم التواصل",
+      "submit": "إرسال الطلب",
+      "submitting": "جاري الإرسال...",
+      "submitted": "تم إرسال طلبك",
+      "waitingProvider": "بانتظار مقدم خدمة...",
+      "providerAccepted": "تم قبول طلبك",
+      "providerEnRoute": "مقدم الخدمة في الطريق",
+      "providerArrived": "مقدم الخدمة وصل",
+      "inProgress": "جاري العمل",
+      "completed": "تمت الخدمة بنجاح",
+      "cancelRequest": "إلغاء الطلب",
+      "cancelConfirm": "هل أنت متأكد من إلغاء الطلب؟",
+      "cancelNote": "سيتم إلغاء طلبك. قد يتم احتساب رسوم الإلغاء إذا كان مقدم الخدمة في الطريق.",
+      "cancelled": "تم إلغاء الطلب"
+    },
+    "history": {
+      "title": "سجل الطلبات",
+      "empty": "لا توجد طلبات سابقة",
+      "viewActive": "عرض الطلب النشط ←",
+      "rateNow": "قيّم الآن",
+      "needsRating": "بحاجة لتقييم"
+    },
+    "ratings": {
+      "title": "تقييماتي",
+      "empty": "لم تقم بأي تقييم بعد",
+      "rateService": "قيّم الخدمة",
+      "thankYou": "شكراً لتقييمك!"
+    }
+  },
+  "provider": {
+    "dashboard": {
+      "title": "لوحة التحكم",
+      "welcome": "مرحباً",
+      "activeJob": "المهمة النشطة",
+      "noActiveJob": "لا توجد مهام نشطة حالياً",
+      "availableRequests": "الطلبات المتاحة",
+      "noRequests": "لا توجد طلبات متاحة حالياً",
+      "stats": {
+        "thisMonth": "هذا الشهر",
+        "totalJobs": "إجمالي المهام",
+        "rating": "التقييم",
+        "earnings": "الأرباح"
+      },
+      "actions": {
+        "accept": "قبول الطلب",
+        "accepting": "جاري القبول...",
+        "onMyWay": "في الطريق",
+        "arrived": "وصلت",
+        "startJob": "بدء العمل",
+        "completeJob": "إتمام المهمة",
+        "completing": "جاري الإتمام...",
+        "release": "تحرير الطلب",
+        "releasing": "جاري التحرير..."
+      }
+    },
+    "register": {
+      "title": "التسجيل كمقدم خدمة",
+      "subtitle": "انضم لشبكة مقدمي خدمات الإنقاذ في الإمارات",
+      "businessName": "اسم المنشأة",
+      "serviceTypes": "أنواع الخدمات",
+      "coverage": "مناطق التغطية",
+      "documents": "المستندات المطلوبة",
+      "emiratesId": "هوية إماراتية",
+      "tradeLicense": "رخصة تجارية",
+      "vehicleRegistration": "تسجيل المركبة",
+      "submit": "تقديم الطلب",
+      "success": "تم تقديم طلبك! سنراجعه خلال 24-48 ساعة."
+    },
+    "plan": {
+      "title": "باقتي",
+      "currentPlan": "الباقة الحالية",
+      "usage": "الاستخدام",
+      "jobsUsed": "{used} من {total} مهمة",
+      "unlimited": "غير محدود",
+      "upgrade": "ترقية الباقة",
+      "changePlan": "تغيير الباقة",
+      "payPerJob": "الدفع لكل مهمة"
+    },
+    "history": {
+      "title": "سجل المهام",
+      "empty": "لا توجد مهام سابقة",
+      "completed": "مكتملة",
+      "released": "محررة",
+      "cancelled": "ملغية"
+    },
+    "ratings": {
+      "title": "تقييماتي",
+      "average": "متوسط التقييم",
+      "total": "إجمالي التقييمات",
+      "empty": "لم يتم تقييمك بعد"
+    },
+    "availability": {
+      "title": "الحالة",
+      "online": "متصل",
+      "offline": "غير متصل",
+      "goOnline": "اتصل",
+      "goOffline": "افصل",
+      "refreshLocation": "تحديث الموقع",
+      "locationUpdated": "تم تحديث موقعك",
+      "mustBeActive": "يجب أن يكون حسابك نشطاً قبل الاتصال"
+    },
+    "subscribe": {
+      "title": "اختر باقتك",
+      "subtitle": "ابدأ بالباقة المناسبة لعملك",
+      "monthly": "شهرياً",
+      "features": "المميزات",
+      "subscribe": "اشترك الآن",
+      "currentPlan": "باقتك الحالية"
+    }
+  },
+  "pricing": {
+    "title": "الأسعار والباقات",
+    "subtitle": "اختر الباقة المناسبة لحجم عملك",
+    "monthly": "/شهرياً",
+    "perJob": "/لكل مهمة",
+    "popular": "الأكثر شعبية",
+    "starter": {
+      "name": "ستارتر",
+      "price": "99",
+      "description": "مثالية للبداية",
+      "jobs": "15 مهمة/شهر"
+    },
+    "pro": {
+      "name": "برو",
+      "price": "249",
+      "description": "للمحترفين",
+      "jobs": "50 مهمة/شهر"
+    },
+    "business": {
+      "name": "بزنس",
+      "price": "499",
+      "description": "للشركات والأساطيل",
+      "jobs": "مهام غير محدودة"
+    },
+    "payPerJob": {
+      "name": "الدفع لكل مهمة",
+      "price": "15",
+      "description": "بدون التزام شهري"
+    },
+    "comparison": {
+      "title": "مقارنة الباقات",
+      "feature": "الميزة",
+      "monthlyJobs": "المهام الشهرية",
+      "commission": "العمولة",
+      "priority": "أولوية الطلبات",
+      "support": "الدعم",
+      "badge": "شارة موثّق"
+    },
+    "faq": {
+      "title": "الأسئلة الشائعة"
+    }
+  },
+  "status": {
+    "open": "مفتوح",
+    "accepted": "مقبول",
+    "en_route": "في الطريق",
+    "arrived": "وصل",
+    "in_progress": "جاري التنفيذ",
+    "completed": "مكتمل",
+    "cancelled": "ملغي",
+    "expired": "منتهي"
+  },
+  "rating": {
+    "title": "قيّم الخدمة",
+    "subtitle": "كيف كانت تجربتك مع مقدم الخدمة؟",
+    "stars": {
+      "1": "سيء",
+      "2": "مقبول",
+      "3": "جيد",
+      "4": "جيد جداً",
+      "5": "ممتاز"
+    },
+    "comment": "تعليق (اختياري)",
+    "commentPlaceholder": "شاركنا رأيك عن الخدمة...",
+    "submit": "إرسال التقييم",
+    "success": "شكراً لتقييمك!"
+  },
+  "payment": {
+    "title": "الدفع",
+    "processing": "جاري معالجة الدفع...",
+    "success": "تم الدفع بنجاح!",
+    "failed": "فشل الدفع. حاول مرة أخرى.",
+    "amount": "المبلغ",
+    "payNow": "ادفع الآن",
+    "overage": {
+      "title": "دفع رسوم إضافية",
+      "description": "لقد تجاوزت حد المهام الشهري. ادفع الرسوم الإضافية لمتابعة قبول الطلبات.",
+      "perJob": "رسوم المهمة الإضافية"
+    },
+    "ppj": {
+      "title": "دفع رسوم المهمة",
+      "description": "ادفع رسوم هذه المهمة للمتابعة.",
+      "fee": "رسوم المهمة"
+    }
+  },
+  "stepper": {
+    "requestSent": "تم الإرسال",
+    "providerAssigned": "تم التعيين",
+    "enRoute": "في الطريق",
+    "arrived": "وصل",
+    "completed": "مكتمل"
+  },
+  "errors": {
+    "generic": "حدث خطأ غير متوقع. حاول مرة أخرى.",
+    "network": "خطأ في الاتصال. تحقق من الإنترنت.",
+    "unauthorized": "يجب تسجيل الدخول أولاً.",
+    "forbidden": "ليس لديك صلاحية للوصول.",
+    "notFound": "الصفحة غير موجودة.",
+    "rateLimit": "محاولات كثيرة. انتظر قليلاً.",
+    "validation": "يرجى التحقق من البيانات المدخلة."
+  },
+  "footer": {
+    "copyright": "© {year} RescueGo. جميع الحقوق محفوظة.",
+    "terms": "الشروط والأحكام",
+    "privacy": "سياسة الخصوصية",
+    "about": "عن RescueGo",
+    "contact": "تواصل معنا",
+    "forDrivers": "للسائقين",
+    "forProviders": "لمقدمي الخدمة"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "لوحة الإدارة",
+      "stats": {
+        "customers": "العملاء",
+        "providers": "مقدمو الخدمة",
+        "activeProviders": "نشط",
+        "pendingProviders": "قيد المراجعة",
+        "suspendedProviders": "موقوف",
+        "totalRequests": "إجمالي الطلبات",
+        "subscriptions": "اشتراكات نشطة"
+      },
+      "requestStatus": "حالة الطلبات",
+      "recentEvents": "آخر الأحداث",
+      "stuckJobs": "مهام متعثرة",
+      "stuckJobsDesc": "هذه المهام في حالة \"في الطريق\" أو \"وصل\" لأكثر من ساعتين بدون تقدم.",
+      "hoursStalled": "{hours} ساعة متعثرة"
+    },
+    "providers": {
+      "title": "إدارة مقدمي الخدمة",
+      "approve": "قبول",
+      "suspend": "إيقاف",
+      "activate": "تفعيل"
+    },
+    "requests": {
+      "title": "إدارة الطلبات",
+      "lifecycle": {
+        "waitingProvider": "بانتظار مقدم خدمة",
+        "providerAssigned": "تم التعيين",
+        "providerEnRoute": "في الطريق",
+        "providerOnSite": "في الموقع",
+        "jobInProgress": "جاري التنفيذ",
+        "completed": "مكتمل",
+        "cancelled": "ملغي"
+      }
+    },
+    "revenue": {
+      "title": "سجل الإيرادات"
+    },
+    "performance": {
+      "title": "أداء مقدمي الخدمة",
+      "leaderboard": "قائمة المتصدرين",
+      "sortBy": {
+        "completed": "المهام المكتملة",
+        "rating": "التقييم",
+        "revenue": "الإيرادات",
+        "thisMonth": "مهام هذا الشهر"
+      }
+    }
+  },
+  "about": {
+    "title": "عن RescueGo",
+    "mission": "مهمتنا هي جعل خدمات الإنقاذ على الطريق سريعة وموثوقة وشفافة لكل سائق في الإمارات."
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "description": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
+    "backHome": "العودة للرئيسية"
+  }
+}

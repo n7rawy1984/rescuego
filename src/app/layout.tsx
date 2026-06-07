@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
+import { NextIntlClientProvider } from 'next-intl'
+import { getMessages } from 'next-intl/server'
 import './globals.css'
 import { validateEnv } from '@/lib/env'
 
@@ -69,11 +71,12 @@ const structuredData = {
   priceRange: 'Free for drivers',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Run on every server render - Next.js caches this. Will throw at build time if envs are missing.
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   if (process.env.NODE_ENV !== 'test') {
     validateEnv()
   }
+
+  const messages = await getMessages()
 
   return (
     <html lang="ar" dir="ltr" className={cairo.variable}>
@@ -86,7 +89,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
         )}
       </head>
-      <body className={cairo.className}>{children}</body>
+      <body className={cairo.className}>
+        <NextIntlClientProvider messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   )
 }

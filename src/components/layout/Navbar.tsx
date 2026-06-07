@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types'
 
@@ -21,6 +22,9 @@ function isProtectedPath(pathname: string): boolean {
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useTranslations('nav')
+  const tCommon = useTranslations('common')
+  const tErrors = useTranslations('errors')
   const pathnameRef = useRef(pathname)
   const localLogoutRef = useRef(false)
   const [open, setOpen] = useState(false)
@@ -81,7 +85,7 @@ export default function Navbar() {
           setAuthenticated(false)
           setRole(null)
           setLoading(false)
-          setLoadError('Connection lost. Please check your internet connection and try again.')
+          setLoadError('network')
         }
       }
     }
@@ -146,20 +150,20 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/pricing" className={`${baseNavLink} ${pathname === '/pricing' ? activeNavLink : ''}`}>Pricing</Link>
-          <Link href="/about" className={`${baseNavLink} ${pathname === '/about' ? activeNavLink : ''}`}>About</Link>
+          <Link href="/pricing" className={`${baseNavLink} ${pathname === '/pricing' ? activeNavLink : ''}`}>{t('pricing')}</Link>
+          <Link href="/about" className={`${baseNavLink} ${pathname === '/about' ? activeNavLink : ''}`}>{t('about')}</Link>
           {role === 'admin' && !loadError && !loading && (
-            <Link href="/admin/providers" className={`${baseNavLink} ${pathname.startsWith('/admin') ? activeNavLink : ''}`}>Admin Tools</Link>
+            <Link href="/admin/providers" className={`${baseNavLink} ${pathname.startsWith('/admin') ? activeNavLink : ''}`}>{t('dashboard')}</Link>
           )}
           {loadError ? (
             <div className="flex items-center gap-3">
-              <span className="max-w-40 text-xs font-medium text-red-600">{loadError}</span>
+              <span className="max-w-40 text-xs font-medium text-red-600">{tErrors('network')}</span>
               <button
                 type="button"
                 onClick={retryLoadUserRole}
                 className="text-sm font-semibold text-[#0F6E56] hover:text-[#1D9E75]"
               >
-                Try again
+                {tCommon('retry')}
               </button>
             </div>
           ) : loading ? (
@@ -174,21 +178,21 @@ export default function Navbar() {
                 onClick={(event) => event.currentTarget.blur()}
                 className={`inline-flex min-h-9 items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 ${pathname.startsWith(dashboardHref) ? activeNavLink : 'text-slate-700 hover:bg-[#E1F5EE] hover:text-[#0F6E56]'}`}
               >
-                Dashboard
+                {t('dashboard')}
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] active:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
-                Logout
+                {t('logout')}
               </button>
             </>
           ) : (
             <>
-              <Link href="/auth/login" className={`${baseNavLink} ${pathname.startsWith('/auth/login') ? activeNavLink : ''}`}>Sign In</Link>
+              <Link href="/auth/login" className={`${baseNavLink} ${pathname.startsWith('/auth/login') ? activeNavLink : ''}`}>{t('login')}</Link>
               <Link href="/customer/request" className="inline-flex min-h-9 items-center rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2">
-                Get Help Now
+                {t('request')}
               </Link>
             </>
           )}
@@ -215,20 +219,20 @@ export default function Navbar() {
 
       {open && (
         <div id="mobile-nav" className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-4 shadow-sm md:hidden">
-          <Link href="/pricing" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/pricing' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>Pricing</Link>
-          <Link href="/about" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/about' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>About</Link>
+          <Link href="/pricing" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/pricing' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>{t('pricing')}</Link>
+          <Link href="/about" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname === '/about' ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>{t('about')}</Link>
           {role === 'admin' && !loadError && !loading && (
-            <Link href="/admin/providers" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname.startsWith('/admin') ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>Admin Tools</Link>
+            <Link href="/admin/providers" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname.startsWith('/admin') ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>{t('dashboard')}</Link>
           )}
           {loadError ? (
             <div className="rounded-lg border border-red-100 bg-red-50 p-3">
-              <p className="text-sm font-medium text-red-700">{loadError}</p>
+              <p className="text-sm font-medium text-red-700">{tErrors('network')}</p>
               <button
                 type="button"
                 onClick={retryLoadUserRole}
                 className="mt-2 text-sm font-semibold text-[#0F6E56]"
               >
-                Try again
+                {tCommon('retry')}
               </button>
             </div>
           ) : loading ? (
@@ -246,21 +250,21 @@ export default function Navbar() {
                   setOpen(false)
                 }}
               >
-                Dashboard
+                {t('dashboard')}
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
                 className="rounded-lg px-3 py-3 text-start font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] active:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2"
               >
-                Logout
+                {t('logout')}
               </button>
             </>
           ) : (
             <>
-              <Link href="/auth/login" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname.startsWith('/auth/login') ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>Sign In</Link>
+              <Link href="/auth/login" className={`rounded-lg px-3 py-3 font-medium transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] ${pathname.startsWith('/auth/login') ? activeNavLink : 'text-slate-700'}`} onClick={() => setOpen(false)}>{t('login')}</Link>
               <Link href="/customer/request" className="rounded-lg bg-[#1D9E75] px-4 py-3 text-center font-medium text-white" onClick={() => setOpen(false)}>
-                Get Help Now
+                {t('request')}
               </Link>
             </>
           )}

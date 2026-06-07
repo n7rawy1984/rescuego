@@ -1,0 +1,473 @@
+{
+  "common": {
+    "appName": "RescueGo",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "or": "or",
+    "and": "and",
+    "aed": "AED",
+    "free": "Free",
+    "required": "Required",
+    "optional": "Optional",
+    "noData": "No data available",
+    "viewAll": "View all",
+    "learnMore": "Learn more",
+    "comingSoon": "Coming soon",
+    "logout": "Logout",
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "phone": "Phone number",
+    "name": "Name",
+    "address": "Address",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "expired": "Expired",
+    "verified": "Verified"
+  },
+  "nav": {
+    "home": "Home",
+    "pricing": "Pricing",
+    "about": "About",
+    "login": "Login",
+    "register": "Register",
+    "dashboard": "Dashboard",
+    "history": "History",
+    "ratings": "Ratings",
+    "plan": "Plan",
+    "request": "Request Help",
+    "providers": "Providers",
+    "requests": "Requests",
+    "revenue": "Revenue",
+    "performance": "Performance",
+    "logout": "Logout"
+  },
+  "landing": {
+    "hero": {
+      "title": "Roadside Recovery in the UAE",
+      "subtitle": "Broken down? Get instant help from the nearest trusted provider",
+      "cta": "Request Help Now",
+      "ctaProvider": "Join as Provider"
+    },
+    "features": {
+      "title": "Why RescueGo?",
+      "fast": "Fast Response",
+      "fastDesc": "Nearby providers ready to help within minutes",
+      "trusted": "Trusted Providers",
+      "trustedDesc": "All providers are verified and certified",
+      "transparent": "Transparent Pricing",
+      "transparentDesc": "Know the cost upfront — no hidden fees",
+      "coverage": "Full Coverage",
+      "coverageDesc": "Available across all UAE emirates"
+    },
+    "services": {
+      "title": "Our Services",
+      "towing": "Towing",
+      "towingDesc": "Safe transport of your vehicle to any destination",
+      "battery": "Battery",
+      "batteryDesc": "Jump start or replace your car battery",
+      "tire": "Tire",
+      "tireDesc": "On-site tire change or repair",
+      "fuel": "Fuel",
+      "fuelDesc": "Emergency fuel delivery to your vehicle",
+      "lockout": "Lockout",
+      "lockoutDesc": "Safely unlock your locked vehicle",
+      "general": "General Help",
+      "generalDesc": "Any other roadside issue"
+    },
+    "howItWorks": {
+      "title": "How RescueGo Works",
+      "step1": "Send a help request",
+      "step1Desc": "Describe your problem and share your location",
+      "step2": "A provider accepts",
+      "step2Desc": "The nearest available provider responds to your request",
+      "step3": "Help is on the way",
+      "step3Desc": "Track your request status in real time",
+      "step4": "Rescued!",
+      "step4Desc": "Rate your experience and get back on the road"
+    },
+    "coverage": {
+      "title": "Coverage Across All Emirates",
+      "dubai": "Dubai",
+      "abuDhabi": "Abu Dhabi",
+      "sharjah": "Sharjah",
+      "ajman": "Ajman",
+      "rasAlKhaimah": "Ras Al Khaimah",
+      "fujairah": "Fujairah",
+      "ummAlQuwain": "Umm Al Quwain"
+    },
+    "cta": {
+      "title": "Need help?",
+      "subtitle": "Request a rescue now and get help within minutes",
+      "button": "Request Help"
+    },
+    "stats": {
+      "providers": "providers",
+      "requests": "completed requests",
+      "rating": "customer rating",
+      "response": "min avg response"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "subtitle": "Enter your credentials to access your account",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "submit": "Login",
+      "forgotPassword": "Forgot password?",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Register now",
+      "error": "Invalid email or password",
+      "rateLimited": "Too many attempts. Please try again later."
+    },
+    "register": {
+      "title": "Create Account",
+      "subtitle": "Register to get instant roadside recovery",
+      "name": "Full Name",
+      "namePlaceholder": "Enter your full name",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "phone": "Phone Number",
+      "phonePlaceholder": "05xxxxxxxx",
+      "password": "Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter your password",
+      "submit": "Create Account",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Login",
+      "success": "Account created! Check your email for verification.",
+      "passwordMismatch": "Passwords do not match"
+    },
+    "forgotPassword": {
+      "title": "Reset Password",
+      "subtitle": "Enter your email and we'll send you a reset link",
+      "submit": "Send Reset Link",
+      "success": "Reset link sent to your email",
+      "backToLogin": "Back to login"
+    },
+    "resetPassword": {
+      "title": "Set New Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "submit": "Set Password",
+      "success": "Password changed successfully"
+    }
+  },
+  "customer": {
+    "request": {
+      "title": "Request Roadside Help",
+      "problemType": "Problem Type",
+      "problemTypes": {
+        "towing": "Towing / Transport",
+        "battery": "Battery",
+        "tire": "Tire",
+        "fuel": "Fuel",
+        "lockout": "Lockout",
+        "general": "Other Issue"
+      },
+      "location": "Your Location",
+      "locationHint": "Pin your location on the map or allow auto-detection",
+      "detectLocation": "Detect My Location",
+      "notes": "Additional Notes",
+      "notesPlaceholder": "Describe your problem in detail (optional)",
+      "phone": "Contact Number",
+      "submit": "Send Request",
+      "submitting": "Sending...",
+      "submitted": "Request sent",
+      "waitingProvider": "Waiting for a provider...",
+      "providerAccepted": "Your request was accepted",
+      "providerEnRoute": "Provider is on the way",
+      "providerArrived": "Provider has arrived",
+      "inProgress": "Work in progress",
+      "completed": "Service completed successfully",
+      "cancelRequest": "Cancel Request",
+      "cancelConfirm": "Are you sure you want to cancel?",
+      "cancelNote": "Your request will be cancelled. A cancellation fee may apply if the provider is already en route.",
+      "cancelled": "Request cancelled"
+    },
+    "history": {
+      "title": "Request History",
+      "empty": "No previous requests",
+      "viewActive": "View active request →",
+      "rateNow": "Rate now",
+      "needsRating": "Needs rating"
+    },
+    "ratings": {
+      "title": "My Ratings",
+      "empty": "You haven't rated any service yet",
+      "rateService": "Rate Service",
+      "thankYou": "Thank you for your rating!"
+    }
+  },
+  "provider": {
+    "dashboard": {
+      "title": "Dashboard",
+      "welcome": "Welcome",
+      "activeJob": "Active Job",
+      "noActiveJob": "No active jobs at the moment",
+      "availableRequests": "Available Requests",
+      "noRequests": "No available requests at the moment",
+      "stats": {
+        "thisMonth": "This Month",
+        "totalJobs": "Total Jobs",
+        "rating": "Rating",
+        "earnings": "Earnings"
+      },
+      "actions": {
+        "accept": "Accept Request",
+        "accepting": "Accepting...",
+        "onMyWay": "On My Way",
+        "arrived": "I've Arrived",
+        "startJob": "Start Job",
+        "completeJob": "Complete Job",
+        "completing": "Completing...",
+        "release": "Release Request",
+        "releasing": "Releasing..."
+      }
+    },
+    "register": {
+      "title": "Register as Provider",
+      "subtitle": "Join the UAE roadside recovery network",
+      "businessName": "Business Name",
+      "serviceTypes": "Service Types",
+      "coverage": "Coverage Areas",
+      "documents": "Required Documents",
+      "emiratesId": "Emirates ID",
+      "tradeLicense": "Trade License",
+      "vehicleRegistration": "Vehicle Registration",
+      "submit": "Submit Application",
+      "success": "Application submitted! We'll review it within 24-48 hours."
+    },
+    "plan": {
+      "title": "My Plan",
+      "currentPlan": "Current Plan",
+      "usage": "Usage",
+      "jobsUsed": "{used} of {total} jobs",
+      "unlimited": "Unlimited",
+      "upgrade": "Upgrade Plan",
+      "changePlan": "Change Plan",
+      "payPerJob": "Pay Per Job"
+    },
+    "history": {
+      "title": "Job History",
+      "empty": "No previous jobs",
+      "completed": "Completed",
+      "released": "Released",
+      "cancelled": "Cancelled"
+    },
+    "ratings": {
+      "title": "My Ratings",
+      "average": "Average Rating",
+      "total": "Total Ratings",
+      "empty": "No ratings yet"
+    },
+    "availability": {
+      "title": "Status",
+      "online": "Online",
+      "offline": "Offline",
+      "goOnline": "Go Online",
+      "goOffline": "Go Offline",
+      "refreshLocation": "Refresh Location",
+      "locationUpdated": "Location updated",
+      "mustBeActive": "Your account must be active before going online"
+    },
+    "subscribe": {
+      "title": "Choose Your Plan",
+      "subtitle": "Start with the plan that fits your business",
+      "monthly": "Monthly",
+      "features": "Features",
+      "subscribe": "Subscribe Now",
+      "currentPlan": "Current Plan"
+    }
+  },
+  "pricing": {
+    "title": "Pricing & Plans",
+    "subtitle": "Choose the plan that fits your business size",
+    "monthly": "/month",
+    "perJob": "/per job",
+    "popular": "Most Popular",
+    "starter": {
+      "name": "Starter",
+      "price": "99",
+      "description": "Perfect to get started",
+      "jobs": "15 jobs/month"
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "249",
+      "description": "For professionals",
+      "jobs": "50 jobs/month"
+    },
+    "business": {
+      "name": "Business",
+      "price": "499",
+      "description": "For companies & fleets",
+      "jobs": "Unlimited jobs"
+    },
+    "payPerJob": {
+      "name": "Pay Per Job",
+      "price": "15",
+      "description": "No monthly commitment"
+    },
+    "comparison": {
+      "title": "Compare Plans",
+      "feature": "Feature",
+      "monthlyJobs": "Monthly Jobs",
+      "commission": "Commission",
+      "priority": "Request Priority",
+      "support": "Support",
+      "badge": "Verified Badge"
+    },
+    "faq": {
+      "title": "FAQ"
+    }
+  },
+  "status": {
+    "open": "Open",
+    "accepted": "Accepted",
+    "en_route": "En Route",
+    "arrived": "Arrived",
+    "in_progress": "In Progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "expired": "Expired"
+  },
+  "rating": {
+    "title": "Rate the Service",
+    "subtitle": "How was your experience with the provider?",
+    "stars": {
+      "1": "Poor",
+      "2": "Fair",
+      "3": "Good",
+      "4": "Very Good",
+      "5": "Excellent"
+    },
+    "comment": "Comment (optional)",
+    "commentPlaceholder": "Share your feedback about the service...",
+    "submit": "Submit Rating",
+    "success": "Thank you for your rating!"
+  },
+  "payment": {
+    "title": "Payment",
+    "processing": "Processing payment...",
+    "success": "Payment successful!",
+    "failed": "Payment failed. Please try again.",
+    "amount": "Amount",
+    "payNow": "Pay Now",
+    "overage": {
+      "title": "Overage Payment",
+      "description": "You've exceeded your monthly job limit. Pay the overage fee to continue accepting requests.",
+      "perJob": "Per-job overage fee"
+    },
+    "ppj": {
+      "title": "Job Fee Payment",
+      "description": "Pay the fee for this job to proceed.",
+      "fee": "Job Fee"
+    }
+  },
+  "stepper": {
+    "requestSent": "Sent",
+    "providerAssigned": "Assigned",
+    "enRoute": "En Route",
+    "arrived": "Arrived",
+    "completed": "Completed"
+  },
+  "errors": {
+    "generic": "An unexpected error occurred. Please try again.",
+    "network": "Connection error. Check your internet.",
+    "unauthorized": "Please login first.",
+    "forbidden": "You don't have permission to access this.",
+    "notFound": "Page not found.",
+    "rateLimit": "Too many attempts. Please wait.",
+    "validation": "Please check your input."
+  },
+  "footer": {
+    "copyright": "© {year} RescueGo. All rights reserved.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "about": "About RescueGo",
+    "contact": "Contact Us",
+    "forDrivers": "For Drivers",
+    "forProviders": "For Providers"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "stats": {
+        "customers": "Customers",
+        "providers": "Providers",
+        "activeProviders": "Active",
+        "pendingProviders": "Pending",
+        "suspendedProviders": "Suspended",
+        "totalRequests": "Total Requests",
+        "subscriptions": "Active Subscriptions"
+      },
+      "requestStatus": "Request Status",
+      "recentEvents": "Recent Events",
+      "stuckJobs": "Stuck Jobs Alert",
+      "stuckJobsDesc": "These jobs have been in En Route or Arrived status for more than 2 hours without progressing.",
+      "hoursStalled": "{hours}h stalled"
+    },
+    "providers": {
+      "title": "Manage Providers",
+      "approve": "Approve",
+      "suspend": "Suspend",
+      "activate": "Activate"
+    },
+    "requests": {
+      "title": "Manage Requests",
+      "lifecycle": {
+        "waitingProvider": "Waiting for provider",
+        "providerAssigned": "Provider assigned",
+        "providerEnRoute": "Provider en route",
+        "providerOnSite": "Provider on site",
+        "jobInProgress": "Job in progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "revenue": {
+      "title": "Revenue Log"
+    },
+    "performance": {
+      "title": "Provider Performance",
+      "leaderboard": "Leaderboard",
+      "sortBy": {
+        "completed": "Completed Jobs",
+        "rating": "Rating",
+        "revenue": "Revenue",
+        "thisMonth": "Jobs This Month"
+      }
+    }
+  },
+  "about": {
+    "title": "About RescueGo",
+    "mission": "Our mission is to make roadside recovery fast, reliable, and transparent for every driver in the UAE."
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "description": "The page you're looking for doesn't exist or has been moved.",
+    "backHome": "Back to Home"
+  }
+}

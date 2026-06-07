@@ -1,6 +1,11 @@
 import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
 
-export default function Footer() {
+export default async function Footer() {
+  const t = await getTranslations('footer')
+  const tLanding = await getTranslations('landing')
+  const tNav = await getTranslations('nav')
+
   return (
     <footer className="bg-[#07122B] text-slate-400 py-12">
       <div className="max-w-6xl mx-auto px-4">
@@ -12,37 +17,37 @@ export default function Footer() {
               </div>
               <span className="font-bold text-xl text-white">RescueGo</span>
             </Link>
-            <p className="text-sm leading-relaxed">UAE&apos;s roadside recovery marketplace. Fast. Trusted. Available 24/7.</p>
+            <p className="text-sm leading-relaxed">{tLanding('hero.subtitle')}</p>
           </div>
           <div>
-            <h3 className="text-white font-semibold mb-3">For Drivers</h3>
+            <h3 className="text-white font-semibold mb-3">{t('forDrivers')}</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/customer/request" className="hover:text-[#1D9E75] transition-colors">Request Help</Link></li>
-              <li><Link href="/customer/history" className="hover:text-[#1D9E75] transition-colors">My Requests</Link></li>
-              <li><Link href="/about" className="hover:text-[#1D9E75] transition-colors">How It Works</Link></li>
+              <li><Link href="/customer/request" className="hover:text-[#1D9E75] transition-colors">{tNav('request')}</Link></li>
+              <li><Link href="/customer/history" className="hover:text-[#1D9E75] transition-colors">{tNav('history')}</Link></li>
+              <li><Link href="/about" className="hover:text-[#1D9E75] transition-colors">{tNav('about')}</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="text-white font-semibold mb-3">For Providers</h3>
+            <h3 className="text-white font-semibold mb-3">{t('forProviders')}</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/provider/register" className="hover:text-[#1D9E75] transition-colors">Join as Provider</Link></li>
-              <li><Link href="/pricing" className="hover:text-[#1D9E75] transition-colors">Pricing Plans</Link></li>
-              <li><Link href="/provider/dashboard" className="hover:text-[#1D9E75] transition-colors">Dashboard</Link></li>
+              <li><Link href="/provider/register" className="hover:text-[#1D9E75] transition-colors">{tLanding('hero.ctaProvider')}</Link></li>
+              <li><Link href="/pricing" className="hover:text-[#1D9E75] transition-colors">{tNav('pricing')}</Link></li>
+              <li><Link href="/provider/dashboard" className="hover:text-[#1D9E75] transition-colors">{tNav('dashboard')}</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="text-white font-semibold mb-3">Coverage</h3>
+            <h3 className="text-white font-semibold mb-3">{tLanding('coverage.title')}</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/recovery/dubai" className="hover:text-[#1D9E75] transition-colors">Dubai</Link></li>
-              <li><Link href="/recovery/abu-dhabi" className="hover:text-[#1D9E75] transition-colors">Abu Dhabi</Link></li>
-              <li><Link href="/recovery/sharjah" className="hover:text-[#1D9E75] transition-colors">Sharjah</Link></li>
-              <li><Link href="/recovery/ajman" className="hover:text-[#1D9E75] transition-colors">Ajman</Link></li>
-              <li><Link href="/recovery/ras-al-khaimah" className="hover:text-[#1D9E75] transition-colors">Ras Al Khaimah</Link></li>
+              <li><Link href="/recovery/dubai" className="hover:text-[#1D9E75] transition-colors">{tLanding('coverage.dubai')}</Link></li>
+              <li><Link href="/recovery/abu-dhabi" className="hover:text-[#1D9E75] transition-colors">{tLanding('coverage.abuDhabi')}</Link></li>
+              <li><Link href="/recovery/sharjah" className="hover:text-[#1D9E75] transition-colors">{tLanding('coverage.sharjah')}</Link></li>
+              <li><Link href="/recovery/ajman" className="hover:text-[#1D9E75] transition-colors">{tLanding('coverage.ajman')}</Link></li>
+              <li><Link href="/recovery/ras-al-khaimah" className="hover:text-[#1D9E75] transition-colors">{tLanding('coverage.rasAlKhaimah')}</Link></li>
             </ul>
           </div>
         </div>
         <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
-          <p>&copy; {new Date().getFullYear()} RescueGo. All rights reserved.</p>
+          <p>{t('copyright', { year: new Date().getFullYear() })}</p>
           <p>Built by <a href="https://elnahrawy.com" target="_blank" rel="noopener noreferrer" className="text-[#F59E0B] hover:text-[#9FE1CB]">Mohamed Elnahrawy</a></p>
         </div>
       </div>
