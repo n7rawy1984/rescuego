@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Navbar from '@/components/layout/Navbar'
+import NavbarServer from '@/components/layout/NavbarServer'
 import { getTranslations } from 'next-intl/server'
 import type { Metadata } from 'next'
 
@@ -12,7 +12,7 @@ export default async function NotFound() {
 
   return (
     <>
-      <Navbar />
+      <NavbarServer />
       <main className="min-h-screen bg-slate-50 pt-16 flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center">
           <div className="text-8xl font-black text-slate-200 mb-4 select-none">404</div>

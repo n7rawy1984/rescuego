@@ -4,6 +4,19 @@
 
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
+### Phase 4 — Navbar Duplicate Auth Removal
+**Status:** COMPLETE
+
+**Changes:**
+1. `src/components/layout/NavbarServer.tsx` (NEW) — async server component reads auth + role via Supabase server client, passes as props to Navbar
+2. `src/components/layout/Navbar.tsx` — added optional `initialAuthenticated` + `initialRole` props; skips client fetch when provided; added SIGNED_IN listener for login transitions
+3. 7 pages switched to `NavbarServer`: page.tsx, about/page.tsx, not-found.tsx, admin/{providers,dashboard,performance}/page.tsx, provider/dashboard/page.tsx
+4. 4 loading.tsx files kept with plain `<Navbar />` (shows skeleton without server fetch)
+
+**Performance impact:** Eliminates ~200ms client-side latency per page load (removed duplicate supabase.auth.getUser() + users table query from browser).
+
+---
+
 ### Phase 3 — complete/route.ts + advance-state empty string fix
 **Status:** COMPLETE
 

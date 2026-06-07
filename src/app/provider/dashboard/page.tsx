@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { MapPin, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Navbar from '@/components/layout/Navbar'
+import NavbarServer from '@/components/layout/NavbarServer'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { getPlanLabel, getProblemLabel } from '@/lib/utils'
@@ -484,7 +484,7 @@ export default async function ProviderDashboardPage({
 
   return (
     <>
-      <Navbar />
+      <NavbarServer />
       <main className="min-h-screen bg-[#F8FAFC]">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           <ProviderDashboardHeader

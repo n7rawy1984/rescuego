@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Navbar from '@/components/layout/Navbar'
+import NavbarServer from '@/components/layout/NavbarServer'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import type { Metadata } from 'next'
@@ -156,7 +156,7 @@ export default async function AdminPerformancePage({
 
   return (
     <>
-      <Navbar />
+      <NavbarServer />
       <main className="min-h-screen bg-slate-50 pt-20 px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

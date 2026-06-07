@@ -110,10 +110,10 @@ Always tell user to run from terminal.
 - Audit Phase 1: og-image.svg + logo.svg, payout_log UNIQUE + onConflict, provider dashboard RLS fix
 - Audit Phase 2: Rate limiter fail-open with in-memory fallback (no more 429 for all when Redis missing)
 - Audit Phase 3: complete/route.ts state machine alignment + advance-state null fix
+- Audit Phase 4: NavbarServer eliminates duplicate client auth (~200ms savings per page)
 - Migrations: 001 → 027
 
 ### الجاي — Next Tasks
-- Audit Phase 4: Navbar duplicate auth removal
 - Audit Phase 5: Deprecated edge functions cleanup
 - Audit Phase 6: CSP enforcement + CSRF header
 - Phase 2B-3: Arabic strings + RTL activation

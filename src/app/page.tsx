@@ -12,7 +12,7 @@ import {
   Truck,
   Wrench,
 } from 'lucide-react'
-import Navbar from '@/components/layout/Navbar'
+import NavbarServer from '@/components/layout/NavbarServer'
 import Footer from '@/components/layout/Footer'
 import Accordion from '@/components/ui/Accordion'
 import { createClient } from '@/lib/supabase/server'
@@ -209,7 +209,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <Navbar />
+      <NavbarServer />
       <main className="overflow-x-hidden bg-white text-slate-950">
         <script
           type="application/ld+json"

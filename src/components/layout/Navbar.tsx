@@ -19,7 +19,13 @@ function isProtectedPath(pathname: string): boolean {
     || pathname.startsWith('/admin')
 }
 
-export default function Navbar() {
+export default function Navbar({
+  initialAuthenticated,
+  initialRole,
+}: {
+  initialAuthenticated?: boolean
+  initialRole?: UserRole | null
+} = {}) {
   const pathname = usePathname()
   const router = useRouter()
   const locale = useLocale()
@@ -29,9 +35,9 @@ export default function Navbar() {
   const pathnameRef = useRef(pathname)
   const localLogoutRef = useRef(false)
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [authenticated, setAuthenticated] = useState(false)
-  const [role, setRole] = useState<UserRole | null>(null)
+  const [loading, setLoading] = useState(initialAuthenticated === undefined)
+  const [authenticated, setAuthenticated] = useState(initialAuthenticated ?? false)
+  const [role, setRole] = useState<UserRole | null>(initialRole ?? null)
   const [loadError, setLoadError] = useState('')
   const [loadAttempt, setLoadAttempt] = useState(0)
 
@@ -102,15 +108,20 @@ export default function Navbar() {
           redirectToLogin()
         }
       }
+      if (event === 'SIGNED_IN') {
+        loadUserRole()
+      }
     })
 
-    loadUserRole()
+    if (initialAuthenticated === undefined || loadAttempt > 0) {
+      loadUserRole()
+    }
 
     return () => {
       cancelled = true
       authListener.subscription.unsubscribe()
     }
-  }, [loadAttempt, router])
+  }, [loadAttempt, router, initialAuthenticated])
 
   const dashboardHref = dashboardHrefForRole(role)
   const baseNavLink = 'rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-[#E1F5EE] hover:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2'

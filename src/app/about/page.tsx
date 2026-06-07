@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import Navbar from '@/components/layout/Navbar'
+import NavbarServer from '@/components/layout/NavbarServer'
 import Footer from '@/components/layout/Footer'
 import { getTranslations } from 'next-intl/server'
 
@@ -18,7 +18,7 @@ export default async function AboutPage() {
 
   return (
     <>
-      <Navbar />
+      <NavbarServer />
       <main className="pt-16">
         <section className="bg-slate-950 text-white px-4 py-20 text-center">
           <h1 className="text-3xl md:text-5xl font-bold mb-4">{t('title')}</h1>
