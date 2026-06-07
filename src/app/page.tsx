@@ -224,7 +224,7 @@ export default async function HomePage() {
                 {t('badge')}
               </div>
 
-              <h1 className="max-w-3xl text-4xl font-bold leading-[1.12] text-white sm:text-5xl lg:text-[3.5rem]">
+              <h1 className="max-w-3xl text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-[3.5rem]">
                 {t('heroTitle')}
               </h1>
 
