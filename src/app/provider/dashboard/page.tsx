@@ -195,7 +195,7 @@ export default async function ProviderDashboardPage({
   searchParams?: Promise<{ payment?: string; payment_intent?: string; redirect_status?: string }>
 }) {
   const t = await getTranslations('provider.dashboard')
-  const statusT = await getTranslations('status')
+
   const params = await searchParams
   const returnedFromPayment = params?.payment === 'processing'
     || params?.redirect_status === 'succeeded'

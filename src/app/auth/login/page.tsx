@@ -61,7 +61,7 @@ export default function LoginPage() {
         window.location.assign(destination)
       }
     }, 1200)
-  }, [clearFallbackTimer, router])
+  }, [clearFallbackTimer, router, t])
 
   const redirectAuthenticatedUser = useCallback(async () => {
     const supabase = createClient()

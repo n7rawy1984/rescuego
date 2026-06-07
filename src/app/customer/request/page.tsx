@@ -158,7 +158,7 @@ export default function RequestPage() {
     return () => {
       cancelled = true
     }
-  }, [loadRequestState])
+  }, [loadRequestState, t])
 
   useEffect(() => {
     if (!activeRequest || completedUnratedRequest) return
