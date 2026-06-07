@@ -131,21 +131,25 @@
 
 ---
 
-## Phase 2B — RTL & Arabic Foundation
+## Phase 2B — RTL & Arabic Foundation ✅ (بنية تحتية)
 **الهدف:** تأسيس عربي/RTL صحيح قبل التعريب الكامل.
 
-- [ ] إصلاح أي mojibake
-- [ ] dir="rtl" strategy
-- [ ] Arabic font fallback
-- [ ] RTL spacing/layout
-- [ ] Arabic date + number formatting
-- [ ] Tailwind RTL strategy
-- [ ] RTL-safe components
-- [ ] Arabic UX copy foundation
-- [ ] Arabic dashboard layout testing
-- [ ] Arabic mobile layout testing
+**تم:**
+- [x] dir="rtl" strategy (automatic via locale in layout.tsx)
+- [x] Arabic font (Cairo via next/font/google)
+- [x] RTL spacing/layout (logical classes ms-/me-/ps-/pe- throughout)
+- [x] Tailwind RTL strategy (logical utilities, no physical left/right)
+- [x] RTL-safe components (verified in audit — zero directional CSS issues)
+- [x] Arabic UX copy foundation (ar.json: 1,456 lines, ~98% translated)
+- [x] Cookie-based locale switching (NEXT_LOCALE)
+- [x] NextIntlClientProvider + server getTranslations setup
 
-ملاحظة: التعريب الكامل والـ SEO العربي في Phase 13.
+**متبقي (tracked in ARABIC_RTL_AUDIT.md):**
+- [ ] Phase A: provider/register + active job card + error.tsx + provider/plan translations
+- [ ] Phase B: aria-labels + auth bugs + footer + recovery pages
+- [ ] Phase C: locale-aware metadata + date formatting + ar.json cleanup
+
+ملاحظة: التفاصيل الكاملة والتاسكات في `ARABIC_RTL_AUDIT.md`.
 
 ---
 
@@ -346,11 +350,14 @@
 ## Phase 13 — SEO Domination
 **الهدف:** Organic growth after stability and legal readiness.
 
-- [ ] Arabic/English SEO cleanup
-- [ ] Arabic pages + UAE city pages
-- [ ] missing emirates pages (Fujairah, UAQ)
-- [ ] service pages + schema markup + LocalBusiness schema
-- [ ] Core Web Vitals optimization
+**Tracked in `SEO_AUDIT.md` (26 findings, 6 phases):**
+- [ ] Phase 1: Title duplication + OG image (PNG) + HSTS + hreflang
+- [ ] Phase 2: Schema types (Service/EmergencyService) + LocalBusiness fields
+- [ ] Phase 3: Recovery pages expansion + internal links + per-city OG
+- [ ] Phase 4: Page metadata + noindex auth + H1 hierarchy + sitemap fix
+- [ ] Phase 5: PWA manifest + favicons + twitter card
+- [ ] Phase 6: i18n SEO (locale-aware generateMetadata, og:locale:alternate)
+- [ ] Arabic pages + missing emirates (Fujairah, UAQ)
 - [ ] Google Search Console setup
 - [ ] content strategy + Arabic trust content
 - [ ] bilingual landing pages + emergency intent pages
@@ -410,18 +417,29 @@
 | Phase 1C | ✅ مكتمل |
 | Phase 2A | ✅ جزئي (Admin + Customer + Pricing UI) |
 | Phase 2B.1 | ✅ Design System foundation |
-| Phase 2B | ✅ جزئي (2B-1 infra + 2B-2 logical classes done) |
+| Phase 2B | ✅ بنية تحتية مكتملة (متبقي: ترجمات في ARABIC_RTL_AUDIT.md) |
 | Phase 3 | ✅ مكتمل (realtime subscriptions) |
 | Phase 4 | ✅ مكتمل (state machine + advance-state) |
 | Phase 4B | ✅ جزئي (stuck jobs, performance, filters done) |
 | Phase 5–16 | ⏳ قادم |
 
-**Next Task:** Phase 2B-3 — Arabic strings + RTL activation
+**Next Priority:**
+1. إصلاحات العربي — `ARABIC_RTL_AUDIT.md` (Phases A → B → C)
+2. إصلاحات السيو — `SEO_AUDIT.md` (Phases 1 → 5)
+3. SEO i18n — `SEO_AUDIT.md` Phase 6 (يعتمد على #1)
+4. Phase 2A remaining (loading skeletons, modals, accessibility)
+5. Phase 2C (PWA/Mobile strategy)
+6. Phase 5+ (KYC, Dispatch, Pricing Engine...)
 
 ---
 
 ## Migrations Applied
-001 → 026 ✅ (Next = 027)
+001 → 030 ✅ (Next = 031)
+
+- 027: payout_log UNIQUE constraint (idempotent)
+- 028: release_job_atomic + expire_stuck_active_requests
+- 029: All RPCs updated with en_route/arrived + DROP old accept overload
+- 030: requests table added to supabase_realtime publication (idempotent)
 
 ## Critical Rules
 - commission_rate = 0, commission_amount = 0 — intentional حتى Phase 8
@@ -430,3 +448,4 @@
 - Stripe — TEST mode حتى Phase 10
 - accept_request_atomic + complete_provider_job_atomic + advance_provider_job_state — never bypass
 - RLS changes — one at a time + smoke test
+- New features MUST follow AGENTS.md standards (i18n, RTL, SEO, a11y, performance, security)
