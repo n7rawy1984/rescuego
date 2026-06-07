@@ -4,6 +4,17 @@
 
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
+### Phase 3 — complete/route.ts + advance-state empty string fix
+**Status:** COMPLETE
+
+**Changes:**
+1. `src/app/api/provider/jobs/complete/route.ts:63` — allowed statuses for completion expanded from `['accepted', 'in_progress']` to `['accepted', 'en_route', 'arrived', 'in_progress']`. This aligns with Phase 4 state machine — provider can complete from any active state (e.g. arrived on-scene and resolved quickly without explicitly marking in_progress).
+2. `src/app/api/provider/jobs/advance-state/route.ts:80` — changed `transition.timestampField ?? ''` to `transition.timestampField ?? null`. The RPC's IF/ELSIF logic already handled empty string safely, but passing `null` is semantically correct and matches the RPC parameter comment (`-- 'en_route_at' | 'arrived_at' | NULL`).
+
+**Business logic unchanged:** The atomic RPCs (`complete_provider_job_atomic`, `advance_provider_job_state`) are not modified. Only the API route guard conditions were aligned.
+
+---
+
 ### Phase 2 — Rate Limiter Graceful Degradation
 **Status:** COMPLETE
 

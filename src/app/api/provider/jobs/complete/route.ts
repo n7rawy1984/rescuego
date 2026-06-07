@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only providers can complete jobs' }, { status: 403 })
   }
 
-  if (!request || request.accepted_by !== user.id || !['accepted', 'in_progress'].includes(request.status)) {
+  if (!request || request.accepted_by !== user.id || !['accepted', 'en_route', 'arrived', 'in_progress'].includes(request.status)) {
     return NextResponse.json({ error: 'Job is not available for completion' }, { status: 409 })
   }
 

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     p_request_id:      parsed.data.request_id,
     p_from_status:     request.status,
     p_to_status:       transition.next,
-    p_timestamp_field: transition.timestampField ?? '',
+    p_timestamp_field: transition.timestampField ?? null,
   })
 
   const result = (rpcRows as AdvanceStateRpcResult[] | null)?.[0] ?? null

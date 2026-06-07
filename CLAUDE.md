@@ -109,10 +109,10 @@ Always tell user to run from terminal.
 - Pre-launch hardening — C-1/C-2/C-3, H-1/H-2/H-3/H-4 (migration 026)
 - Audit Phase 1: og-image.svg + logo.svg, payout_log UNIQUE + onConflict, provider dashboard RLS fix
 - Audit Phase 2: Rate limiter fail-open with in-memory fallback (no more 429 for all when Redis missing)
+- Audit Phase 3: complete/route.ts state machine alignment + advance-state null fix
 - Migrations: 001 → 027
 
 ### الجاي — Next Tasks
-- Audit Phase 3: complete/route.ts + advance-state empty string fix
 - Audit Phase 4: Navbar duplicate auth removal
 - Audit Phase 5: Deprecated edge functions cleanup
 - Audit Phase 6: CSP enforcement + CSRF header
