@@ -115,6 +115,7 @@ Always tell user to run from terminal.
 - Audit Phase 6: CSP enforced + CSRF origin validation on all POST /api/* routes
 - Audit Phase 7: getSiteUrl() fallback, Google Maps API key docs, PROJECT_HANDOFF updated, SETUP.md migrations complete
 - Audit Phase 8: Stuck job auto-release (migration 028 + expire-requests cron updated)
+- Audit Phase 9: PRE_LAUNCH_CHECKLIST.md created (all 20 findings addressed)
 - Migrations: 001 → 028
 
 ### الجاي — Next Tasks
