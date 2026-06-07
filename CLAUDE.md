@@ -111,11 +111,12 @@ Always tell user to run from terminal.
 - Audit Phase 2: Rate limiter fail-open with in-memory fallback (no more 429 for all when Redis missing)
 - Audit Phase 3: complete/route.ts state machine alignment + advance-state null fix
 - Audit Phase 4: NavbarServer eliminates duplicate client auth (~200ms savings per page)
+- Audit Phase 5: Deleted 5 deprecated Supabase edge functions
 - Migrations: 001 → 027
 
 ### الجاي — Next Tasks
-- Audit Phase 5: Deprecated edge functions cleanup
 - Audit Phase 6: CSP enforcement + CSRF header
+- Phase 2B-3: Arabic strings + RTL activation
 - Phase 2B-3: Arabic strings + RTL activation
 
 ### المراحل القادمة بالترتيب

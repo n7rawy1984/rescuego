@@ -4,6 +4,18 @@
 
 ## Session: June 7, 2026 (continued 3) — Audit Fix Phases
 
+### Phase 5 — Deprecated Edge Functions Cleanup
+**Status:** COMPLETE
+
+**Changes:**
+- Deleted 5 deprecated Supabase Edge Function directories: accept-request, calculate-priority, charge-commission, stripe-webhook, unlock-job
+- Kept `supabase/functions/README.md`
+- These functions were superseded by Next.js API routes but never removed
+
+**Why safe:** All business logic now lives in `/api/*` routes + Postgres RPCs. Edge functions were never invoked from production.
+
+---
+
 ### Phase 4 — Navbar Duplicate Auth Removal
 **Status:** COMPLETE
 
