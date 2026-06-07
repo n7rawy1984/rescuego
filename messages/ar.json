@@ -704,7 +704,7 @@
     "heroTitle": "أسعار بسيطة وشفافة",
     "heroSubtitle": "لمقدمي خدمات الإنقاذ. العملاء يستخدمون RescueGo مجاناً دائماً.",
     "joinAsProvider": "انضم كمقدم خدمة",
-    "requestRecoveryFree": "اطلب إنقاذ (مجاني)",
+    "requestRecoveryFree": "اطلب إنقاذ الآن",
     "manageTitle": "إدارة أو ترقية اشتراكك",
     "manageDescription": "أنت مشترك بالفعل في RescueGo. قارن خطط الاشتراك أدناه، ثم افتح فوترة Stripe لإدارة الترقيات بأمان دون إنشاء اشتراك مكرر.",
     "ppj": {
@@ -1215,7 +1215,7 @@
     },
     "cta": {
       "title": "مستعد للبدء؟",
-      "requestRecovery": "اطلب إنقاذ (مجاني)",
+      "requestRecovery": "اطلب إنقاذ الآن",
       "joinProvider": "انضم كمقدم خدمة"
     }
   },
