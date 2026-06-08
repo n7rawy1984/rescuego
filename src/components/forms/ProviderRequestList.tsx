@@ -370,8 +370,8 @@ export default function ProviderRequestList({
                         <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>
                       </div>
                     </div>
-                    <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                      {formatDistance(req.distance_meters)}{' \u00b7 '}{new Date(req.created_at).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })}
+                    <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" suppressHydrationWarning>
+                      {formatDistance(req.distance_meters)}{' \u00b7 '}{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}
                     </div>
                     {providerPlan === 'pay_per_job' && (
                       <div className="mt-2 inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">

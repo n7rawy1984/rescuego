@@ -231,7 +231,7 @@ export default function ProviderAvailabilityToggle({
                 {online ? t('onlineTitle') : t('offlineTitle')}
               </h2>
             </div>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-500" suppressHydrationWarning>
               {online ? formatUpdatedAt(updatedAt, t) : t('goOnlinePrompt')}
             </p>
             <p className="mt-1 text-xs text-slate-400">
