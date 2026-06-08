@@ -50,7 +50,13 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
   },
-  alternates: { canonical: 'https://rescuego.ae' },
+  alternates: {
+    canonical: 'https://rescuego.ae',
+    languages: {
+      'ar-AE': 'https://rescuego.ae',
+      'en-AE': 'https://rescuego.ae',
+    },
+  },
 }
 
 export const viewport: Viewport = {
