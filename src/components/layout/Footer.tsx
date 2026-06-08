@@ -48,7 +48,7 @@ export default async function Footer() {
         </div>
         <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
           <p>{t('copyright', { year: new Date().getFullYear() })}</p>
-          <p>Built by <a href="https://elnahrawy.com" target="_blank" rel="noopener noreferrer" className="text-[#F59E0B] hover:text-[#9FE1CB]">Mohamed Elnahrawy</a></p>
+          <p>{t.rich('builtBy', { link: (chunks) => <a href="https://elnahrawy.com" target="_blank" rel="noopener noreferrer" className="text-[#F59E0B] hover:text-[#9FE1CB]">{chunks}</a> })}</p>
         </div>
       </div>
     </footer>

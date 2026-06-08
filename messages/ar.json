@@ -1296,7 +1296,8 @@
     "about": "عن RescueGo",
     "contact": "تواصل معنا",
     "forDrivers": "للسائقين",
-    "forProviders": "لمقدمي الخدمة"
+    "forProviders": "لمقدمي الخدمة",
+    "builtBy": "بُني بواسطة <link>Mohamed Elnahrawy</link>"
   },
   "admin": {
     "dashboard": {

@@ -1296,7 +1296,8 @@
     "about": "About RescueGo",
     "contact": "Contact Us",
     "forDrivers": "For Drivers",
-    "forProviders": "For Providers"
+    "forProviders": "For Providers",
+    "builtBy": "Built by <link>Mohamed Elnahrawy</link>"
   },
   "admin": {
     "dashboard": {
