@@ -778,7 +778,9 @@ export default async function ProviderDashboardPage({
                       {(activeRequest.status === 'in_progress' || activeRequest.status === 'arrived') && (
                         <CompleteJobForm requestId={activeRequest.id} />
                       )}
-                      <ReleaseJobButton requestId={activeRequest.id} providerPlan={provider.plan} />
+                      {activeRequest.status !== 'in_progress' && (
+                        <ReleaseJobButton requestId={activeRequest.id} providerPlan={provider.plan} />
+                      )}
                     </div>
                   </CardBody>
                 </Card>
