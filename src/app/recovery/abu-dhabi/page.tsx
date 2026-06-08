@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
-  title: 'Car Breakdown Recovery Abu Dhabi | RescueGo',
+  title: 'Car Breakdown Recovery Abu Dhabi',
   description: 'Broken down in Abu Dhabi? Find a trusted roadside recovery provider near you in minutes. Tow truck, battery, flat tire service across Abu Dhabi. Free for drivers.',
   alternates: { canonical: 'https://rescuego.ae/recovery/abu-dhabi' },
   keywords: ['roadside recovery Abu Dhabi', 'tow truck Abu Dhabi', 'car breakdown Abu Dhabi', 'recovery truck Abu Dhabi'],

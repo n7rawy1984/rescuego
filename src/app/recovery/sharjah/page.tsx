@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
-  title: 'Roadside Assistance Sharjah | RescueGo',
+  title: 'Roadside Assistance Sharjah',
   description: 'Car breakdown in Sharjah? Find a nearby roadside recovery provider fast. Tow truck, battery, tire service in Sharjah. Free for drivers.',
   alternates: { canonical: 'https://rescuego.ae/recovery/sharjah' },
 }

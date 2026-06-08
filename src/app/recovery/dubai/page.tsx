@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
-  title: 'Roadside Recovery Dubai — Fast & Trusted | RescueGo',
+  title: 'Roadside Recovery Dubai — Fast & Trusted',
   description: 'Broken down in Dubai? Find a trusted roadside recovery provider near you in minutes. Tow truck, battery, flat tire service across Dubai. Free for drivers.',
   alternates: { canonical: 'https://rescuego.ae/recovery/dubai' },
   keywords: ['roadside recovery Dubai', 'tow truck Dubai', 'car breakdown Dubai', 'سطحة دبي', 'recovery truck Dubai'],

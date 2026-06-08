@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
-  title: 'Roadside Recovery Ras Al Khaimah | RescueGo',
+  title: 'Roadside Recovery Ras Al Khaimah',
   description: 'Car breakdown in Ras Al Khaimah? Find a roadside recovery provider near you fast. Tow truck, battery, flat tire service in RAK. Free for drivers.',
   alternates: { canonical: 'https://rescuego.ae/recovery/ras-al-khaimah' },
 }

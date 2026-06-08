@@ -20,7 +20,7 @@ import { getProviderOnboardingState } from '@/lib/provider-onboarding'
 import type { ProviderPlan, ProviderStatus, UserRole } from '@/types'
 
 export const metadata: Metadata = {
-  title: 'RescueGo - Roadside Recovery UAE | Fast & Trusted',
+  title: 'Roadside Recovery UAE — Fast & Trusted',
   description:
     'Broken down in the UAE? Find a trusted nearby recovery provider in minutes. Free for drivers, built for urgent roadside recovery across the Emirates.',
   alternates: { canonical: 'https://rescuego.ae' },

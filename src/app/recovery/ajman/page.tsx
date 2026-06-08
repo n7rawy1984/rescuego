@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
-  title: 'Recovery Service Ajman | RescueGo',
+  title: 'Recovery Service Ajman',
   description: 'Car breakdown in Ajman? Find a roadside recovery provider near you fast. Tow truck, battery, flat tire service in Ajman. Free for drivers.',
   alternates: { canonical: 'https://rescuego.ae/recovery/ajman' },
 }
