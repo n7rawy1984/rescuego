@@ -1,11 +1,16 @@
 'use client'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { MouseEvent } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types'
+
+const emptySubscribe = () => () => {}
+function useHydrated() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false)
+}
 
 function dashboardHrefForRole(role: UserRole | null): string {
   if (role === 'admin') return '/admin/dashboard'
@@ -34,17 +39,13 @@ export default function Navbar({
   const tErrors = useTranslations('errors')
   const pathnameRef = useRef(pathname)
   const localLogoutRef = useRef(false)
-  const [mounted, setMounted] = useState(false)
+  const hydrated = useHydrated()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(initialAuthenticated === undefined)
   const [authenticated, setAuthenticated] = useState(initialAuthenticated ?? false)
   const [role, setRole] = useState<UserRole | null>(initialRole ?? null)
   const [loadError, setLoadError] = useState('')
   const [loadAttempt, setLoadAttempt] = useState(0)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     pathnameRef.current = pathname
@@ -162,7 +163,7 @@ export default function Navbar({
       })
   }
 
-  if (!mounted) {
+  if (!hydrated) {
     return (
       <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10 xl:px-12">
