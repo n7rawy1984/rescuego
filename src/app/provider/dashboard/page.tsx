@@ -718,7 +718,7 @@ export default async function ProviderDashboardPage({
                               ? t('estimatedRange', { min: activeRequest.price_estimate_min, max: activeRequest.price_estimate_max })
                               : activeRequest.price_estimate_min != null
                               ? t('estimatedFrom', { min: activeRequest.price_estimate_min })
-                              : t('estimatedUpTo', { max: activeRequest.price_estimate_max })}
+                              : t('estimatedUpTo', { max: activeRequest.price_estimate_max! })}
                           </div>
                         )}
                         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
