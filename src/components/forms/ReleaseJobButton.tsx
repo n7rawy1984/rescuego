@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import Button from '@/components/ui/Button'
+
 import { PAY_PER_JOB_PROMO_FEE_AED } from '@/types'
 import type { ProviderPlan } from '@/types'
 
@@ -64,11 +64,10 @@ export default function ReleaseJobButton({ requestId, providerPlan }: ReleaseJob
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-      <p className="mb-3 text-sm text-slate-600">{t('unableToCompletePrompt')}</p>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)} disabled={loading} className="w-full sm:w-auto">
+    <div className="mt-3 flex justify-start">
+      <button type="button" onClick={() => setOpen(true)} disabled={loading} className="rounded-md bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60">
         {t('releaseUnableToComplete')}
-      </Button>
+      </button>
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="release-active-job-title">
