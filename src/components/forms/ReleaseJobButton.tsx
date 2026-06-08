@@ -64,9 +64,9 @@ export default function ReleaseJobButton({ requestId, providerPlan }: ReleaseJob
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-      <p className="mb-3 text-sm text-slate-600">{t('unableToCompletePrompt')}</p>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)} disabled={loading} className="w-full sm:w-auto">
+    <div className="mt-3 self-start rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+      <p className="mb-2 text-xs text-red-700">{t('unableToCompletePrompt')}</p>
+      <Button type="button" variant="outline" onClick={() => setOpen(true)} disabled={loading} className="text-xs px-2.5 py-1">
         {t('releaseUnableToComplete')}
       </Button>
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
