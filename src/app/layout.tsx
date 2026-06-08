@@ -65,14 +65,36 @@ export const viewport: Viewport = {
 
 const structuredData = {
   '@context': 'https://schema.org',
-  '@type': 'LocalBusiness',
+  '@type': ['LocalBusiness', 'EmergencyService'],
+  '@id': 'https://rescuego.ae/#organization',
   name: 'RescueGo',
   description: "UAE's roadside recovery marketplace connecting drivers to trusted recovery providers",
   url: 'https://rescuego.ae',
-  logo: 'https://rescuego.ae/logo.svg',
+  logo: 'https://rescuego.ae/logo.png',
+  telephone: '+971-50-000-0000',
   areaServed: ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'UAE'],
   serviceType: 'Roadside Assistance',
   priceRange: 'Free for drivers',
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: 'Dubai',
+    addressRegion: 'Dubai',
+    addressCountry: 'AE',
+  },
+  geo: {
+    '@type': 'GeoCoordinates',
+    latitude: 25.2048,
+    longitude: 55.2708,
+  },
+  openingHoursSpecification: {
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    opens: '00:00',
+    closes: '23:59',
+  },
+  sameAs: [
+    'https://twitter.com/rescuego_ae',
+  ],
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

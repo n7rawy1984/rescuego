@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   keywords: ['roadside recovery Abu Dhabi', 'tow truck Abu Dhabi', 'car breakdown Abu Dhabi', 'recovery truck Abu Dhabi'],
 }
 
-const schema = { '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'RescueGo Abu Dhabi', description: 'Roadside recovery service in Abu Dhabi', url: 'https://rescuego.ae/recovery/abu-dhabi', areaServed: 'Abu Dhabi', serviceType: 'Roadside Assistance', address: { '@type': 'PostalAddress', addressLocality: 'Abu Dhabi', addressCountry: 'AE' } }
+const schema = { '@context': 'https://schema.org', '@type': ['Service', 'EmergencyService'], name: 'RescueGo Abu Dhabi', description: 'Roadside recovery service in Abu Dhabi', url: 'https://rescuego.ae/recovery/abu-dhabi', areaServed: 'Abu Dhabi', serviceType: 'Roadside Assistance', provider: { '@id': 'https://rescuego.ae/#organization' }, address: { '@type': 'PostalAddress', addressLocality: 'Abu Dhabi', addressCountry: 'AE' } }
 
 export default function AbuDhabiPage() {
   return (

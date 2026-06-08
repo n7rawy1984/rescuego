@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://rescuego.ae/recovery/sharjah' },
 }
 
-const schema = { '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'RescueGo Sharjah', description: 'Roadside recovery service in Sharjah', url: 'https://rescuego.ae/recovery/sharjah', areaServed: 'Sharjah', serviceType: 'Roadside Assistance', address: { '@type': 'PostalAddress', addressLocality: 'Sharjah', addressCountry: 'AE' } }
+const schema = { '@context': 'https://schema.org', '@type': ['Service', 'EmergencyService'], name: 'RescueGo Sharjah', description: 'Roadside recovery service in Sharjah', url: 'https://rescuego.ae/recovery/sharjah', areaServed: 'Sharjah', serviceType: 'Roadside Assistance', provider: { '@id': 'https://rescuego.ae/#organization' }, address: { '@type': 'PostalAddress', addressLocality: 'Sharjah', addressCountry: 'AE' } }
 
 export default function SharjahPage() {
   return (

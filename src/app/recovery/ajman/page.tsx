@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://rescuego.ae/recovery/ajman' },
 }
 
-const schema = { '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'RescueGo Ajman', description: 'Roadside recovery service in Ajman', url: 'https://rescuego.ae/recovery/ajman', areaServed: 'Ajman', serviceType: 'Roadside Assistance', address: { '@type': 'PostalAddress', addressLocality: 'Ajman', addressCountry: 'AE' } }
+const schema = { '@context': 'https://schema.org', '@type': ['Service', 'EmergencyService'], name: 'RescueGo Ajman', description: 'Roadside recovery service in Ajman', url: 'https://rescuego.ae/recovery/ajman', areaServed: 'Ajman', serviceType: 'Roadside Assistance', provider: { '@id': 'https://rescuego.ae/#organization' }, address: { '@type': 'PostalAddress', addressLocality: 'Ajman', addressCountry: 'AE' } }
 
 export default function AjmanPage() {
   return (

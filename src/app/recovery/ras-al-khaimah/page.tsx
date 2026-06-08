@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://rescuego.ae/recovery/ras-al-khaimah' },
 }
 
-const schema = { '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'RescueGo Ras Al Khaimah', description: 'Roadside recovery service in Ras Al Khaimah', url: 'https://rescuego.ae/recovery/ras-al-khaimah', areaServed: 'Ras Al Khaimah', serviceType: 'Roadside Assistance', address: { '@type': 'PostalAddress', addressLocality: 'Ras Al Khaimah', addressCountry: 'AE' } }
+const schema = { '@context': 'https://schema.org', '@type': ['Service', 'EmergencyService'], name: 'RescueGo Ras Al Khaimah', description: 'Roadside recovery service in Ras Al Khaimah', url: 'https://rescuego.ae/recovery/ras-al-khaimah', areaServed: 'Ras Al Khaimah', serviceType: 'Roadside Assistance', provider: { '@id': 'https://rescuego.ae/#organization' }, address: { '@type': 'PostalAddress', addressLocality: 'Ras Al Khaimah', addressCountry: 'AE' } }
 
 export default function RasAlKhaimahPage() {
   return (

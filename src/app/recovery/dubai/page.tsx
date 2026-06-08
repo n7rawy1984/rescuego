@@ -12,12 +12,13 @@ export const metadata: Metadata = {
 
 const dubaiSchema = {
   '@context': 'https://schema.org',
-  '@type': 'LocalBusiness',
+  '@type': ['Service', 'EmergencyService'],
   name: 'RescueGo Dubai',
   description: 'Roadside recovery service in Dubai — connecting drivers to trusted providers',
   url: 'https://rescuego.ae/recovery/dubai',
   areaServed: 'Dubai',
   serviceType: 'Roadside Assistance',
+  provider: { '@id': 'https://rescuego.ae/#organization' },
   address: { '@type': 'PostalAddress', addressLocality: 'Dubai', addressCountry: 'AE' },
 }
 

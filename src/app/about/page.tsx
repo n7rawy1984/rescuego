@@ -10,6 +10,19 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://rescuego.ae/about' },
 }
 
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': 'https://rescuego.ae/#organization',
+  name: 'RescueGo',
+  url: 'https://rescuego.ae',
+  logo: 'https://rescuego.ae/logo.png',
+  description: "UAE's first open marketplace connecting drivers to vetted roadside recovery providers across all emirates.",
+  foundingDate: '2024',
+  areaServed: 'AE',
+  sameAs: ['https://twitter.com/rescuego_ae'],
+}
+
 export default async function AboutPage() {
   const t = await getTranslations('about')
 
@@ -18,6 +31,7 @@ export default async function AboutPage() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
       <NavbarServer />
       <main className="pt-16">
         <section className="bg-slate-950 text-white px-4 py-20 text-center">
