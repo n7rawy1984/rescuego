@@ -56,6 +56,7 @@ export default function JobStateAdvanceButton({ requestId, currentStatus }: Prop
       }
 
       router.refresh()
+      setTimeout(() => setLoading(false), 2000)
     } catch {
       setError(t('errors.connectionLost'))
       setLoading(false)

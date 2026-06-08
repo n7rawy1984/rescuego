@@ -90,7 +90,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(self), payment=(self)',
+            value: 'camera=(), microphone=(), geolocation=(self), payment=(self "https://js.stripe.com")',
           },
           {
             key: 'Content-Security-Policy',
