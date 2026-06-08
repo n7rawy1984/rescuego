@@ -669,7 +669,7 @@ export default async function ProviderDashboardPage({
                           {t('protectedCancelledDesc')}
                         </p>
                       </div>
-                      <Badge variant="success" className="w-fit">Credit restored</Badge>
+                      <Badge variant="success" className="w-fit">{t('creditRestored')}</Badge>
                     </div>
                   </CardBody>
                 </Card>
@@ -680,15 +680,15 @@ export default async function ProviderDashboardPage({
                 <Card className="mb-6 border-slate-200 bg-white shadow-sm">
                   <CardBody>
                     <div className="flex flex-col gap-1">
-                      <h2 className="font-semibold text-slate-900">Customer cancelled this request.</h2>
+                      <h2 className="font-semibold text-slate-900">{t('customerCancelledRequest')}</h2>
                       <p className="text-sm text-slate-600">
                         {recentCustomerCancellation.problem_type
-                          ? `${getProblemLabel(recentCustomerCancellation.problem_type)} was cancelled by the customer.`
-                          : 'A recently assigned request was cancelled by the customer.'}
+                          ? t('problemCancelledByCustomer', { problem: getProblemLabel(recentCustomerCancellation.problem_type) })
+                          : t('recentRequestCancelledByCustomer')}
                         {' '}
                         {provider.plan === 'pay_per_job'
-                          ? 'Your payment was protected, and any eligible recovery credit is handled automatically.'
-                          : 'Any eligible usage restoration is handled automatically.'}
+                          ? t('ppjPaymentProtected')
+                          : t('usageRestored')}
                       </p>
                     </div>
                   </CardBody>
@@ -700,10 +700,10 @@ export default async function ProviderDashboardPage({
                 <Card className="mb-6 overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
                   <CardHeader className="border-slate-200 bg-white">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">Assigned now</p>
-                      <h2 className="mt-1 text-xl font-medium text-slate-950">Active Job</h2>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('assignedNow')}</p>
+                      <h2 className="mt-1 text-xl font-medium text-slate-950">{t('activeJob')}</h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        Customer contact and exact location are visible because this job is assigned to you.
+                        {t('activeJobDesc')}
                       </p>
                     </div>
                   </CardHeader>
@@ -713,12 +713,12 @@ export default async function ProviderDashboardPage({
                         <div className="font-semibold text-slate-800">{getProblemLabel(activeRequest.problem_type)}</div>
                         {(activeRequest.price_estimate_min != null || activeRequest.price_estimate_max != null) && (
                           <div className="mt-1 text-sm text-slate-500">
-                            Estimated:{' '}
+                            {t('estimated')}{' '}
                             {activeRequest.price_estimate_min != null && activeRequest.price_estimate_max != null
-                              ? `${activeRequest.price_estimate_min}–${activeRequest.price_estimate_max} AED`
+                              ? t('estimatedRange', { min: activeRequest.price_estimate_min, max: activeRequest.price_estimate_max })
                               : activeRequest.price_estimate_min != null
-                              ? `from ${activeRequest.price_estimate_min} AED`
-                              : `up to ${activeRequest.price_estimate_max} AED`}
+                              ? t('estimatedFrom', { min: activeRequest.price_estimate_min })
+                              : t('estimatedUpTo', { max: activeRequest.price_estimate_max })}
                           </div>
                         )}
                         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
@@ -726,7 +726,7 @@ export default async function ProviderDashboardPage({
                             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0F6E56]" aria-hidden="true" />
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-800">
-                                {activeLocation?.label ?? 'Location details unavailable'}
+                                {activeLocation?.label ?? t('locationDetailsUnavailable')}
                               </div>
                               {activeLocation?.detail ? (
                                 <div className="mt-0.5 text-xs text-slate-500">{activeLocation.detail}</div>
@@ -739,33 +739,33 @@ export default async function ProviderDashboardPage({
                           <LocationActions coordinates={activeLocation?.coordinates ?? null} />
                         </div>
                         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
-                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Customer contact</div>
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('customerContact')}</div>
                           <div className="mt-1 text-sm font-semibold text-slate-800">
-                            {activeRequest.users?.name ?? 'Customer'}
+                            {activeRequest.users?.name ?? t('customerDefault')}
                           </div>
                           {activeRequest.users?.phone ? (
                             <a
                               href={`tel:${activeRequest.users.phone}`}
                               className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 sm:w-auto"
                             >
-                              Call customer
+                              {t('callCustomer')}
                             </a>
                           ) : (
-                            <p className="mt-2 text-sm text-slate-500">Customer phone unavailable. Contact support.</p>
+                            <p className="mt-2 text-sm text-slate-500">{t('customerPhoneUnavailable')}</p>
                           )}
                         </div>
                         {activeRequest.note && (
                           <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Location notes</div>
+                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('locationNotes')}</div>
                             <p className="mt-1 text-sm text-slate-600">{activeRequest.note}</p>
                           </div>
                         )}
                       </div>
                       <Badge variant="warning" className="w-fit">
-                        {activeRequest.status === 'in_progress' ? 'In Progress'
-                          : activeRequest.status === 'arrived' ? 'Arrived'
-                          : activeRequest.status === 'en_route' ? 'On The Way'
-                          : 'Accepted'}
+                        {activeRequest.status === 'in_progress' ? t('statusInProgress')
+                          : activeRequest.status === 'arrived' ? t('statusArrived')
+                          : activeRequest.status === 'en_route' ? t('statusEnRoute')
+                          : t('statusAccepted')}
                       </Badge>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
