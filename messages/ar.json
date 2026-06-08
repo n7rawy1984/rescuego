@@ -40,7 +40,10 @@
     "completed": "مكتمل",
     "cancelled": "ملغي",
     "expired": "منتهي",
-    "verified": "موثّق"
+    "verified": "موثّق",
+    "ariaHome": "الصفحة الرئيسية لـ RescueGo",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة"
   },
   "components": {
     "subscribePlans": {

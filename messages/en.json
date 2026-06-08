@@ -40,7 +40,10 @@
     "completed": "Completed",
     "cancelled": "Cancelled",
     "expired": "Expired",
-    "verified": "Verified"
+    "verified": "Verified",
+    "ariaHome": "RescueGo home",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "components": {
     "subscribePlans": {

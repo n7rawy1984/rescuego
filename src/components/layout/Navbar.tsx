@@ -187,7 +187,7 @@ export default function Navbar({
     <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white" suppressHydrationWarning>
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10 xl:px-12">
         <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2" aria-label="RescueGo home">
+          <Link href="/" className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2" aria-label={tCommon('ariaHome')}>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1D9E75]" aria-hidden="true">
               <span className="text-white font-bold text-sm">R</span>
             </div>
@@ -254,7 +254,7 @@ export default function Navbar({
         <button
           className="rounded-lg p-2 transition-colors hover:bg-[#E1F5EE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 md:hidden"
           onClick={() => setOpen(!open)}
-          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-label={open ? tCommon('closeMenu') : tCommon('openMenu')}
           aria-expanded={open}
           aria-controls="mobile-nav"
         >

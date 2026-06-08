@@ -49,7 +49,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-[#F8FAFC] px-4 py-8 pt-24">
       <div className="mx-auto w-full max-w-md">
         <div className="mb-6 text-center">
-          <Link href="/" className="mb-6 inline-flex items-center gap-2" aria-label="RescueGo home">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2" aria-label={tCommon('ariaHome')}>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1D9E75]" aria-hidden="true">
               <span className="text-white font-bold text-lg">R</span>
             </div>
