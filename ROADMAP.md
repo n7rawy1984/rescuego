@@ -131,7 +131,7 @@
 
 ---
 
-## Phase 2B — RTL & Arabic Foundation ✅ (بنية تحتية)
+## Phase 2B — RTL & Arabic Foundation ✅
 **الهدف:** تأسيس عربي/RTL صحيح قبل التعريب الكامل.
 
 **تم:**
@@ -143,11 +143,12 @@
 - [x] Arabic UX copy foundation (ar.json: 1,456 lines, ~98% translated)
 - [x] Cookie-based locale switching (NEXT_LOCALE)
 - [x] NextIntlClientProvider + server getTranslations setup
+- [x] Phase A: provider/register + active job card + error.tsx + provider/plan translations ✅ (2026-06-08)
+- [x] Phase B: aria-labels + auth bugs + footer ✅ (2026-06-08)
 
 **متبقي (tracked in ARABIC_RTL_AUDIT.md):**
-- [ ] Phase A: provider/register + active job card + error.tsx + provider/plan translations
-- [ ] Phase B: aria-labels + auth bugs + footer + recovery pages
-- [ ] Phase C: locale-aware metadata + date formatting + ar.json cleanup
+- [ ] Phase C: locale-aware metadata + date formatting + ar.json cleanup (syncs with SEO Phase 6)
+- [ ] B-4: Recovery SEO pages Arabic strategy (syncs with Phase 13)
 
 ملاحظة: التفاصيل الكاملة والتاسكات في `ARABIC_RTL_AUDIT.md`.
 
@@ -350,13 +351,13 @@
 ## Phase 13 — SEO Domination
 **الهدف:** Organic growth after stability and legal readiness.
 
-**Tracked in `SEO_AUDIT.md` (26 findings, 6 phases):**
-- [ ] Phase 1: Title duplication + OG image (PNG) + HSTS + hreflang
-- [ ] Phase 2: Schema types (Service/EmergencyService) + LocalBusiness fields
-- [ ] Phase 3: Recovery pages expansion + internal links + per-city OG
-- [ ] Phase 4: Page metadata + noindex auth + H1 hierarchy + sitemap fix
-- [ ] Phase 5: PWA manifest + favicons + twitter card
-- [ ] Phase 6: i18n SEO (locale-aware generateMetadata, og:locale:alternate)
+**Tracked in `SEO_AUDIT.md`:**
+- [x] Phase 1: Title duplication + OG image (PNG) + HSTS + hreflang ✅ (2026-06-08)
+- [x] Phase 2: Schema types (Service/EmergencyService) + LocalBusiness fields ✅ (2026-06-08)
+- [ ] Phase 3: Recovery pages expansion + internal links + per-city OG + FAQ schema
+- [x] Phase 4: Page metadata + noindex auth + H1 hierarchy + sitemap fix ✅ (2026-06-08)
+- [ ] Phase 5: PWA manifest + favicons + theme-color (syncs with Phase 2C)
+- [ ] Phase 6: i18n SEO (locale-aware generateMetadata, og:locale:alternate) — depends on Arabic Phase C
 - [ ] Arabic pages + missing emirates (Fujairah, UAQ)
 - [ ] Google Search Console setup
 - [ ] content strategy + Arabic trust content
@@ -417,19 +418,20 @@
 | Phase 1C | ✅ مكتمل |
 | Phase 2A | ✅ جزئي (Admin + Customer + Pricing UI) |
 | Phase 2B.1 | ✅ Design System foundation |
-| Phase 2B | ✅ بنية تحتية مكتملة (متبقي: ترجمات في ARABIC_RTL_AUDIT.md) |
+| Phase 2B | ✅ Phase A+B مكتمل — Phase C متبقي (يعتمد على SEO Phase 6) |
 | Phase 3 | ✅ مكتمل (realtime subscriptions) |
 | Phase 4 | ✅ مكتمل (state machine + advance-state) |
 | Phase 4B | ✅ جزئي (stuck jobs, performance, filters done) |
-| Phase 5–16 | ⏳ قادم |
+| Phase 13 | ⚡ جزئي — Phases 1+2+4 ✅ مكتمل، Phases 3+5+6 ⏳ متبقي |
+| Phase 5–12, 14–16 | ⏳ قادم |
 
 **Next Priority:**
-1. إصلاحات العربي — `ARABIC_RTL_AUDIT.md` (Phases A → B → C)
-2. إصلاحات السيو — `SEO_AUDIT.md` (Phases 1 → 5)
-3. SEO i18n — `SEO_AUDIT.md` Phase 6 (يعتمد على #1)
-4. Phase 2A remaining (loading skeletons, modals, accessibility)
-5. Phase 2C (PWA/Mobile strategy)
-6. Phase 5+ (KYC, Dispatch, Pricing Engine...)
+1. Phase 2C — PWA/Mobile strategy قرار (يحدد Phase 5 SEO: manifest + icons)
+2. Arabic Phase C + SEO Phase 6 — locale-aware metadata + hreflang (مترابطين)
+3. SEO Phase 5 — manifest.json + favicon variants + theme-color (يعتمد على 2C)
+4. SEO Phase 3 — Recovery pages content expansion + FAQ schema (مع Phase 13 content)
+5. Phase 2A remaining — loading skeletons, modals, accessibility
+6. Phase 5+ — KYC, Dispatch, Pricing Engine...
 
 ---
 
