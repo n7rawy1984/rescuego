@@ -40,7 +40,9 @@ function formatUpdatedAt(updatedAt: string | null, t: ReturnType<typeof useTrans
   const date = new Date(updatedAt)
   if (Number.isNaN(date.getTime())) return t('dispatchLocationStatusUnavailable')
 
-  return t('lastShared', { time: date.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' }) })
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return t('lastShared', { time: `${hours}:${minutes}` })
 }
 
 export default function ProviderAvailabilityToggle({

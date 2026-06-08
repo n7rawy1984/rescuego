@@ -81,7 +81,7 @@ export default function ProviderStatsGrid({
               {t('earningsFromLastTenJobs')}
             </p>
             <p className="mt-2 text-2xl font-semibold text-[#0F6E56]">
-              {totalEarnings > 0 ? `${totalEarnings.toLocaleString()} AED` : '—'}
+              {totalEarnings > 0 ? `${totalEarnings.toLocaleString('en-US')} AED` : '—'}
             </p>
             {totalEarnings === 0 ? (
               <p className="mt-1 text-xs text-[#0F6E56]/70">
