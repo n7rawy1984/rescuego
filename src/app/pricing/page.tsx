@@ -19,6 +19,12 @@ export const metadata: Metadata = {
     title: 'RescueGo Pricing - Recovery Provider Plans',
     description: 'Provider subscriptions and pay-per-job access for UAE roadside recovery businesses.',
     url: 'https://rescuego.ae/pricing',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'RescueGo Pricing - Recovery Provider Plans',
+    description: 'Provider subscriptions and pay-per-job access for UAE roadside recovery businesses.',
   },
 }
 

@@ -450,7 +450,7 @@ export default function RequestPage() {
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
               <HelpCircle className="h-6 w-6" aria-hidden="true" />
             </div>
-            <h1 className="text-xl font-semibold text-slate-950">{t('loadError')}</h1>
+            <h2 className="text-xl font-semibold text-slate-950">{t('loadError')}</h2>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">{initialRequestError}</p>
             <Button className="mt-6 min-h-11 w-full sm:w-auto" onClick={retryInitialRequestLoad}>
               {t('tryAgain')}
@@ -482,7 +482,7 @@ export default function RequestPage() {
           <div className="mx-auto max-w-2xl">
             <div className="mb-6 rounded-3xl border border-[#DDE7EE] bg-white p-5 shadow-sm sm:p-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('jobCompleted')}</p>
-              <h1 className="mt-1 text-2xl font-semibold text-slate-950">{t('rateTitle')}</h1>
+              <h2 className="mt-1 text-2xl font-semibold text-slate-950">{t('rateTitle')}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">{t('rateSubtitle')}</p>
             </div>
 
@@ -551,7 +551,7 @@ export default function RequestPage() {
                     : visibleRequest.status === 'arrived' ? t('providerArrivedBadge')
                     : t('providerAssigned')}
                 </div>
-                <h1 className="text-2xl font-semibold text-slate-950">{title}</h1>
+                <h2 className="text-2xl font-semibold text-slate-950">{title}</h2>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{description}</p>
                 <p className="mt-3 text-xs font-medium text-slate-400">{t('requestNumber', { id: visibleRequest.id.slice(0, 8).toUpperCase() })}</p>
               </div>
