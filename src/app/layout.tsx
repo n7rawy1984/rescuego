@@ -37,13 +37,11 @@ export const metadata: Metadata = {
     siteName: 'RescueGo',
     title: 'RescueGo - Roadside Recovery UAE',
     description: 'Broken down? Find a trusted recovery provider near you in minutes.',
-    images: [{ url: '/og-image.svg', width: 1200, height: 630, alt: 'RescueGo - UAE Roadside Recovery' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'RescueGo - Roadside Recovery UAE',
     description: 'Broken down? Find a trusted recovery provider near you in minutes.',
-    images: ['/og-image.svg'],
   },
   robots: {
     index: true,
