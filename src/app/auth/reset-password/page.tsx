@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
             <span className="text-2xl font-bold text-slate-900">RescueGo</span>
           </Link>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{t('title')}</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{t('title')}</p> {/* TODO: i18n */}
+          <p className="mt-2 text-sm leading-6 text-slate-500">{t('subtitle')}</p>
         </div>
 
         <div className="rounded-3xl border border-[#DDE7EE] bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
@@ -65,9 +65,9 @@ export default function ResetPasswordPage() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
                 <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
               </div>
-              <h2 className="mb-2 text-lg font-semibold text-slate-950">{t('success')}</h2>
+              <h2 className="mb-2 text-lg font-semibold text-slate-950">{t('successTitle')}</h2>
               <p className="mb-6 text-sm leading-6 text-slate-500">
-                {t('success')}
+                {t('successDesc')}
               </p>
               <Link href="/auth/login" className="text-sm font-semibold text-[#1D9E75] hover:underline">
                 {tCommon('login')}
@@ -78,7 +78,7 @@ export default function ResetPasswordPage() {
               <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-sm text-[#0F6E56]">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                  <p>{t('newPassword')}</p> {/* TODO: i18n */}
+                  <p>{t('infoBox')}</p>
                 </div>
               </div>
               <Input

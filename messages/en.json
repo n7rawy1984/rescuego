@@ -602,14 +602,22 @@
       "subtitle": "Enter your email and we'll send you a reset link",
       "submit": "Send Reset Link",
       "success": "Reset link sent to your email",
-      "backToLogin": "Back to login"
+      "successTitle": "Email Sent",
+      "successDesc": "Check your email and follow the link to reset your password.",
+      "infoBox": "We'll send you a secure link to reset your password.",
+      "backToLogin": "Back to login",
+      "rememberPassword": "Remember your password?"
     },
     "resetPassword": {
       "title": "Set New Password",
+      "subtitle": "Enter a new password for your account",
       "newPassword": "New Password",
       "confirmPassword": "Confirm New Password",
       "submit": "Set Password",
-      "success": "Password changed successfully"
+      "success": "Password changed successfully",
+      "successTitle": "Password Updated",
+      "successDesc": "Your password has been changed. You can now sign in with your new password.",
+      "infoBox": "Choose a strong password with at least 8 characters."
     }
   },
   "customer": {

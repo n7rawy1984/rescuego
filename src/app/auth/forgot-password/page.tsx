@@ -61,9 +61,9 @@ export default function ForgotPasswordPage() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
                 <MailCheck className="h-8 w-8" aria-hidden="true" />
               </div>
-              <h2 className="mb-2 text-lg font-semibold text-slate-950">{t('success')}</h2>
+              <h2 className="mb-2 text-lg font-semibold text-slate-950">{t('successTitle')}</h2>
               <p className="mb-6 text-sm leading-6 text-slate-500">
-                {t('success')}
+                {t('successDesc')}
               </p>
               <Link href="/auth/login" className="text-sm font-semibold text-[#1D9E75] hover:underline">
                 {t('backToLogin')}
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
               <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-sm text-[#0F6E56]">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                  <p>{t('subtitle')}</p> {/* TODO: i18n */}
+                  <p>{t('infoBox')}</p>
                 </div>
               </div>
               <Input
@@ -91,7 +91,7 @@ export default function ForgotPasswordPage() {
                 {loading ? tCommon('loading') : t('submit')}
               </Button>
               <p className="text-center text-sm text-slate-500">
-                {t('backToLogin')} {/* TODO: i18n */} <Link href="/auth/login" className="text-[#1D9E75] font-semibold hover:underline">{t('backToLogin')}</Link>
+                {t('rememberPassword')} <Link href="/auth/login" className="text-[#1D9E75] font-semibold hover:underline">{t('backToLogin')}</Link>
               </p>
             </form>
           )}
