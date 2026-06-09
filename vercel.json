@@ -7,6 +7,14 @@
     {
       "path": "/api/ops/monthly-allowance-reset",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/ops/marketplace-cron",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/ops/weekly-sla-reset",
+      "schedule": "0 0 * * 0"
     }
   ]
 }

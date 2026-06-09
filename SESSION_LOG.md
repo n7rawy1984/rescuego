@@ -2,6 +2,72 @@
 
 ---
 
+## Session: June 9, 2026 — Marketplace V2 Sessions 1+2 (Assessment + Migration + Foundation)
+
+### Summary
+Completed full assessment of Marketplace V2 implementation. Designed and wrote migration 031 with all schema changes, 3 new atomic RPCs, and updated complete_provider_job_atomic. Built foundation libraries for range estimation, provider scoring, and geo utilities.
+
+### Migration 031 Applied
+- **3 new tables:** `request_quotes`, `provider_dispatch_log`, `fair_price_config`
+- **New columns on `requests`:** destination, destination_area, destination_latitude/longitude, fuzzy_latitude/longitude, selected_quote_id, price_change_requested/status/count, quoted_at, accepted_at
+- **New columns on `providers`:** sla_failure_count, visibility_reduced
+- **Status constraint:** Added `'quoted'` to CHECK
+- **RLS policies:** Provider reads own quotes/logs, customer reads quotes on own requests, admin full access, authenticated reads fair_price_config
+- **Indexes:** 8 new indexes for query performance
+- **Realtime:** `request_quotes` added to `supabase_realtime` publication
+- **Seed data:** 6 service types in `fair_price_config` (tow, battery, flat_tire, fuel, lockout, other)
+
+### RPCs Created/Updated
+
+| RPC | Signature | Purpose |
+|-----|-----------|---------|
+| `submit_quote_atomic` | `(UUID, UUID, NUMERIC(10,2), NUMERIC(6,2), BOOLEAN)` | Provider submits quote with server-side range validation |
+| `select_quote_atomic` | `(UUID, UUID, UUID)` | Customer selects quote, triggers acceptance, reveals provider |
+| `sla_check_and_release` | `(UUID)` | Auto-release on 20min SLA breach, penalty, correct status (open vs quoted) |
+| `complete_provider_job_atomic` | `(UUID, UUID, INTEGER DEFAULT NULL)` | **Updated** — derives final_price from quote/price_change, legacy fallback |
+
+### New Library Modules
+
+| File | Exports |
+|------|---------|
+| `src/lib/range-estimator.ts` | `computePriceRange`, `validateProposedPrice`, `computePricePerKm`, `computePriceScore` |
+| `src/lib/provider-score.ts` | `computeProviderScore` (0.40 rating + 0.30 proximity + 0.20 price + 0.10 acceptance), `computeAcceptanceRate`, `getMaxRingDistanceKm` |
+| `src/lib/geo.ts` (updated) | Added `distanceKm`, `generateFuzzyCoordinates` (~1km offset), `getDispatchRing` |
+| `src/lib/provider-allowance.ts` (updated) | Added `getMaxActiveJobs`, `getDailyVisibilityLimit` |
+
+### Types & Constants Added
+- `src/types/database.ts` — `RequestQuote`, `ProviderDispatchLog`, `FairPriceConfig`, `ServiceType`, `QuoteStatus`, `PriceChangeStatus`, `DispatchEventType`; updated `Request` (12 new fields) and `Provider` (2 new fields)
+- `src/types/index.ts` — `SOFT_LAUNCH_MODE`, `DISPATCH_RINGS_M`, `DAILY_VISIBILITY_LIMITS`, `MAX_ACTIVE_JOBS`, `SLA_WARNING_MS`, `SLA_DEADLINE_MS`, `CUSTOMER_SELECTION_TIMEOUT_MS`, score weight constants
+
+### Design Decisions Documented
+1. `p_distance_km` computed in app layer (Haversine via geo.ts), passed to RPC
+2. `p_is_soft_launch` read from env in API route, passed to RPC
+3. SLA release sets status to `'quoted'` if pending non-expired quotes exist, else `'open'`
+4. Added `destination_latitude`/`destination_longitude` for Haversine distance calc
+5. `complete_provider_job_atomic` backward compatible — legacy `p_final_price` still works for pre-V2 requests
+
+### Files Changed
+- `supabase/migrations/031_marketplace_v2_schema.sql` — NEW (applied)
+- `src/lib/range-estimator.ts` — NEW
+- `src/lib/provider-score.ts` — NEW
+- `src/lib/geo.ts` — 3 new exports
+- `src/lib/provider-allowance.ts` — 2 new exports
+- `src/types/database.ts` — 6 new types, 2 updated interfaces
+- `src/types/index.ts` — 11 new constants
+- `src/app/admin/requests/page.tsx` — Added 'quoted' to STATUS_LABEL_KEYS
+- `src/app/customer/history/page.tsx` — Added 'quoted' to statusColors + statusLabelMap
+
+### Build Status
+- `tsc --noEmit` — PASS
+- `next build` — PASS (all routes compiled)
+
+### Next: Session 3
+- Dispatch engine (ring logic, plan priority, capacity checks)
+- Cron jobs (expire quotes, advance rings, auto-expire requests, SLA enforcement)
+- Fuzzy location generation on request creation
+
+---
+
 ## Session: June 7, 2026 (continued 4) — Post-Audit Bug Fixes
 
 ### Summary
