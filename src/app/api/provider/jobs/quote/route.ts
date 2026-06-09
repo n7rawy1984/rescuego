@@ -92,7 +92,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (!['open', 'quoted'].includes(request.status)) {
-    return NextResponse.json({ error: 'Request is no longer accepting quotes' }, { status: 409 })
+    logger.warn({
+      event: 'quote_rejected_status',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      request_status: request.status,
+    })
+    return NextResponse.json({ error: 'Request is no longer accepting quotes', request_status: request.status }, { status: 409 })
   }
 
   const providerCoords: Coordinates = {
@@ -123,6 +129,8 @@ export async function POST(req: NextRequest) {
       provider_id: user.id,
       request_id: parsed.data.request_id,
       reason,
+      rpc_error_code: rpcError?.code,
+      rpc_error_details: rpcError?.details,
     })
 
     const errorMessages: Record<string, { msg: string; status: number }> = {
@@ -141,7 +149,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: mapped.msg, code: reason }, { status: mapped.status })
     }
 
-    return NextResponse.json({ error: 'Unable to submit quote' }, { status: 500 })
+    return NextResponse.json({ error: 'Unable to submit quote', reason }, { status: 500 })
   }
 
   logger.info({

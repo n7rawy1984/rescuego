@@ -65,7 +65,7 @@ export async function GET() {
   const admin = createAdminClient()
   const activeRequestPromise = supabase
     .from('requests')
-    .select('id, problem_type, location_address, note, status, accepted_by, final_price, created_at, price_change_requested, price_change_status, selected_quote_id')
+    .select('id, problem_type, location_address, note, status, accepted_by, final_price, created_at, price_change_requested, price_change_status, selected_quote_id, quoted_at')
     .eq('customer_id', user.id)
     .in('status', ['open', 'quoted', 'accepted', 'en_route', 'arrived', 'in_progress'])
     .order('created_at', { ascending: false })
@@ -94,7 +94,7 @@ export async function GET() {
     .returns<LateCancellationRow[]>()
 
   const [
-    { data: activeRequest, error },
+    { data: rawActiveRequest, error },
     { data: completedJobs, error: completedJobsError },
     { data: lateCancellations, error: lateCancellationsError },
   ] = await Promise.all([
@@ -127,6 +127,23 @@ export async function GET() {
       error: error.message,
     })
     return NextResponse.json({ error: 'Unable to load active request' }, { status: 500 })
+  }
+
+  let activeRequest = rawActiveRequest
+
+  if (activeRequest?.status === 'quoted') {
+    const quotedAt = activeRequest.quoted_at
+    const quotedAge = quotedAt
+      ? Date.now() - new Date(quotedAt).getTime()
+      : Infinity
+    if (quotedAge > 20 * 60 * 1000) {
+      await admin
+        .from('requests')
+        .update({ status: 'expired' })
+        .eq('id', activeRequest.id)
+        .eq('status', 'quoted')
+      activeRequest = null
+    }
   }
 
   const jobIds = (completedJobs ?? []).map((job) => job.id)

@@ -413,6 +413,20 @@ export default async function ProviderDashboardPage({
     requestFeedMode = providerIsOnline ? 'fallback' : 'offline'
   }
 
+  if (openRequests && openRequests.length > 0) {
+    const requestIds = openRequests.map((r) => r.id)
+    const { data: existingQuotes } = await admin
+      .from('request_quotes')
+      .select('request_id')
+      .eq('provider_id', provider.id)
+      .in('request_id', requestIds)
+
+    if (existingQuotes && existingQuotes.length > 0) {
+      const quotedIds = new Set(existingQuotes.map((q) => q.request_id))
+      openRequests = openRequests.filter((r) => !quotedIds.has(r.id))
+    }
+  }
+
   const { data: recentJobs } = recentJobsResult
 
   const allowance = getProviderAllowance({
