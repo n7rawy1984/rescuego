@@ -369,6 +369,28 @@
       "timeRemaining": "Time remaining",
       "hurryUp": "Hurry up!",
       "slaBreached": "SLA time exceeded"
+    },
+    "customerQuoteList": {
+      "waitingForQuotes": "Waiting for quotes",
+      "quotesWillAppear": "Quotes will appear here as they arrive",
+      "availableQuotes": "{count} quote(s) available",
+      "fairRange": "Fair range: {min} - {max} AED",
+      "selectProvider": "Select Provider",
+      "expiresIn": "Expires in {minutes} min",
+      "verified": "Verified",
+      "selectFailed": "Failed to select quote",
+      "networkError": "Connection error"
+    },
+    "priceChangeNotification": {
+      "title": "Price Change Request",
+      "description": "The provider has requested a price adjustment",
+      "currentPrice": "Current price",
+      "newPrice": "New price",
+      "difference": "Difference",
+      "approve": "Approve",
+      "reject": "Reject",
+      "respondFailed": "Failed to respond",
+      "networkError": "Connection error"
     }
   },
   "nav": {
@@ -684,6 +706,9 @@
       "providerLabel": "Provider: {name}",
       "locationUnavailable": "Location unavailable",
       "requestSent": "Request Sent!",
+      "quotesReceived": "Quotes Received",
+      "selectBestQuote": "Select the best quote from service providers",
+      "quotesAvailable": "Quotes Available",
       "providerAcceptedTitle": "Provider Accepted",
       "serviceInProgress": "Service In Progress",
       "requestLive": "Your request is live and visible to nearby providers.",

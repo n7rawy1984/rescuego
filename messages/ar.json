@@ -369,6 +369,28 @@
       "timeRemaining": "الوقت المتبقي",
       "hurryUp": "أسرع!",
       "slaBreached": "تم تجاوز الوقت المحدد"
+    },
+    "customerQuoteList": {
+      "waitingForQuotes": "بانتظار عروض الأسعار",
+      "quotesWillAppear": "ستظهر عروض الأسعار هنا بمجرد وصولها",
+      "availableQuotes": "{count} عرض سعر متاح",
+      "fairRange": "النطاق العادل: {min} - {max} د.إ",
+      "selectProvider": "اختيار مزود الخدمة",
+      "expiresIn": "ينتهي خلال {minutes} د",
+      "verified": "موثق",
+      "selectFailed": "فشل اختيار العرض",
+      "networkError": "خطأ في الاتصال"
+    },
+    "priceChangeNotification": {
+      "title": "طلب تعديل السعر",
+      "description": "طلب مزود الخدمة تعديل السعر المتفق عليه",
+      "currentPrice": "السعر الحالي",
+      "newPrice": "السعر الجديد",
+      "difference": "الفرق",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "respondFailed": "فشل الاستجابة",
+      "networkError": "خطأ في الاتصال"
     }
   },
   "nav": {
@@ -684,6 +706,9 @@
       "providerLabel": "مقدم الخدمة: {name}",
       "locationUnavailable": "الموقع غير متاح",
       "requestSent": "تم إرسال الطلب!",
+      "quotesReceived": "تم استلام عروض أسعار",
+      "selectBestQuote": "اختر أفضل عرض سعر من مزودي الخدمة",
+      "quotesAvailable": "عروض أسعار متاحة",
       "providerAcceptedTitle": "تم قبول الطلب",
       "serviceInProgress": "الخدمة جارية",
       "requestLive": "طلبك مباشر ومرئي لمقدمي الخدمة القريبين.",

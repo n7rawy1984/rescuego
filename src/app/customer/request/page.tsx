@@ -7,6 +7,8 @@ import Navbar from '@/components/layout/Navbar'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import RatingForm from '@/components/forms/RatingForm'
+import CustomerQuoteList from '@/components/customer/CustomerQuoteList'
+import PriceChangeNotification from '@/components/customer/PriceChangeNotification'
 import { roundDispatchCoordinate } from '@/lib/geo'
 import { getProblemLabel } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -31,11 +33,14 @@ type ActiveRequest = {
   problem_type: ProblemType
   location_address: string | null
   note: string | null
-  status: Extract<RequestStatus, 'open' | 'accepted' | 'en_route' | 'arrived' | 'in_progress'>
+  status: Extract<RequestStatus, 'open' | 'quoted' | 'accepted' | 'en_route' | 'arrived' | 'in_progress'>
   accepted_by: string | null
   provider_name?: string | null
   provider_phone?: string | null
   final_price: number | null
+  price_change_requested: number | null
+  price_change_status: string | null
+  selected_quote_id: string | null
   created_at: string
 }
 
@@ -367,6 +372,9 @@ export default function RequestPage() {
         status: 'open',
         accepted_by: null,
         final_price: null,
+        price_change_requested: null,
+        price_change_status: null,
+        selected_quote_id: null,
         created_at: new Date().toISOString(),
       })
       setSubmitted(true)
@@ -470,6 +478,9 @@ export default function RequestPage() {
         status: 'open' as const,
         accepted_by: null,
         final_price: null,
+        price_change_requested: null,
+        price_change_status: null,
+        selected_quote_id: null,
         created_at: new Date().toISOString(),
       }
     : null)
@@ -514,21 +525,26 @@ export default function RequestPage() {
 
   if (visibleRequest) {
     const isOpen = visibleRequest.status === 'open'
-    const showCancellationAbuseWarning = !isOpen && lateCancellations24h >= 2
+    const isQuoted = visibleRequest.status === 'quoted'
+    const showCancellationAbuseWarning = !isOpen && !isQuoted && lateCancellations24h >= 2
     const title = isOpen
       ? t('requestSent')
-      : visibleRequest.status === 'accepted'
-        ? t('providerAcceptedTitle')
-        : t('serviceInProgress')
+      : isQuoted
+        ? t('quotesReceived')
+        : visibleRequest.status === 'accepted'
+          ? t('providerAcceptedTitle')
+          : t('serviceInProgress')
     const description = isOpen
       ? t('requestLive')
-      : visibleRequest.status === 'accepted'
-        ? t('providerAcceptedDesc')
-        : visibleRequest.status === 'en_route'
-          ? t('providerEnRouteDesc')
-          : visibleRequest.status === 'arrived'
-            ? t('providerArrivedDesc')
-            : t('inProgressDesc')
+      : isQuoted
+        ? t('selectBestQuote')
+        : visibleRequest.status === 'accepted'
+          ? t('providerAcceptedDesc')
+          : visibleRequest.status === 'en_route'
+            ? t('providerEnRouteDesc')
+            : visibleRequest.status === 'arrived'
+              ? t('providerArrivedDesc')
+              : t('inProgressDesc')
 
     return (
       <>
@@ -538,7 +554,7 @@ export default function RequestPage() {
             <div className="overflow-hidden rounded-3xl border border-[#DDE7EE] bg-white shadow-xl shadow-slate-200/60">
               <div className="border-b border-slate-100 bg-white p-5 text-center sm:p-7">
                 <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
-                  {isOpen ? (
+                  {(isOpen || isQuoted) ? (
                     <Clock3 className="h-7 w-7 animate-pulse" aria-hidden="true" />
                   ) : (
                     <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
@@ -547,6 +563,7 @@ export default function RequestPage() {
                 <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-semibold text-[#0F6E56]">
                   <span className="h-2 w-2 rounded-full bg-[#1D9E75]" aria-hidden="true" />
                   {isOpen ? t('searchingProvider')
+                    : isQuoted ? t('quotesAvailable')
                     : visibleRequest.status === 'en_route' ? t('providerOnWay')
                     : visibleRequest.status === 'arrived' ? t('providerArrivedBadge')
                     : t('providerAssigned')}
@@ -569,7 +586,19 @@ export default function RequestPage() {
                 </div>
               </div>
 
-              {!isOpen && (
+              {isQuoted && (
+                <CustomerQuoteList requestId={visibleRequest.id} />
+              )}
+
+              {!isOpen && !isQuoted && visibleRequest.price_change_status === 'pending' && visibleRequest.price_change_requested != null && visibleRequest.selected_quote_id != null && (
+                <PriceChangeNotification
+                  requestId={visibleRequest.id}
+                  currentPrice={visibleRequest.final_price ?? 0}
+                  newPrice={visibleRequest.price_change_requested}
+                />
+              )}
+
+              {!isOpen && !isQuoted && (
                 <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-start">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
