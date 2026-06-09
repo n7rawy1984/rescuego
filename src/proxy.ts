@@ -50,7 +50,8 @@ export async function proxy(request: NextRequest) {
 
       if (requestOrigin && !ALLOWED_ORIGINS.some((a) => requestOrigin === a)) {
         const requestHost = request.nextUrl.origin
-        if (requestOrigin !== requestHost) {
+        const isVercelPreview = requestOrigin.endsWith('.vercel.app')
+        if (requestOrigin !== requestHost && !isVercelPreview) {
           return NextResponse.json(
             { error: 'Forbidden', message: 'Invalid request origin' },
             { status: 403 }

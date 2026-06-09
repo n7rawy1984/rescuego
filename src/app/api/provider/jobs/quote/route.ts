@@ -5,8 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { distanceKm, type Coordinates } from '@/lib/geo'
-import { SOFT_LAUNCH_MODE, PROVIDER_STALE_MINUTES } from '@/types'
+import { SOFT_LAUNCH_MODE } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
+
+const QUOTE_STALE_MINUTES = 15
 
 const quoteSchema = z.object({
   request_id: z.string().uuid(),
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  const onlineSince = new Date(Date.now() - PROVIDER_STALE_MINUTES * 60 * 1000).toISOString()
+  const onlineSince = new Date(Date.now() - QUOTE_STALE_MINUTES * 60 * 1000).toISOString()
 
   const [
     { data: profile },
