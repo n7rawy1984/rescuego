@@ -2,6 +2,42 @@
 
 ---
 
+## Session: June 9, 2026 — Marketplace V2 Session 3 (Dispatch Engine + Cron Jobs)
+
+### Summary
+Built the dispatch engine with ring-based proximity filtering, plan priority tiers, and capacity checks. Created 2 new cron routes: a per-minute marketplace cron (quote expiry + request expiry + SLA enforcement) and a weekly SLA reset cron.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/lib/dispatch.ts` | Dispatch engine: ring filtering, plan priority sort, capacity/daily limit/visibility checks |
+| `src/app/api/ops/marketplace-cron/route.ts` | Combined cron (every 1 min): expire quotes, expire unselected requests, SLA auto-release |
+| `src/app/api/ops/weekly-sla-reset/route.ts` | Weekly cron (Sun 00:00): apply visibility_reduced for 3+ failures, reset sla_failure_count |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `vercel.json` | Added 2 cron schedules: `marketplace-cron` (*/1), `weekly-sla-reset` (Sun 00:00) |
+
+### Dispatch Engine Design
+- **Ring Logic:** 4 rings (5km, 10km, 20km, infinity). Time-based advancement: 5 min per ring.
+- **Plan Priority:** Business (1) > Pro (2) > Starter (3) > PPJ (4). Within same tier, sort by distance.
+- **PPJ Exclusion:** PPJ providers excluded from Ring 1 (subscription providers get first visibility).
+- **Capacity Check:** max_active_jobs per plan (PPJ:1, Starter:1, Pro:2, Business:5).
+- **Daily Limit:** daily_visibility_limit per plan (PPJ:3, Starter:5, Pro:10, Business:20).
+- **Visibility Reduced:** Providers with 3+ SLA failures hidden until weekly reset.
+
+### Cron Architecture
+- `marketplace-cron` runs 3 parallel tasks: expire_quotes, expire_unselected_requests, enforce_sla
+- SLA enforcement: fetches breached requests (accepted 20+ min), calls `sla_check_and_release` RPC per request (batch limit 50)
+- `weekly-sla-reset`: identifies high-failure providers, applies visibility_reduced, resets counters
+
+### Build Status
+- `tsc --noEmit` — PASS
+- `next build` — PASS
+
+---
+
 ## Session: June 9, 2026 — Marketplace V2 Sessions 1+2 (Assessment + Migration + Foundation)
 
 ### Summary
