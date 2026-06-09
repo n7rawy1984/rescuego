@@ -253,7 +253,104 @@ Completed full assessment of Marketplace V2 implementation. Designed and wrote m
 - `tsc --noEmit` — PASS
 - `next build` — PASS (all routes compiled)
 
-### Next: Session 3
+## June 9, 2026 — Marketplace V2 Testing Bugs Discovered & Fixed
+
+### Bug 1: CSRF 403 on quote submission
+| | |
+|---|---|
+| **Symptom** | Provider POST `/api/provider/jobs/quote` returned 403 "Forbidden" |
+| **Root Cause** | `proxy.ts` CSRF check required Origin to match `ALLOWED_ORIGINS`. Vercel preview deployments (`.vercel.app`) were blocked. |
+| **Fix** | Added Vercel preview check: `isVercelPreview = requestOrigin.endsWith('.vercel.app')` + expanded `ALLOWED_ORIGINS` with `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL`. Commit: `93eabb6` |
+
+### Bug 2: "Go online before submitting quotes" on first quote attempt
+| | |
+|---|---|
+| **Symptom** | Fresh-online provider could not submit quotes — always 403 with "Go online before submitting quotes" |
+| **Root Cause** | Quote route queried `.select('latitude, longitude')` from `provider_locations`. Table uses PostGIS `GEOMETRY(Point,4326)` column `location` **not** separate lat/lng columns. Query always returned null → offline check failed. |
+| **Fix** | Changed to `.select('provider_id, location')` and extracted coords from GeoJSON `location.coordinates`. Commit: `809aa63` |
+
+### Bug 3: "Price exceeds the acceptable range" 422 on all quotes
+| | |
+|---|---|
+| **Symptom** | Every quote submission returned 422, even reasonable prices |
+| **Root Cause** | Range estimator validation was active inside `submit_quote_atomic` RPC. In early soft launch, providers don't know the fair range without seeing it. |
+| **Fix** | Migration 032: commented out `v_min_fair`/`v_max_fair` checks. All prices > 0 accepted. `quote_validity_minutes` still read from config. Analytics still logged. Commit: `7a45963` |
+
+### Bug 4: Customer page resets to "Submit Request" after provider quotes
+| | |
+|---|---|
+| **Symptom** | Customer submits request → provider sends quote → customer page shows "Submit Request" again instead of quotes |
+| **Root Cause** | `GET /api/requests` only status-filtered `['open', 'accepted', ...]` — **`'quoted'` was missing**. After first quote, request transitioned to `'quoted'` → API couldn't find it → UI fell back to submit form. |
+| **Fix** | Added `'quoted'` to status IN filter and to select clause (`price_change_requested`, `price_change_status`, `selected_quote_id`). Commit: `4e7b44d` |
+
+### Bug 5: Stale 'quoted' requests block all new customer submissions
+| | |
+|---|---|
+| **Symptom** | Customer sees "Quotes Received" immediately on page load, before any provider action; cannot submit new requests |
+| **Root Cause** | Old test requests in `'quoted'` status (from previous sessions) were still active. The 20-min expiry cron might not run in dev. Duplicate guard returned 409 with the stale request ID. |
+| **Fix** | Inline expiry check in `GET /api/requests`: if `status === 'quoted'` AND `quoted_at > 20min` (or null), auto-expire it before returning. Commit: `9708f81` |
+
+### Bug 6: Provider gets 409 `already_quoted` after page refresh
+| | |
+|---|---|
+| **Symptom** | Provider quotes → page refresh → same request visible → re-submit → 409 |
+| **Root Cause** | Dashboard feed did not filter out requests the provider already quoted. `ProviderQuoteForm` success state is local — lost after refresh. |
+| **Fix** | Dashboard page now queries `request_quotes` for the provider's existing quotes and filters already-quoted requests out of the feed before rendering. Commit: `9708f81` |
+
+### Bug 7: Provider can't see 'quoted' requests in dashboard feed
+| | |
+|---|---|
+| **Symptom** | Request disappears from provider feed after the first quote is submitted |
+| **Root Cause** | `get_nearby_open_requests` RPC filtered `r.status = 'open'`. After first quote, `submit_quote_atomic` transitions status to `'quoted'` — the request disappeared from ALL feeds. |
+| **Fix** | Migration 033: Changed RPC filter to `r.status IN ('open', 'quoted')`. Updated dashboard fallback query also. Commit: `6529550` |
+
+### Bug 8: Customer cannot cancel a 'quoted' request
+| | |
+|---|---|
+| **Symptom** | Press Cancel → spinner forever or 409 with "This request can no longer be cancelled" |
+| **Root Cause** | `cancel_request_and_compensate_atomic` RPC's UPDATE clause: `AND status IN ('open', 'accepted', ...)` — **`'quoted'` was missing**. The UPDATE matched zero rows → `NOT FOUND` → returned `request_status_changed` → 409. |
+| **Fix** | Migration 034: Added `'quoted'` to the status IN clause in the UPDATE. Commit: `4c5d871` |
+
+### Bug 9: Slow realtime — provider sees events 3 seconds late
+| | |
+|---|---|
+| **Symptom** | Quote selected notification / new request notification arrives with visible delay |
+| **Root Cause** | `DEBOUNCE_MS = 3000` in `ProviderRealtimeRefresh`. Every realtime event waited 3s before `router.refresh()`. Also duplicate realtime channel in `ProviderRequestList` caused double-refreshes. |
+| **Fix** | Reduced debounce to `800ms`. Removed duplicate channel from `ProviderRequestList` (rely on `ProviderRealtimeRefresh` only). Reduced polling from 10s → 30s for 'quoted' state. Commit: `c8a3425` |
+
+### Bug 10: Migration 035 failed (cannot change return type)
+| | |
+|---|---|
+| **Symptom** | Applying migration 035 failed: "cannot change return type of `get_nearby_open_requests`" |
+| **Root Cause** | Postgres `CREATE OR REPLACE FUNCTION` disallows changes to the `RETURNS TABLE` signature. New columns `destination`, `destination_area` changed the return type. |
+| **Fix** | Added `DROP FUNCTION IF EXISTS` before `CREATE OR REPLACE FUNCTION`. Commit: `f492c83` |
+
+### Bug 11: Customer form missing destination fields
+| | |
+|---|---|
+| **Symptom** | Towing requests had no destination field — providers couldn't calculate accurate quotes |
+| **Root Cause** | Form, API schema, and database columns existed but were never wired to the customer submission flow. |
+| **Fix** | Added `destination` and `destination_area` to customer form (required for `'tow'`, hidden for other types). Updated Zod schema and INSERT query in `POST /api/requests`. Migration 035 passes them to provider feed. Commit: `65f73dc`, `ff1fc15`, `f14ccc5` |
+
+### Bug 12: `request.location` type mismatch in quotes GET route
+| | |
+|---|---|
+| **Symptom** | `/api/requests/quotes` queried `.select('provider_id, latitude, longitude')` from `provider_locations` — same root cause as Bug 2 |
+| **Root Cause** | `provider_locations` table has a PostGIS `location` column, not `latitude`/`longitude`. |
+| **Fix** | Changed to `.select('provider_id, location')` and extracted coordinates from `location.coordinates`. Commit: `809aa63` |
+
+### Summary
+| &nbsp; | Count |
+|---|---|
+| Bugs discovered | 12 |
+| Migrations created to fix | 4 (032, 033, 034, 035) |
+| API routes fixed | 4 (quote, requests GET, requests POST, cancel) |
+| UI components fixed | 4 (ProviderRequestList, ProviderQuoteForm, CustomerQuoteList, customer request page) |
+| RPCs fixed | 3 (submit_quote_atomic, get_nearby_open_requests, cancel_request_and_compensate_atomic) |
+| i18n keys added | 8 (destination fields) |
+
+---
+
 - Dispatch engine (ring logic, plan priority, capacity checks)
 - Cron jobs (expire quotes, advance rings, auto-expire requests, SLA enforcement)
 - Fuzzy location generation on request creation
