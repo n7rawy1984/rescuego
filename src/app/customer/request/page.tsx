@@ -938,10 +938,10 @@ export default function RequestPage() {
                   {t('notePrivacy')}
                 </p>
               </div>
-              {(problemType === 'tow' || destination.trim()) && (
+              {problemType === 'tow' && (
                 <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
                   <p className="mb-3 text-sm font-medium text-amber-800">
-                    {problemType === 'tow' ? t('destinationRequiredLabel') : t('destinationOptionalLabel')}
+                    {t('destinationRequiredLabel')}
                   </p>
                   <div className="flex flex-col gap-3">
                     <Input
@@ -950,7 +950,7 @@ export default function RequestPage() {
                       value={destination}
                       onChange={e => setDestination(e.target.value)}
                       placeholder={t('destinationPlaceholder')}
-                      required={problemType === 'tow'}
+                      required
                     />
                     <Input
                       id="destination-area"
@@ -961,15 +961,6 @@ export default function RequestPage() {
                     />
                   </div>
                 </div>
-              )}
-              {problemType !== 'tow' && !destination.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setDestination(' ')}
-                  className="text-start text-xs text-slate-400 underline hover:text-slate-600"
-                >
-                  {t('addDestination')}
-                </button>
               )}
               {error && (
                 <div className="rounded-lg bg-red-50 px-3 py-2">

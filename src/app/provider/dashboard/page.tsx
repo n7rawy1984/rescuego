@@ -71,6 +71,8 @@ type DashboardRequestRow = {
   final_price: number | null
   created_at: string
   distance_to_provider_m: number | null
+  destination?: string | null
+  destination_area?: string | null
   users?: {
     name: string | null
     phone: string | null
@@ -402,7 +404,7 @@ export default async function ProviderDashboardPage({
   if (operationalReady && (!openRequests || openRequests.length === 0)) {
     const { data: fallbackRequests } = await admin
       .from('requests')
-      .select('id, problem_type, status, accepted_by, created_at')
+      .select('id, problem_type, status, accepted_by, created_at, destination, destination_area')
       .in('status', ['open', 'quoted'])
       .is('accepted_by', null)
       .order('created_at', { ascending: false })

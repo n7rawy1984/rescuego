@@ -353,7 +353,7 @@ export default function ProviderRequestList({
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                       <div className="min-w-0">
                         <div className="break-words">{req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}</div>
-                        {req.destination && <div className="text-xs text-slate-500">{t('destination')}: {req.destination_area ?? req.destination}</div>}
+                        {req.problem_type === 'tow' && req.destination && <div className="text-xs text-slate-500">{t('destination')}: {req.destination_area ?? req.destination}</div>}
                         {!req.fuzzy_latitude && <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>}
                       </div>
                     </div>
