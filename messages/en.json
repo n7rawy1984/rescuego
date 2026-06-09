@@ -361,7 +361,7 @@
       "quoteSent": "Quote sent successfully",
       "quoteSubmitFailed": "Failed to submit quote",
       "waitingForCustomer": "Waiting for customer selection",
-      "destination": "Destination",
+      "destination": "Tow Destination",
       "fuzzyLocation": "Approximate location"
     },
     "slaTimer": {

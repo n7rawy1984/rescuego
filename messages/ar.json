@@ -361,7 +361,7 @@
       "quoteSent": "تم إرسال عرض السعر",
       "quoteSubmitFailed": "فشل إرسال عرض السعر",
       "waitingForCustomer": "بانتظار اختيار العميل",
-      "destination": "الوجهة",
+      "destination": "الوجهة التي ستُسحب إليها السيارة",
       "fuzzyLocation": "الموقع التقريبي"
     },
     "slaTimer": {
