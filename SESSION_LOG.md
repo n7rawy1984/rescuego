@@ -2,6 +2,50 @@
 
 ---
 
+## Session: June 9, 2026 — Marketplace V2 Session 8 (Realtime + Arabic + Build)
+
+### Summary
+Final polish session for Marketplace V2. Enhanced customer-side realtime subscriptions (quote UPDATE events, client-side expiry eviction, faster polling for quoted state). Fixed RTL compatibility issues, i18n gaps, and a duplicate translation key. Full build verification passed.
+
+### Changes
+| Category | Detail |
+|----------|--------|
+| Customer Realtime | `CustomerQuoteList` now subscribes to both INSERT and UPDATE on `request_quotes` — instant reaction to quote expiry |
+| Client-side Eviction | Added 5s timer to proactively remove expired quotes from UI between polls |
+| Polling Optimization | Customer request page polls every 10s in `quoted` state (was 60s) for timely expiry awareness |
+| RTL Fix | `PriceChangeNotification` arrow replaced with `<ArrowRight>` + `rtl:rotate-180` |
+| i18n Fix | Toast dismiss button uses `t('dismiss')` instead of hardcoded "Dismiss"; added `components.toast` namespace |
+| Duplicate Key Fix | Removed duplicate `networkConnectionLost` in `providerRequestList` (line 366 shadowed line 322) |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/components/customer/CustomerQuoteList.tsx` | Added UPDATE subscription + client-side expired quote eviction timer |
+| `src/app/customer/request/page.tsx` | Reduced poll interval to 10s for `quoted` status |
+| `src/components/customer/PriceChangeNotification.tsx` | Replaced `&rarr;` with RTL-safe `ArrowRight` icon |
+| `src/components/ui/Toast.tsx` | Added `useTranslations('components.toast')` for dismiss aria-label |
+| `messages/en.json` | Added `components.toast.dismiss`, removed duplicate `networkConnectionLost` |
+| `messages/ar.json` | Added `components.toast.dismiss`, removed duplicate `networkConnectionLost` |
+
+### Build Status
+- `tsc --noEmit`: PASS
+- `next build`: PASS (57 routes, all dynamic)
+
+### Marketplace V2 Implementation — COMPLETE
+Sessions 1-8 delivered the full Marketplace V2 feature set:
+- Migration 031 (schema + RPCs)
+- Dispatch engine with ring-based expansion
+- Range estimator + provider scoring
+- API routes (quote, select, price change)
+- Cron jobs (quote/request expiry, SLA enforcement, weekly reset)
+- Provider UI (quote form, SLA timer, realtime notifications)
+- Customer UI (quote list, price change, realtime updates)
+- Toast notification system
+- Fuzzy coordinates for privacy
+- Full i18n (Arabic + English) + RTL compatibility
+
+---
+
 ## Session: June 9, 2026 — Marketplace V2 Session 7 (Realtime Notifications)
 
 ### Summary

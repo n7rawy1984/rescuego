@@ -301,11 +301,11 @@
 - [ ] Fairness monitor + outlier flags
 
 ### Session 8: Realtime + Arabic + Build
-- [ ] Realtime: new quotes → customer, selection → provider, SLA warnings
-- [ ] Realtime: price change notifications both ways
-- [ ] All Arabic translations (ar.json + en.json)
-- [ ] RTL-compatible quote cards + forms
-- [ ] Full build verification + lint + type check
+- [x] Realtime: new quotes → customer, selection → provider, SLA warnings
+- [x] Realtime: price change notifications both ways
+- [x] All Arabic translations (ar.json + en.json)
+- [x] RTL-compatible quote cards + forms
+- [x] Full build verification + lint + type check
 
 ### Architectural Decisions (approved)
 - Distance: Haversine v1 (Google Distance Matrix = future upgrade)
