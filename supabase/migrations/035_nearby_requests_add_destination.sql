@@ -1,5 +1,8 @@
 -- Migration 035: Add destination columns to get_nearby_open_requests return
 -- Provider needs to see towing destination to calculate accurate quotes.
+-- Drop then recreate because Postgres disallows return-type changes via CREATE OR REPLACE.
+
+DROP FUNCTION IF EXISTS public.get_nearby_open_requests(integer, integer, timestamp with time zone);
 
 CREATE OR REPLACE FUNCTION public.get_nearby_open_requests(
   p_radius integer DEFAULT 5000,
@@ -61,6 +64,9 @@ AS $function$
 $function$;
 -- Migration 035: Add destination columns to get_nearby_open_requests return
 -- Provider needs to see towing destination to calculate accurate quotes.
+-- Drop then recreate because Postgres disallows return-type changes via CREATE OR REPLACE.
+
+DROP FUNCTION IF EXISTS public.get_nearby_open_requests(integer, integer, timestamp with time zone);
 
 CREATE OR REPLACE FUNCTION public.get_nearby_open_requests(
   p_radius integer DEFAULT 5000,
