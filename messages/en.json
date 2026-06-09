@@ -370,6 +370,13 @@
       "hurryUp": "Hurry up!",
       "slaBreached": "SLA time exceeded"
     },
+    "providerRealtime": {
+      "newRequestNearby": "New request nearby",
+      "quoteSelected": "Your quote was selected!",
+      "quoteRejected": "Your quote was not selected",
+      "priceChangeApproved": "Price change approved",
+      "priceChangeRejected": "Price change rejected"
+    },
     "customerQuoteList": {
       "waitingForQuotes": "Waiting for quotes",
       "quotesWillAppear": "Quotes will appear here as they arrive",

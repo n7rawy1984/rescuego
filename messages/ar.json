@@ -370,6 +370,13 @@
       "hurryUp": "أسرع!",
       "slaBreached": "تم تجاوز الوقت المحدد"
     },
+    "providerRealtime": {
+      "newRequestNearby": "طلب جديد قريب منك",
+      "quoteSelected": "تم اختيار عرض سعرك!",
+      "quoteRejected": "لم يتم اختيار عرض سعرك",
+      "priceChangeApproved": "تمت الموافقة على تغيير السعر",
+      "priceChangeRejected": "تم رفض تغيير السعر"
+    },
     "customerQuoteList": {
       "waitingForQuotes": "بانتظار عروض الأسعار",
       "quotesWillAppear": "ستظهر عروض الأسعار هنا بمجرد وصولها",

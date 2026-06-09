@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import './globals.css'
 import { validateEnv } from '@/lib/env'
+import ClientProviders from '@/components/layout/ClientProviders'
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -118,7 +119,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={cairo.className} suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
-          {children}
+          <ClientProviders>
+            {children}
+          </ClientProviders>
         </NextIntlClientProvider>
       </body>
     </html>

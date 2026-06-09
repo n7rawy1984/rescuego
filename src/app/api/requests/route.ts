@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
-import { roundDispatchCoordinate, UAE_BOUNDS } from '@/lib/geo'
+import { roundDispatchCoordinate, UAE_BOUNDS, generateFuzzyCoordinates } from '@/lib/geo'
 
 const requestSchema = z.object({
   problem_type: z.enum(['flat_tire', 'battery', 'tow', 'other']),
@@ -273,6 +273,10 @@ export async function POST(req: NextRequest) {
     ? `POINT(${roundDispatchCoordinate(coords.lng)} ${roundDispatchCoordinate(coords.lat)})`
     : 'POINT(55.2708 25.2048)'
 
+  const fuzzy = coords
+    ? generateFuzzyCoordinates({ lat: coords.lat, lng: coords.lng })
+    : null
+
   if (profile.phone !== phone) {
     const { error: phoneError } = await supabase
       .from('users')
@@ -298,6 +302,10 @@ export async function POST(req: NextRequest) {
       problem_type,
       note: note || null,
       status: 'open',
+      ...(fuzzy && {
+        fuzzy_latitude: fuzzy.lat,
+        fuzzy_longitude: fuzzy.lng,
+      }),
     })
     .select('id')
     .single()

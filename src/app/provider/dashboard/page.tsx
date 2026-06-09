@@ -21,6 +21,7 @@ import ProviderRecentActivitySection from '@/components/provider/dashboard/Provi
 import LocationActions from '@/components/provider/LocationActions'
 import ProviderRealtimeRefresh from '@/components/provider/ProviderRealtimeRefresh'
 import JobStateAdvanceButton from '@/components/forms/JobStateAdvanceButton'
+import SlaTimer from '@/components/provider/SlaTimer'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
@@ -64,6 +65,7 @@ type DashboardRequestRow = {
   note: string | null
   status: RequestStatus
   accepted_by: string | null
+  accepted_at: string | null
   price_estimate_min: number | null
   price_estimate_max: number | null
   final_price: number | null
@@ -707,6 +709,11 @@ export default async function ProviderDashboardPage({
                       </p>
                     </div>
                   </CardHeader>
+                  {activeRequest.accepted_at && (
+                    <div className="border-b border-slate-200 px-6 py-3">
+                      <SlaTimer acceptedAt={activeRequest.accepted_at} />
+                    </div>
+                  )}
                   <CardBody>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
