@@ -2,6 +2,54 @@
 
 ---
 
+## Session: June 9, 2026 — Marketplace V2 Session 6 (Customer UI)
+
+### Summary
+Built customer-facing quote selection UI and price change approval flow. Two new components integrated into the existing customer request page with realtime updates.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/components/customer/CustomerQuoteList.tsx` | Score-ranked quote list with realtime + polling, countdown timers, select button |
+| `src/components/customer/PriceChangeNotification.tsx` | Price change approve/reject UI with before/after comparison |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/app/customer/request/page.tsx` | Added 'quoted' status view with CustomerQuoteList, PriceChangeNotification in active job, extended ActiveRequest type |
+| `messages/ar.json` | +21 keys (customerQuoteList, priceChangeNotification, customer.request quote keys) |
+| `messages/en.json` | +21 keys (same) |
+
+### Build Status
+- `tsc --noEmit` — PASS
+- `next build` — PASS
+
+---
+
+## Session: June 9, 2026 — Marketplace V2 Session 5 (Provider UI)
+
+### Summary
+Built provider-facing quote form and SLA timer. Replaced the Accept button with inline quote submission and simplified the complete job flow.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/components/provider/ProviderQuoteForm.tsx` | Inline quote submission form with price input, validation, success state |
+| `src/components/provider/SlaTimer.tsx` | Countdown timer with warning (amber) and breach (red) states |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/components/forms/ProviderRequestList.tsx` | Replaced Accept button with ProviderQuoteForm, fuzzy location + destination display |
+| `src/components/forms/CompleteJobForm.tsx` | Removed price input, simplified to Mark Complete button |
+| `messages/ar.json` + `messages/en.json` | +13 keys (sendQuote, quoteSent, fuzzyLocation, slaTimer, markComplete, etc.) |
+
+### Build Status
+- `tsc --noEmit` — PASS
+- `next build` — PASS
+
+---
+
 ## Session: June 9, 2026 — Marketplace V2 Session 4 (API Routes)
 
 ### Summary
