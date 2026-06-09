@@ -2,6 +2,43 @@
 
 ---
 
+## Session: June 9, 2026 — Marketplace V2 Session 4 (API Routes)
+
+### Summary
+Created all 5 API routes for the Marketplace V2 quote flow: provider quote submission, customer quote listing (ranked by provider score), customer quote selection, provider price change request, and customer price change response.
+
+### Files Created
+| File | Method | Purpose |
+|------|--------|---------|
+| `src/app/api/provider/jobs/quote/route.ts` | POST | Submit quote — Haversine distance, range validation via submit_quote_atomic RPC |
+| `src/app/api/requests/quotes/route.ts` | GET | Top 5 quotes ranked by provider score (40% rating, 30% proximity, 20% price, 10% acceptance) |
+| `src/app/api/customer/quote/select/route.ts` | POST | Select quote via select_quote_atomic RPC, reveals provider details |
+| `src/app/api/provider/jobs/price-change/route.ts` | POST | Request price revision (max 1 per job, in_progress only) |
+| `src/app/api/customer/price-change/respond/route.ts` | POST | Approve/reject price change |
+
+### Key Design Decisions
+1. Distance computed in app layer (geo.ts Haversine), passed to RPC as `p_distance_km`
+2. Quote ranking: fetch up to 20 pending quotes, score all, sort desc, return top 5
+3. Anonymous provider IDs: first 4 chars of UUID uppercase (e.g., "A7F2")
+4. Price change: two-step async flow (provider requests → customer responds)
+5. All routes: Zod validation + auth + role check + rate limit + admin client RPC + structured logging
+6. Error mapping: RPC reasons mapped to semantic HTTP codes (422 price range, 429 daily limit, 409 capacity)
+
+### Rate Limits Applied
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| provider-quote | 30 req | 60s |
+| customer-quotes | 60 req | 60s |
+| customer-select | 10 req | 60s |
+| price-change | 5 req | 60s |
+| price-respond | 10 req | 60s |
+
+### Build Status
+- `tsc --noEmit` — PASS
+- `next build` — PASS
+
+---
+
 ## Session: June 9, 2026 — Marketplace V2 Session 3 (Dispatch Engine + Cron Jobs)
 
 ### Summary

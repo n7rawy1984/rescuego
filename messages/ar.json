@@ -152,6 +152,7 @@
       "finalPriceLabel": "السعر النهائي (د.إ)",
       "completingJob": "جاري إكمال المهمة...",
       "completeJob": "إكمال المهمة",
+      "markComplete": "إتمام المهمة",
       "completedTitle": "اكتملت المهمة. جاري تحديث لوحة التحكم...",
       "completedDescription": "ستنتقل هذه المهمة من المهمة النشطة إلى المهام المكتملة الحديثة بعد انتهاء تحديث لوحة التحكم.",
       "errors": {
@@ -352,7 +353,22 @@
       "overageConfirmPrefix": "لقد استخدمت كل مهامك هذا الشهر. هل تريد قبول هذا الطلب مقابل رسم إضافي لمرة واحدة قدره",
       "aedAmount": "{amount} د.إ",
       "settingUp": "جاري الإعداد...",
-      "payAmount": "ادفع {amount} د.إ"
+      "payAmount": "ادفع {amount} د.إ",
+      "sendQuote": "إرسال عرض سعر",
+      "enterPrice": "أدخل السعر",
+      "enterValidPrice": "أدخل سعراً صالحاً",
+      "pricePlaceholder": "السعر",
+      "quoteSent": "تم إرسال عرض السعر",
+      "quoteSubmitFailed": "فشل إرسال عرض السعر",
+      "waitingForCustomer": "بانتظار اختيار العميل",
+      "destination": "الوجهة",
+      "fuzzyLocation": "الموقع التقريبي",
+      "networkConnectionLost": "انقطع الاتصال. حاول مرة أخرى."
+    },
+    "slaTimer": {
+      "timeRemaining": "الوقت المتبقي",
+      "hurryUp": "أسرع!",
+      "slaBreached": "تم تجاوز الوقت المحدد"
     }
   },
   "nav": {

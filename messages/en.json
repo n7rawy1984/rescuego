@@ -152,6 +152,7 @@
       "finalPriceLabel": "Final price (AED)",
       "completingJob": "Completing job...",
       "completeJob": "Complete Job",
+      "markComplete": "Mark Complete",
       "completedTitle": "Job completed. Refreshing dashboard...",
       "completedDescription": "This job will move from Active Job to Recent Completed Jobs once the dashboard refresh finishes.",
       "errors": {
@@ -352,7 +353,22 @@
       "overageConfirmPrefix": "You have used all your jobs this month. Accept this request for a one-time overage fee of",
       "aedAmount": "{amount} AED",
       "settingUp": "Setting up...",
-      "payAmount": "Pay {amount} AED"
+      "payAmount": "Pay {amount} AED",
+      "sendQuote": "Send Quote",
+      "enterPrice": "Enter price",
+      "enterValidPrice": "Enter a valid price",
+      "pricePlaceholder": "Price",
+      "quoteSent": "Quote sent successfully",
+      "quoteSubmitFailed": "Failed to submit quote",
+      "waitingForCustomer": "Waiting for customer selection",
+      "destination": "Destination",
+      "fuzzyLocation": "Approximate location",
+      "networkConnectionLost": "Connection lost. Please try again."
+    },
+    "slaTimer": {
+      "timeRemaining": "Time remaining",
+      "hurryUp": "Hurry up!",
+      "slaBreached": "SLA time exceeded"
     }
   },
   "nav": {

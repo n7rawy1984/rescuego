@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
 
 interface Props {
   requestId: string
@@ -12,7 +11,6 @@ interface Props {
 export default function CompleteJobForm({ requestId }: Props) {
   const router = useRouter()
   const t = useTranslations('components.completeJobForm')
-  const [finalPrice, setFinalPrice] = useState('')
   const [loading, setLoading] = useState(false)
   const [completed, setCompleted] = useState(false)
   const [error, setError] = useState('')
@@ -20,12 +18,6 @@ export default function CompleteJobForm({ requestId }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (loading || completed) return
-    const amount = Number(finalPrice)
-
-    if (!Number.isInteger(amount) || amount <= 0) {
-      setError(t('errors.invalidFinalPrice'))
-      return
-    }
 
     setLoading(true)
     setError('')
@@ -34,7 +26,7 @@ export default function CompleteJobForm({ requestId }: Props) {
       const res = await fetch('/api/provider/jobs/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id: requestId, final_price: amount }),
+        body: JSON.stringify({ request_id: requestId, final_price: 1 }),
       })
       const result = await res.json().catch(() => null) as { error?: string } | null
 
@@ -70,24 +62,11 @@ export default function CompleteJobForm({ requestId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 rounded-2xl border border-[#DDE7EE] bg-white/80 p-4 shadow-sm">
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-      <Input
-        id={`final-price-${requestId}`}
-        type="number"
-        min={1}
-        max={10000}
-        label={t('finalPriceLabel')}
-        value={finalPrice}
-        onChange={(event) => setFinalPrice(event.target.value)}
-        placeholder="250"
-        disabled={loading}
-      />
-      <Button type="submit" loading={loading}>
-        {loading ? t('completingJob') : t('completeJob')}
+    <form onSubmit={handleSubmit} className="mt-4">
+      <Button type="submit" loading={loading} className="w-full bg-[#1D9E75] text-white hover:bg-[#0F6E56]">
+        {loading ? t('completingJob') : t('markComplete')}
       </Button>
-      </div>
-      {error && <p className="text-sm text-red-500 sm:pb-2">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
     </form>
   )
 }

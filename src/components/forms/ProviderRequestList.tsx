@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { BatteryCharging, HelpCircle, MapPin, Search, Truck, Wrench } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import ProviderQuoteForm from '@/components/provider/ProviderQuoteForm'
 import { getProblemLabel } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -29,6 +30,10 @@ type ProviderRequestCard = {
   final_price: number | null
   created_at: string
   distance_meters: number | null
+  fuzzy_latitude?: number | null
+  fuzzy_longitude?: number | null
+  destination?: string | null
+  destination_area?: string | null
 }
 
 interface Props {
@@ -366,8 +371,9 @@ export default function ProviderRequestList({
                     <div className="mt-2 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                       <div className="min-w-0">
-                        <div className="break-words">{t('locationHiddenUntilAccepted')}</div>
-                        <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>
+                        <div className="break-words">{req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}</div>
+                        {req.destination && <div className="text-xs text-slate-500">{t('destination')}: {req.destination_area ?? req.destination}</div>}
+                        {!req.fuzzy_latitude && <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>}
                       </div>
                     </div>
                     <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" suppressHydrationWarning>
@@ -387,19 +393,10 @@ export default function ProviderRequestList({
                     )}
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  className="w-full bg-[#1D9E75] text-white shadow-sm hover:bg-[#0F6E56] focus:ring-[#1D9E75] sm:w-auto"
-                  loading={accepting === req.id}
-                  onClick={() => requestAcceptConfirmation(req.id)}
-                  disabled={providerStatus !== 'active' || !providerOnline || accepting !== null || overageLoading}
-                >
-                  {!providerOnline
-                    ? t('goOnlineFirst')
-                    : providerPlan === 'pay_per_job'
-                      ? ppjRecoveryCredits > 0 ? t('acceptWithCredit') : t('payAndAccept')
-                      : t('accept')}
-                </Button>
+                <ProviderQuoteForm
+                  requestId={req.id}
+                  disabled={providerStatus !== 'active' || !providerOnline}
+                />
               </div>
             )})}
           </div>
