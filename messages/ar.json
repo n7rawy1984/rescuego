@@ -362,8 +362,7 @@
       "quoteSubmitFailed": "فشل إرسال عرض السعر",
       "waitingForCustomer": "بانتظار اختيار العميل",
       "destination": "الوجهة",
-      "fuzzyLocation": "الموقع التقريبي",
-      "networkConnectionLost": "انقطع الاتصال. حاول مرة أخرى."
+      "fuzzyLocation": "الموقع التقريبي"
     },
     "slaTimer": {
       "timeRemaining": "الوقت المتبقي",
@@ -376,6 +375,9 @@
       "quoteRejected": "لم يتم اختيار عرض سعرك",
       "priceChangeApproved": "تمت الموافقة على تغيير السعر",
       "priceChangeRejected": "تم رفض تغيير السعر"
+    },
+    "toast": {
+      "dismiss": "إغلاق"
     },
     "customerQuoteList": {
       "waitingForQuotes": "بانتظار عروض الأسعار",

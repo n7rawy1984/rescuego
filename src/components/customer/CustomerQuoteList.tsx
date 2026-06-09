@@ -68,10 +68,25 @@ export default function CustomerQuoteList({ requestId }: Props) {
         table: 'request_quotes',
         filter: `request_id=eq.${requestId}`,
       }, () => { fetchQuotes() })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'request_quotes',
+        filter: `request_id=eq.${requestId}`,
+      }, () => { fetchQuotes() })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [requestId, fetchQuotes])
+
+  useEffect(() => {
+    if (quotes.length === 0) return
+    const timer = setInterval(() => {
+      const now = Date.now()
+      setQuotes((prev) => prev.filter((q) => new Date(q.expires_at).getTime() > now))
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [quotes.length])
 
   async function handleSelect(quoteId: string) {
     setSelecting(quoteId)

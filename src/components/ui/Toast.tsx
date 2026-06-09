@@ -1,5 +1,6 @@
 'use client'
 import { createContext, useCallback, useContext, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react'
 
 type ToastType = 'success' | 'warning' | 'info'
@@ -22,6 +23,7 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const t = useTranslations('components.toast')
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -63,7 +65,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => dismiss(toast.id)}
               className="shrink-0 rounded-md p-1 opacity-60 hover:opacity-100"
-              aria-label="Dismiss"
+              aria-label={t('dismiss')}
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>

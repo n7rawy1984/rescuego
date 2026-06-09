@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, ArrowRight } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
 interface Props {
@@ -58,7 +58,7 @@ export default function PriceChangeNotification({ requestId, currentPrice, newPr
               <p className="text-xs text-slate-400">{t('currentPrice')}</p>
               <p className="text-sm font-medium text-slate-600">{currentPrice} AED</p>
             </div>
-            <div className="text-xl text-amber-500" aria-hidden="true">&rarr;</div>
+            <ArrowRight className="h-5 w-5 text-amber-500 rtl:rotate-180" aria-hidden="true" />
             <div className="text-center">
               <p className="text-xs text-slate-400">{t('newPrice')}</p>
               <p className={`text-sm font-bold ${isIncrease ? 'text-red-600' : 'text-green-600'}`}>

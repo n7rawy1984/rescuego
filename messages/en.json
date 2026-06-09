@@ -362,8 +362,7 @@
       "quoteSubmitFailed": "Failed to submit quote",
       "waitingForCustomer": "Waiting for customer selection",
       "destination": "Destination",
-      "fuzzyLocation": "Approximate location",
-      "networkConnectionLost": "Connection lost. Please try again."
+      "fuzzyLocation": "Approximate location"
     },
     "slaTimer": {
       "timeRemaining": "Time remaining",
@@ -376,6 +375,9 @@
       "quoteRejected": "Your quote was not selected",
       "priceChangeApproved": "Price change approved",
       "priceChangeRejected": "Price change rejected"
+    },
+    "toast": {
+      "dismiss": "Dismiss"
     },
     "customerQuoteList": {
       "waitingForQuotes": "Waiting for quotes",
