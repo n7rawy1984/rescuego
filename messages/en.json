@@ -360,6 +360,7 @@
       "pricePlaceholder": "Price",
       "quoteSent": "Quote sent successfully",
       "quoteSubmitFailed": "Failed to submit quote",
+      "tooManyAttempts": "Too many attempts. Please wait a moment.",
       "waitingForCustomer": "Waiting for customer selection",
       "destination": "Tow Destination",
       "fuzzyLocation": "Approximate location"

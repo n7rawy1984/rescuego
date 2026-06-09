@@ -96,6 +96,8 @@ export default function RequestPage() {
   const addressInputRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(true)
   const assignedRequestRef = useRef<string | null>(null)
+  const justCancelledRef = useRef(false)
+  const fetchInFlightRef = useRef(false)
   const t = useTranslations('customer.request')
   const commonT = useTranslations('common')
 
@@ -106,35 +108,45 @@ export default function RequestPage() {
   }, [])
 
   const loadRequestState = useCallback(async () => {
-    const activeRes = await fetch('/api/requests')
+    if (justCancelledRef.current) return
+    if (fetchInFlightRef.current) return
+    fetchInFlightRef.current = true
 
-    if (activeRes.status === 401) {
-      throw new Error(t('sessionExpired'))
-    }
+    try {
+      const activeRes = await fetch('/api/requests')
 
-    if (!activeRes.ok) {
-      throw new Error(t('loadErrorDefault'))
-    }
+      if (activeRes.status === 401) {
+        throw new Error(t('sessionExpired'))
+      }
 
-    const activeData = await activeRes.json().catch(() => null) as ActiveRequestResponse | null
-    if (!mountedRef.current) return
-    const nextActiveRequest = activeData?.active_request ?? null
-    if (
-      assignedRequestRef.current
-      && nextActiveRequest?.id === assignedRequestRef.current
-      && nextActiveRequest.status === 'open'
-      && !nextActiveRequest.accepted_by
-    ) {
-      setStatusMessage(t('providerReassigned'))
+      if (!activeRes.ok) {
+        throw new Error(t('loadErrorDefault'))
+      }
+
+      const activeData = await activeRes.json().catch(() => null) as ActiveRequestResponse | null
+      if (!mountedRef.current) return
+      if (justCancelledRef.current) return
+
+      const nextActiveRequest = activeData?.active_request ?? null
+      if (
+        assignedRequestRef.current
+        && nextActiveRequest?.id === assignedRequestRef.current
+        && nextActiveRequest.status === 'open'
+        && !nextActiveRequest.accepted_by
+      ) {
+        setStatusMessage(t('providerReassigned'))
+      }
+      assignedRequestRef.current = nextActiveRequest?.accepted_by ? nextActiveRequest.id : null
+      setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
+      setActiveRequest(nextActiveRequest)
+      setRequestId(nextActiveRequest?.id ?? '')
+      setLateCancellations24h(activeData?.late_cancellations_24h ?? 0)
+      setUnratedJobsCount(activeData?.unrated_jobs_count ?? 0)
+      if (activeData?.customer_phone) setPhone(activeData.customer_phone)
+      setInitialRequestError('')
+    } finally {
+      fetchInFlightRef.current = false
     }
-    assignedRequestRef.current = nextActiveRequest?.accepted_by ? nextActiveRequest.id : null
-    setCompletedUnratedRequest(activeData?.completed_unrated_request ?? null)
-    setActiveRequest(nextActiveRequest)
-    setRequestId(nextActiveRequest?.id ?? '')
-    setLateCancellations24h(activeData?.late_cancellations_24h ?? 0)
-    setUnratedJobsCount(activeData?.unrated_jobs_count ?? 0)
-    if (activeData?.customer_phone) setPhone(activeData.customer_phone)
-    setInitialRequestError('')
   }, [t])
 
   useEffect(() => {
@@ -169,12 +181,15 @@ export default function RequestPage() {
 
   useEffect(() => {
     if (!activeRequest || completedUnratedRequest) return
+    if (justCancelledRef.current) return
 
     const isActiveState = ['accepted', 'en_route', 'arrived', 'in_progress'].includes(activeRequest.status)
     const isQuotedState = activeRequest.status === 'quoted'
     const pollMs = isActiveState ? 5000 : isQuotedState ? 30000 : 60000
     const interval = window.setInterval(() => {
-      void loadRequestState().catch(() => undefined)
+      if (!justCancelledRef.current) {
+        void loadRequestState().catch(() => undefined)
+      }
     }, pollMs)
 
     return () => {
@@ -184,6 +199,7 @@ export default function RequestPage() {
 
   useEffect(() => {
     if (!activeRequest?.id) return
+    if (justCancelledRef.current) return
 
     const supabase = createClient()
     const channel = supabase
@@ -198,6 +214,7 @@ export default function RequestPage() {
         },
         (payload) => {
           if (!mountedRef.current) return
+          if (justCancelledRef.current) return
           const updated = payload.new as Record<string, unknown>
           const newStatus = updated.status as RequestStatus | undefined
           if (!newStatus) return
@@ -219,7 +236,7 @@ export default function RequestPage() {
     if (!activeRequest && !completedUnratedRequest) return
 
     function refreshOnReturn() {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !justCancelledRef.current) {
         void loadRequestState().catch(() => undefined)
       }
     }
@@ -258,6 +275,7 @@ export default function RequestPage() {
     setSubmitted(false)
     setActiveRequest(null)
     setCompletedUnratedRequest(null)
+    setRequestId('')
     setStep(1)
     setProblemType(null)
     setPhone('')
@@ -277,6 +295,8 @@ export default function RequestPage() {
     resetForm()
     setPhone(currentPhone)
     setUnratedJobsCount((current) => Math.max(0, current - 1))
+    justCancelledRef.current = false
+    void loadRequestState().catch(() => undefined)
   }
 
   function useMyLocation() {
@@ -338,6 +358,7 @@ export default function RequestPage() {
 
     setLoading(true)
     setError('')
+    justCancelledRef.current = false
 
     try {
       const res = await fetch('/api/requests', {
@@ -402,6 +423,7 @@ export default function RequestPage() {
     setCancelling(true)
     setError('')
     setStatusMessage('')
+    justCancelledRef.current = true
 
     try {
       const res = await fetch('/api/requests/cancel', {
@@ -414,12 +436,14 @@ export default function RequestPage() {
       if (res.status === 401) {
         setError(t('sessionExpired'))
         setCancelling(false)
+        justCancelledRef.current = false
         return
       }
 
       if (!res.ok && res.status !== 202) {
         setError(result?.error ?? t('cancelError'))
         setCancelling(false)
+        justCancelledRef.current = false
         return
       }
 
@@ -430,9 +454,15 @@ export default function RequestPage() {
           : t('cancelledSimple')
       )
       setCancelling(false)
+
+      setTimeout(() => {
+        justCancelledRef.current = false
+        void loadRequestState().catch(() => undefined)
+      }, 3000)
     } catch {
       setError(t('connectionLost'))
       setCancelling(false)
+      justCancelledRef.current = false
     }
   }
 

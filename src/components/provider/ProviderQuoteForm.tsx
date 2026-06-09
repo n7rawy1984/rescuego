@@ -34,6 +34,13 @@ export default function ProviderQuoteForm({ requestId, disabled = false }: Props
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ request_id: requestId, proposed_price: numPrice }),
       })
+
+      if (res.status === 429) {
+        setError(t('tooManyAttempts'))
+        setSubmitting(false)
+        return
+      }
+
       const result = await res.json()
 
       if (!res.ok) {

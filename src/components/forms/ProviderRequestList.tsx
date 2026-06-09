@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { BatteryCharging, HelpCircle, MapPin, Search, Truck, Wrench } from 'lucide-react'
@@ -76,10 +76,6 @@ export default function ProviderRequestList({
   const [overageLoading, setOverageLoading] = useState(false)
   const [confirmRequestId, setConfirmRequestId] = useState<string | null>(null)
 
-  const refreshRequests = useCallback(async () => {
-    router.refresh()
-  }, [router])
-
   const requestItems = useMemo(
     () => requests.filter((request) => !hiddenRequestIds.has(request.id)),
     [hiddenRequestIds, requests]
@@ -90,22 +86,6 @@ export default function ProviderRequestList({
     if (meters < 1000) return t('metersAway', { distance: Math.round(meters) })
     return t('kilometersAway', { distance: (meters / 1000).toFixed(1) })
   }, [t])
-
-  useEffect(() => {
-    function refreshOnReturn() {
-      if (document.visibilityState === 'visible') {
-        void refreshRequests()
-      }
-    }
-
-    window.addEventListener('online', refreshRequests)
-    document.addEventListener('visibilitychange', refreshOnReturn)
-
-    return () => {
-      window.removeEventListener('online', refreshRequests)
-      document.removeEventListener('visibilitychange', refreshOnReturn)
-    }
-  }, [refreshRequests])
 
   function requestAcceptConfirmation(requestId: string) {
     if (accepting || overageLoading) return

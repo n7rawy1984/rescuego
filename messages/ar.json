@@ -360,6 +360,7 @@
       "pricePlaceholder": "السعر",
       "quoteSent": "تم إرسال عرض السعر",
       "quoteSubmitFailed": "فشل إرسال عرض السعر",
+      "tooManyAttempts": "محاولات كثيرة. يرجى الانتظار قليلاً.",
       "waitingForCustomer": "بانتظار اختيار العميل",
       "destination": "الوجهة التي ستُسحب إليها السيارة",
       "fuzzyLocation": "الموقع التقريبي"

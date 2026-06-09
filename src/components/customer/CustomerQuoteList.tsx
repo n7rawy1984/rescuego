@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Clock, ShieldCheck, Star } from 'lucide-react'
@@ -37,8 +37,12 @@ export default function CustomerQuoteList({ requestId }: Props) {
   const [loading, setLoading] = useState(true)
   const [selecting, setSelecting] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const fetchInFlightRef = useRef(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchQuotes = useCallback(async () => {
+    if (fetchInFlightRef.current) return
+    fetchInFlightRef.current = true
     try {
       const res = await fetch(`/api/requests/quotes?request_id=${requestId}`)
       if (!res.ok) return
@@ -49,13 +53,24 @@ export default function CustomerQuoteList({ requestId }: Props) {
       /* silent retry on next poll */
     } finally {
       setLoading(false)
+      fetchInFlightRef.current = false
     }
   }, [requestId])
+
+  const debouncedFetchQuotes = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      void fetchQuotes()
+    }, 1000)
+  }, [fetchQuotes])
 
   useEffect(() => {
     fetchQuotes()
     const interval = setInterval(fetchQuotes, 30000)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
   }, [fetchQuotes])
 
   useEffect(() => {
@@ -67,17 +82,17 @@ export default function CustomerQuoteList({ requestId }: Props) {
         schema: 'public',
         table: 'request_quotes',
         filter: `request_id=eq.${requestId}`,
-      }, () => { fetchQuotes() })
+      }, () => { debouncedFetchQuotes() })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'request_quotes',
         filter: `request_id=eq.${requestId}`,
-      }, () => { fetchQuotes() })
+      }, () => { debouncedFetchQuotes() })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [requestId, fetchQuotes])
+  }, [requestId, debouncedFetchQuotes])
 
   useEffect(() => {
     if (quotes.length === 0) return
