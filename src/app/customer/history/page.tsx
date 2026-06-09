@@ -31,6 +31,7 @@ type HistoryJobRow = {
 
 const statusColors: Record<RequestStatus, string> = {
   open: 'border-blue-100 bg-blue-50 text-blue-700',
+  quoted: 'border-purple-100 bg-purple-50 text-purple-700',
   accepted: 'border-[#9FE1CB] bg-[#E1F5EE] text-[#0F6E56]',
   en_route: 'border-blue-100 bg-blue-50 text-blue-700',
   arrived: 'border-amber-100 bg-amber-50 text-amber-700',
@@ -44,6 +45,7 @@ export default async function CustomerHistoryPage() {
   const t = await getTranslations('customer.history')
   const statusLabelMap: Record<RequestStatus, string> = {
     open: t('statusOpen'),
+    quoted: 'Quoted',
     accepted: t('statusAccepted'),
     en_route: t('statusEnRoute'),
     arrived: t('statusArrived'),

@@ -30,3 +30,21 @@ export function getProviderAllowance(input: {
     isPayPerJob: input.plan === 'pay_per_job',
   }
 }
+
+export function getMaxActiveJobs(plan: ProviderPlan): number {
+  switch (plan) {
+    case 'starter': return 1
+    case 'pro': return 2
+    case 'business': return 5
+    case 'pay_per_job': return 1
+  }
+}
+
+export function getDailyVisibilityLimit(plan: ProviderPlan): number {
+  switch (plan) {
+    case 'pay_per_job': return 3
+    case 'starter': return 5
+    case 'pro': return 10
+    case 'business': return 20
+  }
+}

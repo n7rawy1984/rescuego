@@ -1,8 +1,12 @@
 export type UserRole = 'customer' | 'provider' | 'admin'
 export type ProviderPlan = 'starter' | 'pro' | 'business' | 'pay_per_job'
 export type ProviderStatus = 'pending' | 'active' | 'suspended'
-export type RequestStatus = 'open' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
+export type RequestStatus = 'open' | 'quoted' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 export type ProblemType = 'flat_tire' | 'battery' | 'tow' | 'other'
+export type ServiceType = 'tow' | 'battery' | 'flat_tire' | 'fuel' | 'lockout' | 'other'
+export type QuoteStatus = 'pending' | 'selected' | 'rejected' | 'expired'
+export type PriceChangeStatus = 'pending' | 'approved' | 'rejected'
+export type DispatchEventType = 'quote_submitted' | 'quote_selected' | 'sla_failure' | 'completion'
 
 export interface User {
   id: string
@@ -38,6 +42,8 @@ export interface Provider {
   stripe_current_period_end: string | null
   jobs_reset_at: string | null
   last_upgrade_bonus_key: string | null
+  sla_failure_count: number
+  visibility_reduced: boolean
   created_at: string
 }
 
@@ -63,6 +69,18 @@ export interface Request {
   price_estimate_min: number | null
   price_estimate_max: number | null
   final_price: number | null
+  destination: string | null
+  destination_area: string | null
+  destination_latitude: number | null
+  destination_longitude: number | null
+  fuzzy_latitude: number | null
+  fuzzy_longitude: number | null
+  selected_quote_id: string | null
+  price_change_requested: number | null
+  price_change_status: PriceChangeStatus | null
+  price_change_count: number
+  quoted_at: string | null
+  accepted_at: string | null
   cancelled_at: string | null
   cancelled_by: string | null
   cancellation_actor: 'customer' | 'provider' | 'admin' | null
@@ -113,4 +131,42 @@ export interface NearbyProvider {
   plan: ProviderPlan
   rating: number
   distance_meters: number
+}
+
+export interface RequestQuote {
+  id: string
+  request_id: string
+  provider_id: string
+  proposed_price: number
+  status: QuoteStatus
+  sent_at: string
+  expires_at: string
+  selected_at: string | null
+  created_at: string
+}
+
+export interface ProviderDispatchLog {
+  id: string
+  provider_id: string
+  request_id: string
+  distance_km: number | null
+  proposed_price: number | null
+  service_type: string | null
+  price_per_km: number | null
+  was_selected: boolean
+  sla_met: boolean | null
+  is_soft_launch: boolean
+  event_type: DispatchEventType
+  created_at: string
+}
+
+export interface FairPriceConfig {
+  id: string
+  service_type: ServiceType
+  min_price_per_km: number
+  max_price_per_km: number
+  base_fee: number
+  quote_validity_minutes: number
+  created_at: string
+  updated_at: string
 }
