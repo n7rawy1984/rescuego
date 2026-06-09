@@ -170,7 +170,7 @@ export default function RequestPage() {
 
     const isActiveState = ['accepted', 'en_route', 'arrived', 'in_progress'].includes(activeRequest.status)
     const isQuotedState = activeRequest.status === 'quoted'
-    const pollMs = isActiveState ? 5000 : isQuotedState ? 10000 : 60000
+    const pollMs = isActiveState ? 5000 : isQuotedState ? 30000 : 60000
     const interval = window.setInterval(() => {
       void loadRequestState().catch(() => undefined)
     }, pollMs)

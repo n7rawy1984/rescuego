@@ -10,7 +10,7 @@ type Props = {
   activeRequestId: string | null
 }
 
-const DEBOUNCE_MS = 3000
+const DEBOUNCE_MS = 800
 
 export default function ProviderRealtimeRefresh({ providerId, activeRequestId }: Props) {
   const router = useRouter()

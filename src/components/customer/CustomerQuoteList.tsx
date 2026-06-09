@@ -54,7 +54,7 @@ export default function CustomerQuoteList({ requestId }: Props) {
 
   useEffect(() => {
     fetchQuotes()
-    const interval = setInterval(fetchQuotes, 10000)
+    const interval = setInterval(fetchQuotes, 30000)
     return () => clearInterval(interval)
   }, [fetchQuotes])
 

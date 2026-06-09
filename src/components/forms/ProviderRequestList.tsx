@@ -7,7 +7,6 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import ProviderQuoteForm from '@/components/provider/ProviderQuoteForm'
 import { getProblemLabel } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 import {
   LAUNCH_PROMO,
   OVERAGE_FEE_AED,
@@ -91,24 +90,6 @@ export default function ProviderRequestList({
     if (meters < 1000) return t('metersAway', { distance: Math.round(meters) })
     return t('kilometersAway', { distance: (meters / 1000).toFixed(1) })
   }, [t])
-
-  useEffect(() => {
-    const supabase = createClient()
-    const channel = supabase
-      .channel('provider-open-requests')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'requests' },
-        () => {
-          refreshRequests()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [refreshRequests])
 
   useEffect(() => {
     function refreshOnReturn() {
