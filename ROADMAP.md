@@ -243,48 +243,86 @@
 
 ---
 
-## Phase 6 — Dispatch Logic V2
-**الهدف:** مين يشوف الطلب ومتى.
+## Phase 6+7+8 — Marketplace V2: Competitive Quotes + Dispatch + Pricing
+**الهدف:** تحويل المنصة من "أول بروفيدور يقبل" إلى "البروفيدورز يتنافسوا بالسعر والعميل يختار".
 
-⚠️ Prerequisite: Google Maps Distance Matrix API + domain restrictions + quota monitoring + billing alerts.
+📋 **Full Spec:** `MARKETPLACE_V2_SPEC.md`
+⏱️ **Estimated:** 7-8 sessions
+🚀 **Soft Launch:** `SOFT_LAUNCH_MODE=true` → PPJ fee = 0, no Stripe capture
 
-- [ ] Business / Pro / Starter / PPJ priority tiers
-- [ ] timed dispatch windows (30-second response windows)
-- [ ] request locks + response timeout
-- [ ] no-response escalation + auto-release
-- [ ] distance/rating/plan scoring
-- [ ] PostGIS dashboard integration
-- [ ] fallback dispatch logic
-- [ ] provider availability freshness
-- [ ] no-show penalty influence on dispatch
-- [ ] dispatch audit logs
+### Session 1: Assessment + Migration 031 SQL + RPC Design
+- [ ] Read all affected files, map dependencies
+- [ ] Design migration 031 SQL (requests columns, request_quotes, provider_dispatch_log, fair_price_config)
+- [ ] Design atomic RPCs signatures (submit_quote, select_quote, sla_check_and_release)
+- [ ] Get approval before applying
 
----
+### Session 2: RPCs + Range Estimator
+- [ ] Apply migration 031
+- [ ] Implement submit_quote_atomic
+- [ ] Implement select_quote_atomic
+- [ ] Implement sla_check_and_release
+- [ ] Range Estimator logic (server-side validation)
+- [ ] Seed fair_price_config table
 
-## Phase 7 — Pricing Engine V2
-**الهدف:** السعر والمسافة server-side وموثوقين.
+### Session 3: Dispatch Engine + Cron Jobs
+- [ ] Dispatch ring logic (4 rings × 5 min each)
+- [ ] Plan priority tiers (Business → Pro → Starter → PPJ)
+- [ ] Daily visibility limits enforcement
+- [ ] Provider capacity check (computed active_jobs)
+- [ ] Cron: expire quotes, advance rings, auto-expire requests, SLA enforcement
+- [ ] Fuzzy location generation on request creation
 
-- [ ] PPJ launch fee = 15 AED (server-side)
-- [ ] بعد اللانش: near = 30 AED / far = 70 AED
-- [ ] server-side distance calculation
-- [ ] emirate-crossing logic
-- [ ] price preview + fee lock
-- [ ] fallback pricing لو PostGIS fails
-- [ ] no client-trusted pricing
-- [ ] promo config خارج الكود
+### Session 4: API Routes
+- [ ] POST /api/provider/jobs/quote — submit quote
+- [ ] GET /api/requests/quotes — customer gets Top 5
+- [ ] POST /api/customer/quote/select — select + payment
+- [ ] POST /api/provider/jobs/price-change — request revision
+- [ ] POST /api/customer/price-change/respond — approve/reject
+- [ ] Provider Score calculation logic
 
----
+### Session 5: Provider UI
+- [ ] Quote form (price input + motivational message + range feedback)
+- [ ] SLA timer (10 min warning, 20 min deadline)
+- [ ] Active job states (waiting for selection, selected, SLA countdown)
+- [ ] Request feed update (fuzzy location + destination for towing)
 
-## Phase 8 — Quote Approval & Commission Integrity
-**الهدف:** منع التلاعب بالسعر.
+### Session 6: Customer UI
+- [ ] Updated request form (destination for towing)
+- [ ] Quote list view (Top 5, tabs: Recommended/Best Value/Nearest)
+- [ ] Quote card (anonymous provider, score, price, countdown)
+- [ ] Selection flow + payment trigger
+- [ ] Price change request UI (approve/reject)
 
-- [ ] provider sends quote → customer approves
-- [ ] job يبدأ بعد approval فقط
-- [ ] revised quote + quote expiry
-- [ ] customer rejects quote → dispute path
-- [ ] final_price = approved quote (source of truth)
-- [ ] no self-reported commission basis
-- [ ] quote history + admin dispute visibility
+### Session 7: Admin Dashboard + Provider Score
+- [ ] Provider Score dashboard (0-100 composite)
+- [ ] Fair Price Config management UI
+- [ ] SLA violations tracker
+- [ ] Soft Launch Analytics (requests/day, avg quotes, selection rate)
+- [ ] Fairness monitor + outlier flags
+
+### Session 8: Realtime + Arabic + Build
+- [ ] Realtime: new quotes → customer, selection → provider, SLA warnings
+- [ ] Realtime: price change notifications both ways
+- [ ] All Arabic translations (ar.json + en.json)
+- [ ] RTL-compatible quote cards + forms
+- [ ] Full build verification + lint + type check
+
+### Architectural Decisions (approved)
+- Distance: Haversine v1 (Google Distance Matrix = future upgrade)
+- destination: required for towing only, optional otherwise
+- SLA: 20 min → auto-release + PPJ refund + score -5
+- Provider capacity: computed from DB (not stored column)
+- complete_provider_job_atomic: minimal change (final_price source only)
+- New Provider Boost: <10 jobs → rating +0.5 in score formula
+- Price change: max 1 per job, in_progress only
+- SOFT_LAUNCH_MODE: PPJ fee=0, no Stripe, all features active
+
+### Status Lifecycle (new)
+```
+open → quoted → accepted → en_route → arrived → in_progress → completed
+                                                             ↘ cancelled
+                                                             ↘ expired
+```
 
 ---
 
@@ -422,16 +460,16 @@
 | Phase 3 | ✅ مكتمل (realtime subscriptions) |
 | Phase 4 | ✅ مكتمل (state machine + advance-state) |
 | Phase 4B | ✅ جزئي (stuck jobs, performance, filters done) |
+| Phase 6+7+8 | 🔄 Marketplace V2 — design approved, implementation starting |
 | Phase 13 | ⚡ جزئي — Phases 1+2+4 ✅ مكتمل، Phases 3+5+6 ⏳ متبقي |
-| Phase 5–12, 14–16 | ⏳ قادم |
+| Phase 5, 9–12, 14–16 | ⏳ قادم |
 
 **Next Priority:**
-1. Phase 2C — PWA/Mobile strategy قرار (يحدد Phase 5 SEO: manifest + icons)
-2. Arabic Phase C + SEO Phase 6 — locale-aware metadata + hreflang (مترابطين)
-3. SEO Phase 5 — manifest.json + favicon variants + theme-color (يعتمد على 2C)
-4. SEO Phase 3 — Recovery pages content expansion + FAQ schema (مع Phase 13 content)
-5. Phase 2A remaining — loading skeletons, modals, accessibility
-6. Phase 5+ — KYC, Dispatch, Pricing Engine...
+1. **Phase 6+7+8 — Marketplace V2** (7-8 sessions) — القلب الجديد للمنصة
+2. Phase 9 — Commission على final_price (يعتمد على Phase 8)
+3. Arabic Phase C + SEO Phase 6 — locale-aware metadata (بالتوازي او بعد Marketplace V2)
+4. Phase 2C — PWA/Mobile strategy
+5. Phase 5 — KYC + Provider Verification
 
 ---
 
@@ -444,10 +482,11 @@
 - 030: requests table added to supabase_realtime publication (idempotent)
 
 ## Critical Rules
-- commission_rate = 0, commission_amount = 0 — intentional حتى Phase 8
-- PPJ fee = 15 AED (promo) — server-side only, controlled by NEXT_PUBLIC_LAUNCH_PROMO
-- Google Maps — links only, no SDK حتى Phase 6
+- commission_rate = 0, commission_amount = 0 — intentional حتى Phase 9
+- PPJ fee = 15 AED (promo) — server-side only. SOFT_LAUNCH_MODE=true → fee=0
+- Google Maps — Haversine v1 for distance. SDK/Distance Matrix = future upgrade
 - Stripe — TEST mode حتى Phase 10
-- accept_request_atomic + complete_provider_job_atomic + advance_provider_job_state — never bypass
+- Atomic RPCs: submit_quote_atomic + select_quote_atomic + sla_check_and_release + complete_provider_job_atomic — never bypass
 - RLS changes — one at a time + smoke test
 - New features MUST follow AGENTS.md standards (i18n, RTL, SEO, a11y, performance, security)
+- Marketplace V2 full spec: `MARKETPLACE_V2_SPEC.md`
