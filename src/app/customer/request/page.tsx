@@ -74,6 +74,8 @@ export default function RequestPage() {
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [note, setNote] = useState('')
+  const [destination, setDestination] = useState('')
+  const [destinationArea, setDestinationArea] = useState('')
   const [coords, setCoords] = useState<{ lng: number; lat: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
@@ -261,6 +263,8 @@ export default function RequestPage() {
     setPhone('')
     setAddress('')
     setNote('')
+    setDestination('')
+    setDestinationArea('')
     setCoords(null)
     setLocationMessage('')
     setError('')
@@ -327,6 +331,10 @@ export default function RequestPage() {
       setError(t('validationError'))
       return
     }
+    if (problemType === 'tow' && !destination.trim()) {
+      setError(t('destinationRequired'))
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -341,6 +349,8 @@ export default function RequestPage() {
           location_address: address,
           note,
           coords,
+          destination: destination.trim() || null,
+          destination_area: destinationArea.trim() || null,
         }),
       })
       const data = await res.json().catch(() => null) as SubmitResponse | null
@@ -928,6 +938,39 @@ export default function RequestPage() {
                   {t('notePrivacy')}
                 </p>
               </div>
+              {(problemType === 'tow' || destination.trim()) && (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+                  <p className="mb-3 text-sm font-medium text-amber-800">
+                    {problemType === 'tow' ? t('destinationRequiredLabel') : t('destinationOptionalLabel')}
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <Input
+                      id="destination"
+                      label={t('destinationLabel')}
+                      value={destination}
+                      onChange={e => setDestination(e.target.value)}
+                      placeholder={t('destinationPlaceholder')}
+                      required={problemType === 'tow'}
+                    />
+                    <Input
+                      id="destination-area"
+                      label={t('destinationAreaLabel')}
+                      value={destinationArea}
+                      onChange={e => setDestinationArea(e.target.value)}
+                      placeholder={t('destinationAreaPlaceholder')}
+                    />
+                  </div>
+                </div>
+              )}
+              {problemType !== 'tow' && !destination.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setDestination(' ')}
+                  className="text-start text-xs text-slate-400 underline hover:text-slate-600"
+                >
+                  {t('addDestination')}
+                </button>
+              )}
               {error && (
                 <div className="rounded-lg bg-red-50 px-3 py-2">
                   <p className="text-sm text-red-500">{error}</p>
@@ -940,7 +983,7 @@ export default function RequestPage() {
               )}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button variant="ghost" onClick={() => setStep(1)} className="min-h-11 flex-1">{commonT('back')}</Button>
-                <Button className="min-h-11 flex-1" disabled={!phone.trim() || !address.trim()} onClick={() => setStep(3)}>{t('continue')}</Button>
+                <Button className="min-h-11 flex-1" disabled={!phone.trim() || !address.trim() || (problemType === 'tow' && !destination.trim())} onClick={() => setStep(3)}>{t('continue')}</Button>
               </div>
               </div>
             </div>

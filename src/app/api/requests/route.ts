@@ -18,6 +18,8 @@ const requestSchema = z.object({
     })
     .optional()
     .nullable(),
+  destination: z.string().trim().max(300).optional().nullable(),
+  destination_area: z.string().trim().max(150).optional().nullable(),
 })
 
 type CompletedJobRow = {
@@ -285,7 +287,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { problem_type, phone, location_address, note, coords } = parsed.data
+  const { problem_type, phone, location_address, note, coords, destination, destination_area } = parsed.data
   const point = coords
     ? `POINT(${roundDispatchCoordinate(coords.lng)} ${roundDispatchCoordinate(coords.lat)})`
     : 'POINT(55.2708 25.2048)'
@@ -323,6 +325,8 @@ export async function POST(req: NextRequest) {
         fuzzy_latitude: fuzzy.lat,
         fuzzy_longitude: fuzzy.lng,
       }),
+      ...(destination && { destination }),
+      ...(destination_area && { destination_area }),
     })
     .select('id')
     .single()
