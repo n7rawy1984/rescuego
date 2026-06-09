@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   ] = await Promise.all([
     supabase.from('users').select('role').eq('id', user.id).single(),
     admin.from('providers').select('id, status, plan').eq('id', user.id).single<ProviderRow>(),
-    admin.from('provider_locations').select('latitude, longitude').eq('provider_id', user.id).gte('updated_at', onlineSince).maybeSingle<{ latitude: number; longitude: number }>(),
+    admin.from('provider_locations').select('provider_id, location').eq('provider_id', user.id).gte('updated_at', onlineSince).maybeSingle<{ provider_id: string; location: { type: string; coordinates: [number, number] } }>(),
     admin.from('requests').select('id, status, problem_type, location, destination_latitude, destination_longitude').eq('id', parsed.data.request_id).single<RequestRow>(),
   ])
 
@@ -95,18 +95,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Request is no longer accepting quotes' }, { status: 409 })
   }
 
-  let computedDistanceKm = 0
-  if (request.destination_latitude && request.destination_longitude) {
-    const customerCoords: Coordinates = {
-      lat: request.location.coordinates[1],
-      lng: request.location.coordinates[0],
-    }
-    const destinationCoords: Coordinates = {
-      lat: request.destination_latitude,
-      lng: request.destination_longitude,
-    }
-    computedDistanceKm = Number(distanceKm(customerCoords, destinationCoords).toFixed(2))
+  const providerCoords: Coordinates = {
+    lat: providerLocation.location.coordinates[1],
+    lng: providerLocation.location.coordinates[0],
   }
+  const customerCoords: Coordinates = {
+    lat: request.location.coordinates[1],
+    lng: request.location.coordinates[0],
+  }
+  const computedDistanceKm = Number(distanceKm(providerCoords, customerCoords).toFixed(2))
 
   const { data: rpcRows, error: rpcError } = await admin.rpc('submit_quote_atomic', {
     p_provider_id: user.id,

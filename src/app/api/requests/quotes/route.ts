@@ -27,8 +27,7 @@ type ProviderData = {
 
 type ProviderLocationRow = {
   provider_id: string
-  latitude: number
-  longitude: number
+  location: { type: string; coordinates: [number, number] }
 }
 
 type ScoredQuote = {
@@ -111,7 +110,7 @@ export async function GET(req: NextRequest) {
     { data: fairPriceConfig },
   ] = await Promise.all([
     admin.from('providers').select('id, rating, plan, verified_badge, jobs_this_month').in('id', providerIds),
-    admin.from('provider_locations').select('provider_id, latitude, longitude').in('provider_id', providerIds),
+    admin.from('provider_locations').select('provider_id, location').in('provider_id', providerIds),
     admin.from('fair_price_config').select('*').eq('service_type', request.problem_type).single<FairPriceConfig>(),
   ])
 
@@ -165,7 +164,10 @@ export async function GET(req: NextRequest) {
 
     let providerDistanceKm = 20
     if (location) {
-      providerDistanceKm = distanceKm(requestCoords, { lat: location.latitude, lng: location.longitude })
+      providerDistanceKm = distanceKm(requestCoords, {
+        lat: location.location.coordinates[1],
+        lng: location.location.coordinates[0],
+      })
     }
 
     const scoreResult = computeProviderScore({
