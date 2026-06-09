@@ -2,6 +2,33 @@
 
 ---
 
+## Session: June 9, 2026 — Marketplace V2 Session 7 (Realtime Notifications)
+
+### Summary
+Added lightweight toast notification system, updated provider realtime subscriptions for V2 events (quote selected/rejected, price change responses, new nearby requests). Integrated SLA timer into provider dashboard active job card. Added fuzzy coordinate generation on request creation.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/components/ui/Toast.tsx` | Minimal toast system: ToastContext, ToastProvider, useToast hook (success/warning/info) |
+| `src/components/layout/ClientProviders.tsx` | Client wrapper providing ToastProvider context |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/app/layout.tsx` | Wrapped children with ClientProviders inside NextIntlClientProvider |
+| `src/components/provider/ProviderRealtimeRefresh.tsx` | Added 3 realtime channels: open-requests (new request toast), quotes (selected/rejected toast), active-job (price change response toast) |
+| `src/app/provider/dashboard/page.tsx` | Added `accepted_at` to DashboardRequestRow type, imported + rendered SlaTimer in active job card |
+| `src/app/api/requests/route.ts` | Added generateFuzzyCoordinates import + fuzzy_latitude/fuzzy_longitude on request insert |
+| `messages/en.json` | +5 keys (components.providerRealtime) |
+| `messages/ar.json` | +5 keys (components.providerRealtime) |
+
+### Build Status
+- `tsc --noEmit`: PASS
+- `next build`: PASS
+
+---
+
 ## Session: June 9, 2026 — Marketplace V2 Session 6 (Customer UI)
 
 ### Summary
