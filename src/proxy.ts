@@ -29,7 +29,10 @@ const CSRF_EXEMPT_PATHS = [
 
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_SITE_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null,
   'https://rescuego.ae',
+  'https://www.rescuego.ae',
   'http://localhost:3000',
 ].filter(Boolean) as string[]
 
@@ -52,6 +55,14 @@ export async function proxy(request: NextRequest) {
         const requestHost = request.nextUrl.origin
         const isVercelPreview = requestOrigin.endsWith('.vercel.app')
         if (requestOrigin !== requestHost && !isVercelPreview) {
+          console.warn('[CSRF_BLOCK]', {
+            pathname,
+            origin,
+            referer,
+            requestOrigin,
+            requestHost,
+            allowedOrigins: ALLOWED_ORIGINS,
+          })
           return NextResponse.json(
             { error: 'Forbidden', message: 'Invalid request origin' },
             { status: 403 }
