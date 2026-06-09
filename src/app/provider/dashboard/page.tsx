@@ -403,7 +403,7 @@ export default async function ProviderDashboardPage({
     const { data: fallbackRequests } = await admin
       .from('requests')
       .select('id, problem_type, status, accepted_by, created_at')
-      .eq('status', 'open')
+      .in('status', ['open', 'quoted'])
       .is('accepted_by', null)
       .order('created_at', { ascending: false })
       .limit(20)
