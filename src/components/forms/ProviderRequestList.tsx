@@ -68,8 +68,6 @@ export default function ProviderRequestList({
   locationFallback = false,
   requestFeedMode = locationFallback ? 'fallback' : 'nearby',
   ppjRecoveryCredits = 0,
-  providerEmirate,
-  providerArea,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('components.providerRequestList')
@@ -317,30 +315,25 @@ export default function ProviderRequestList({
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#E1F5EE] text-[#0F6E56] ring-1 ring-[#9FE1CB]">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-lg font-medium text-slate-950">{getProblemLabel(req.problem_type)}</div>
-                    {providerEmirate && (
-                      <div className="mt-2 text-sm font-medium text-slate-700">
-                        {providerEmirate}{providerArea ? ` \u2014 ${providerArea}` : ''}
-                      </div>
-                    )}
-                    <hr className="my-2 border-slate-200" />
-                    <div className="text-xs font-medium text-slate-500">{t('approximateCustomerLocation')}</div>
-                    {req.uae_emirate ? (
-                      <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-700">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0F6E56]" aria-hidden="true" />
-                        <span className="font-medium">{req.uae_emirate}{req.uae_area ? ` \u2014 ${req.uae_area}` : ''}</span>
-                      </div>
-                    ) : (
-                      <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
-                        <span>{req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}</span>
-                      </div>
-                    )}
-                    <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
-                      <Ruler className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
-                      <span>{formatDistance(req.distance_meters, req.fuzzy_latitude != null)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      {req.uae_emirate ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[#E1F5EE] px-2.5 py-1 text-sm font-semibold text-[#0F6E56] ring-1 ring-[#9FE1CB]">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          {req.uae_emirate}{req.uae_area ? ` \u2014 ${req.uae_area}` : ''}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-sm font-medium text-slate-500 ring-1 ring-slate-200">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          {req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+                        <Ruler className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+                        {formatDistance(req.distance_meters, req.fuzzy_latitude != null)}
+                      </span>
                     </div>
+                    <div className="text-base font-semibold text-slate-950">{getProblemLabel(req.problem_type)}</div>
                     {req.problem_type === 'tow' && req.destination && (
                       <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
                         <Truck className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
