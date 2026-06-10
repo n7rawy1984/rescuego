@@ -30,6 +30,8 @@ type ProviderRequestCard = {
   distance_meters: number | null
   fuzzy_latitude?: number | null
   fuzzy_longitude?: number | null
+  uae_emirate?: string | null
+  uae_area?: string | null
   destination?: string | null
   destination_area?: string | null
 }
@@ -316,7 +318,11 @@ export default function ProviderRequestList({
                     <div className="mt-2 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
                       <div className="min-w-0">
-                        <div className="break-words">{req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}</div>
+                        {req.uae_emirate ? (
+                          <div className="font-medium text-slate-800">{req.uae_emirate}{req.uae_area ? ` · ${req.uae_area}` : ''}</div>
+                        ) : (
+                          <div className="break-words">{req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}</div>
+                        )}
                         {req.problem_type === 'tow' && req.destination && <div className="text-xs text-slate-500">{t('destination')}: {req.destination_area ?? req.destination}</div>}
                         {!req.fuzzy_latitude && <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>}
                       </div>

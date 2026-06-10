@@ -6,7 +6,7 @@ import NavbarServer from '@/components/layout/NavbarServer'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { getPlanLabel, getProblemLabel } from '@/lib/utils'
-import { isTimestampWithinMinutes, distanceKm } from '@/lib/geo'
+import { isTimestampWithinMinutes, distanceKm, getUaeLocation } from '@/lib/geo'
 import { getProviderAllowance } from '@/lib/provider-allowance'
 import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
@@ -83,6 +83,8 @@ type NearbyOpenRequestRow = DashboardRequestRow & {
   distance_meters: number | null
   fuzzy_latitude?: number | null
   fuzzy_longitude?: number | null
+  uae_emirate?: string | null
+  uae_area?: string | null
 }
 
 type RecentJobRow = {
@@ -454,6 +456,9 @@ export default async function ProviderDashboardPage({
         if (computedDistance === null && providerCoords && row.fuzzy_latitude != null && row.fuzzy_longitude != null) {
           computedDistance = Math.round(distanceKm(providerCoords, { lat: row.fuzzy_latitude, lng: row.fuzzy_longitude }) * 1000)
         }
+        const uaeLocation = (row.fuzzy_latitude != null && row.fuzzy_longitude != null)
+          ? getUaeLocation(row.fuzzy_latitude, row.fuzzy_longitude)
+          : null
         return {
           ...request,
           location: null,
@@ -461,6 +466,8 @@ export default async function ProviderDashboardPage({
           note: null,
           fuzzy_latitude: row.fuzzy_latitude ?? null,
           fuzzy_longitude: row.fuzzy_longitude ?? null,
+          uae_emirate: uaeLocation?.emirate ?? null,
+          uae_area: uaeLocation?.area ?? null,
           price_estimate_min: 'price_estimate_min' in request ? (request as NearbyOpenRequestRow).price_estimate_min : null,
           price_estimate_max: 'price_estimate_max' in request ? (request as NearbyOpenRequestRow).price_estimate_max : null,
           distance_meters: computedDistance,
