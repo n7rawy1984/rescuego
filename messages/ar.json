@@ -377,7 +377,13 @@
       "tooManyAttempts": "محاولات كثيرة. يرجى الانتظار قليلاً.",
       "waitingForCustomer": "بانتظار اختيار العميل",
       "destination": "الوجهة التي ستُسحب إليها السيارة",
-      "fuzzyLocation": "الموقع التقريبي"
+      "fuzzyLocation": "الموقع التقريبي",
+      "problemTypes": {
+        "flat_tire": "إطار مثقوب",
+        "battery": "مشكلة في البطارية",
+        "tow": "مطلوب سحب",
+        "other": "أخرى"
+      }
     },
     "slaTimer": {
       "timeRemaining": "الوقت المتبقي",

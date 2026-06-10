@@ -377,7 +377,13 @@
       "tooManyAttempts": "Too many attempts. Please wait a moment.",
       "waitingForCustomer": "Waiting for customer selection",
       "destination": "Tow Destination",
-      "fuzzyLocation": "Approximate location"
+      "fuzzyLocation": "Approximate location",
+      "problemTypes": {
+        "flat_tire": "Flat Tire",
+        "battery": "Battery Issue",
+        "tow": "Tow Required",
+        "other": "Other"
+      }
     },
     "slaTimer": {
       "timeRemaining": "Time remaining",

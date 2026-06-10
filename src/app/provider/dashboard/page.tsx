@@ -84,7 +84,9 @@ type NearbyOpenRequestRow = DashboardRequestRow & {
   fuzzy_latitude?: number | null
   fuzzy_longitude?: number | null
   uae_emirate?: string | null
+  uae_emirate_ar?: string | null
   uae_area?: string | null
+  uae_area_ar?: string | null
 }
 
 type RecentJobRow = {
@@ -469,7 +471,9 @@ export default async function ProviderDashboardPage({
           fuzzy_latitude: row.fuzzy_latitude ?? null,
           fuzzy_longitude: row.fuzzy_longitude ?? null,
           uae_emirate: uaeLocation?.emirate ?? null,
+          uae_emirate_ar: uaeLocation?.emirateAr ?? null,
           uae_area: uaeLocation?.area ?? null,
+          uae_area_ar: uaeLocation?.areaAr ?? null,
           price_estimate_min: 'price_estimate_min' in request ? (request as NearbyOpenRequestRow).price_estimate_min : null,
           price_estimate_max: 'price_estimate_max' in request ? (request as NearbyOpenRequestRow).price_estimate_max : null,
           distance_meters: computedDistance,
