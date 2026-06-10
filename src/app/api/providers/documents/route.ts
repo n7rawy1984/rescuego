@@ -17,6 +17,23 @@ const DOCUMENT_KEYS: Record<DocumentField, string> = {
   vehicle: 'vehicle_photo_url',
 }
 
+function verifyMagicBytes(buffer: ArrayBuffer, mimeType: string): boolean {
+  const bytes = new Uint8Array(buffer, 0, 8)
+  if (mimeType === 'image/jpeg') {
+    return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF
+  }
+  if (mimeType === 'image/png') {
+    return (
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 &&
+      bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A
+    )
+  }
+  if (mimeType === 'application/pdf') {
+    return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46
+  }
+  return false
+}
+
 function extensionFor(file: File): string | null {
   if (file.type === 'image/jpeg') return 'jpg'
   if (file.type === 'image/png') return 'png'
@@ -83,8 +100,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `${field} has an unsupported file type` }, { status: 400 })
     }
 
-    const path = `${user.id}/${field}.${extension}`
     const fileBytes = await value.arrayBuffer()
+
+    if (!verifyMagicBytes(fileBytes, value.type)) {
+      return NextResponse.json({ error: `${field} content does not match its declared file type` }, { status: 400 })
+    }
+
+    const path = `${user.id}/${field}.${extension}`
     const { error: uploadError } = await admin.storage
       .from('provider-documents')
       .upload(path, fileBytes, { contentType: value.type, upsert: true })
