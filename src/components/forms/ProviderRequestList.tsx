@@ -327,8 +327,17 @@ export default function ProviderRequestList({
                         {!req.fuzzy_latitude && <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>}
                       </div>
                     </div>
-                    <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" suppressHydrationWarning>
-                      {formatDistance(req.distance_meters, req.fuzzy_latitude != null)}{' \u00b7 '}{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}
+                    {req.uae_emirate && (
+                      <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-700">
+                        <span aria-hidden="true">📍</span>
+                        <span className="font-medium">{req.uae_emirate}{req.uae_area ? ` \u2014 ${req.uae_area}` : ''}</span>
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600" suppressHydrationWarning>
+                      <span aria-hidden="true">📏</span>
+                      <span>{formatDistance(req.distance_meters, req.fuzzy_latitude != null)}</span>
+                      <span className="text-slate-400">{'\u00b7'}</span>
+                      <span>{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}</span>
                     </div>
                     {providerPlan === 'pay_per_job' && (
                       <div className="mt-2 inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
