@@ -309,7 +309,8 @@
       "copied": "Copied"
     },
     "providerRequestList": {
-      "distanceUnavailable": "Distance unavailable",
+      "distanceUnavailable": "No GPS coordinates",
+      "distanceCalculating": "Distance unavailable",
       "metersAway": "{distance} m away",
       "kilometersAway": "{distance} km away",
       "accountMustBeActive": "Your account must be active to accept requests.",

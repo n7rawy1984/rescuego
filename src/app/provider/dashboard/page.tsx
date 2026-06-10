@@ -81,6 +81,8 @@ type DashboardRequestRow = {
 
 type NearbyOpenRequestRow = DashboardRequestRow & {
   distance_meters: number | null
+  fuzzy_latitude?: number | null
+  fuzzy_longitude?: number | null
 }
 
 type RecentJobRow = {
@@ -100,11 +102,13 @@ type RecentJobRow = {
 
 type ProviderLocationRow = {
   updated_at: string | null
-  location: { type: string; coordinates: [number, number] } | null
+  lat: number | null
+  lng: number | null
 }
 
 type FallbackOpenRequestRow = Omit<DashboardRequestRow, 'location' | 'location_address' | 'price_estimate_min' | 'price_estimate_max'> & {
-  location?: { type: string; coordinates: [number, number] } | null
+  fuzzy_latitude?: number | null
+  fuzzy_longitude?: number | null
 }
 type RequestFeedMode = 'nearby' | 'fallback' | 'offline'
 
@@ -256,7 +260,7 @@ export default async function ProviderDashboardPage({
     operationalReady
       ? admin
         .from('provider_locations')
-        .select('updated_at, location')
+        .select('updated_at, lat, lng')
         .eq('provider_id', user.id)
         .maybeSingle<ProviderLocationRow>()
       : Promise.resolve({ data: null }),
@@ -407,7 +411,7 @@ export default async function ProviderDashboardPage({
   if (operationalReady && (!openRequests || openRequests.length === 0)) {
     const { data: fallbackRequests } = await admin
       .from('requests')
-      .select('id, problem_type, status, accepted_by, created_at, destination, destination_area, location')
+      .select('id, problem_type, status, accepted_by, created_at, destination, destination_area, fuzzy_latitude, fuzzy_longitude')
       .in('status', ['open', 'quoted'])
       .is('accepted_by', null)
       .order('created_at', { ascending: false })
@@ -439,29 +443,28 @@ export default async function ProviderDashboardPage({
     jobsThisMonth: provider.jobs_this_month,
     jobCreditBalance: provider.job_credit_balance,
   })
-  const providerCoords = providerLocation?.location?.coordinates
-    ? { lat: providerLocation.location.coordinates[1], lng: providerLocation.location.coordinates[0] }
+  const providerCoords = (providerLocation?.lat != null && providerLocation?.lng != null)
+    ? { lat: providerLocation.lat, lng: providerLocation.lng }
     : null
 
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests)
     ? openRequests.map((request) => {
-        let computedDistance: number | null = 'distance_meters' in request ? request.distance_meters : null
-        if (computedDistance === null && providerCoords) {
-          const reqLocation = (request as FallbackOpenRequestRow).location
-          if (reqLocation?.coordinates) {
-            const reqCoords = { lat: reqLocation.coordinates[1], lng: reqLocation.coordinates[0] }
-            computedDistance = Math.round(distanceKm(providerCoords, reqCoords) * 1000)
-          }
+        let computedDistance: number | null = 'distance_meters' in request ? (request as NearbyOpenRequestRow).distance_meters : null
+        const row = request as FallbackOpenRequestRow
+        if (computedDistance === null && providerCoords && row.fuzzy_latitude != null && row.fuzzy_longitude != null) {
+          computedDistance = Math.round(distanceKm(providerCoords, { lat: row.fuzzy_latitude, lng: row.fuzzy_longitude }) * 1000)
         }
         return {
           ...request,
           location: null,
           location_address: null,
           note: null,
-          price_estimate_min: 'price_estimate_min' in request ? request.price_estimate_min : null,
-          price_estimate_max: 'price_estimate_max' in request ? request.price_estimate_max : null,
+          fuzzy_latitude: row.fuzzy_latitude ?? null,
+          fuzzy_longitude: row.fuzzy_longitude ?? null,
+          price_estimate_min: 'price_estimate_min' in request ? (request as NearbyOpenRequestRow).price_estimate_min : null,
+          price_estimate_max: 'price_estimate_max' in request ? (request as NearbyOpenRequestRow).price_estimate_max : null,
           distance_meters: computedDistance,
-          distance_to_provider_m: 'distance_to_provider_m' in request ? request.distance_to_provider_m : null,
+          distance_to_provider_m: 'distance_to_provider_m' in request ? (request as NearbyOpenRequestRow).distance_to_provider_m : null,
         }
       })
     : []

@@ -81,8 +81,8 @@ export default function ProviderRequestList({
     [hiddenRequestIds, requests]
   )
 
-  const formatDistance = useCallback((meters: number | null): string => {
-    if (meters === null) return t('distanceUnavailable')
+  const formatDistance = useCallback((meters: number | null, hasGps: boolean): string => {
+    if (meters === null) return hasGps ? t('distanceCalculating') : t('distanceUnavailable')
     if (meters < 1000) return t('metersAway', { distance: Math.round(meters) })
     return t('kilometersAway', { distance: (meters / 1000).toFixed(1) })
   }, [t])
@@ -338,7 +338,7 @@ export default function ProviderRequestList({
                       </div>
                     </div>
                     <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" suppressHydrationWarning>
-                      {formatDistance(req.distance_meters)}{' \u00b7 '}{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}
+                      {formatDistance(req.distance_meters, req.fuzzy_latitude != null)}{' \u00b7 '}{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}
                     </div>
                     {providerPlan === 'pay_per_job' && (
                       <div className="mt-2 inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">

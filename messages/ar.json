@@ -309,7 +309,8 @@
       "copied": "تم النسخ"
     },
     "providerRequestList": {
-      "distanceUnavailable": "المسافة غير متاحة",
+      "distanceUnavailable": "بدون إحداثيات GPS",
+      "distanceCalculating": "المسافة غير متاحة",
       "metersAway": "{distance} م بعيداً",
       "kilometersAway": "{distance} كم بعيداً",
       "accountMustBeActive": "يجب أن يكون حسابك نشطاً لقبول الطلبات.",
