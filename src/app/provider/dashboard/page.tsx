@@ -6,7 +6,7 @@ import NavbarServer from '@/components/layout/NavbarServer'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { getPlanLabel, getProblemLabel } from '@/lib/utils'
-import { isTimestampWithinMinutes } from '@/lib/geo'
+import { isTimestampWithinMinutes, distanceKm } from '@/lib/geo'
 import { getProviderAllowance } from '@/lib/provider-allowance'
 import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
 import ProviderRequestList from '@/components/forms/ProviderRequestList'
@@ -100,9 +100,12 @@ type RecentJobRow = {
 
 type ProviderLocationRow = {
   updated_at: string | null
+  location: { type: string; coordinates: [number, number] } | null
 }
 
-type FallbackOpenRequestRow = Omit<DashboardRequestRow, 'location' | 'location_address' | 'price_estimate_min' | 'price_estimate_max'>
+type FallbackOpenRequestRow = Omit<DashboardRequestRow, 'location' | 'location_address' | 'price_estimate_min' | 'price_estimate_max'> & {
+  location?: { type: string; coordinates: [number, number] } | null
+}
 type RequestFeedMode = 'nearby' | 'fallback' | 'offline'
 
 type PaymentProcessingRow = {
@@ -253,7 +256,7 @@ export default async function ProviderDashboardPage({
     operationalReady
       ? admin
         .from('provider_locations')
-        .select('updated_at')
+        .select('updated_at, location')
         .eq('provider_id', user.id)
         .maybeSingle<ProviderLocationRow>()
       : Promise.resolve({ data: null }),
@@ -404,7 +407,7 @@ export default async function ProviderDashboardPage({
   if (operationalReady && (!openRequests || openRequests.length === 0)) {
     const { data: fallbackRequests } = await admin
       .from('requests')
-      .select('id, problem_type, status, accepted_by, created_at, destination, destination_area')
+      .select('id, problem_type, status, accepted_by, created_at, destination, destination_area, location')
       .in('status', ['open', 'quoted'])
       .is('accepted_by', null)
       .order('created_at', { ascending: false })
@@ -425,7 +428,7 @@ export default async function ProviderDashboardPage({
 
     if (existingQuotes && existingQuotes.length > 0) {
       const quotedIds = new Set(existingQuotes.map((q) => q.request_id))
-      openRequests = openRequests.filter((r) => !quotedIds.has(r.id))
+      openRequests = (openRequests as Array<NearbyOpenRequestRow | FallbackOpenRequestRow>).filter((r) => !quotedIds.has(r.id)) as NearbyOpenRequestRow[] | FallbackOpenRequestRow[]
     }
   }
 
@@ -436,17 +439,31 @@ export default async function ProviderDashboardPage({
     jobsThisMonth: provider.jobs_this_month,
     jobCreditBalance: provider.job_credit_balance,
   })
+  const providerCoords = providerLocation?.location?.coordinates
+    ? { lat: providerLocation.location.coordinates[1], lng: providerLocation.location.coordinates[0] }
+    : null
+
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests)
-    ? openRequests.map((request) => ({
-        ...request,
-        location: null,
-        location_address: null,
-        note: null,
-        price_estimate_min: 'price_estimate_min' in request ? request.price_estimate_min : null,
-        price_estimate_max: 'price_estimate_max' in request ? request.price_estimate_max : null,
-        distance_meters: 'distance_meters' in request ? request.distance_meters : null,
-        distance_to_provider_m: 'distance_to_provider_m' in request ? request.distance_to_provider_m : null,
-      }))
+    ? openRequests.map((request) => {
+        let computedDistance: number | null = 'distance_meters' in request ? request.distance_meters : null
+        if (computedDistance === null && providerCoords) {
+          const reqLocation = (request as FallbackOpenRequestRow).location
+          if (reqLocation?.coordinates) {
+            const reqCoords = { lat: reqLocation.coordinates[1], lng: reqLocation.coordinates[0] }
+            computedDistance = Math.round(distanceKm(providerCoords, reqCoords) * 1000)
+          }
+        }
+        return {
+          ...request,
+          location: null,
+          location_address: null,
+          note: null,
+          price_estimate_min: 'price_estimate_min' in request ? request.price_estimate_min : null,
+          price_estimate_max: 'price_estimate_max' in request ? request.price_estimate_max : null,
+          distance_meters: computedDistance,
+          distance_to_provider_m: 'distance_to_provider_m' in request ? request.distance_to_provider_m : null,
+        }
+      })
     : []
   const activeLocation = activeRequest ? getProviderLocationDisplay(activeRequest) : null
   const totalEarnings = (recentJobs ?? []).reduce((sum, job) => {
