@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl'
 import { CheckCircle2, Circle, ShieldCheck } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
+import { getProviderOnboardingState } from '@/lib/provider-onboarding'
 import type { ProviderDocuments } from '@/lib/provider-onboarding'
 import type { ProviderPlan, ProviderStatus } from '@/types'
 
@@ -36,7 +36,6 @@ export default function ProviderOnboardingChecklist({
 }: ProviderOnboardingChecklistProps) {
   const t = useTranslations('components.providerOnboarding')
   const onboarding = getProviderOnboardingState({ name, email, phone, plan, status, documents })
-  const missingDocumentLabels = onboarding.missingDocuments.map(providerDocumentLabel)
 
   const items: ChecklistItem[] = [
     {
@@ -48,9 +47,9 @@ export default function ProviderOnboardingChecklist({
     },
     {
       label: t('uploadDocumentsLabel'),
-      description: missingDocumentLabels.length > 0
-        ? t('missingDocuments', { documents: missingDocumentLabels.join(', ') })
-        : t('documentsReadyDescription'),
+      description: onboarding.documentsComplete
+        ? t('documentsReadyDescription')
+        : t('softLaunchDocumentHint'),
       complete: onboarding.documentsComplete,
       actionHref: '/provider/register?step=documents',
       actionLabel: t('uploadDocuments'),
@@ -66,7 +65,11 @@ export default function ProviderOnboardingChecklist({
       label: t('adminApprovalLabel'),
       description: status === 'suspended'
         ? t('suspendedDescription')
-        : t('reviewDescription'),
+        : status === 'rejected'
+          ? t('rejectedDescription')
+          : onboarding.underReview
+            ? t('underReviewDescription')
+            : t('reviewDescription'),
       complete: onboarding.activeReady,
     },
   ]
@@ -105,16 +108,22 @@ export default function ProviderOnboardingChecklist({
             <h2 className="text-base font-semibold text-slate-950">
               {status === 'suspended'
                 ? t('accountSuspendedTitle')
-                : onboarding.pendingApproval
-                  ? t('documentsUnderReviewTitle')
-                  : t('providerOnboardingTitle')}
+                : status === 'rejected'
+                  ? t('accountRejectedTitle')
+                  : onboarding.underReview
+                    ? t('documentsUnderReviewTitle')
+                    : onboarding.pendingApproval
+                      ? t('documentsUnderReviewTitle')
+                      : t('providerOnboardingTitle')}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {status === 'suspended'
                 ? t('contactSupportBeforeAccepting')
-                : onboarding.pendingApproval
-                ? t('approvalPendingDescription')
-                : t('completeNextStepDescription')}
+                : status === 'rejected'
+                  ? t('rejectedContactSupport')
+                  : onboarding.underReview || onboarding.pendingApproval
+                    ? t('approvalPendingDescription')
+                    : t('completeNextStepDescription')}
             </p>
           </div>
           <Badge variant={status === 'active' ? 'success' : 'warning'} className="w-fit">

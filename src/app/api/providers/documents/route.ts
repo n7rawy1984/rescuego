@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getRequestUser } from '@/lib/supabase/request-user'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
+import type { ProviderStatus } from '@/types'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf'])
-const DOCUMENT_FIELDS = ['emirates_id', 'license', 'vehicle'] as const
 
+const DOCUMENT_FIELDS = ['emirates_id', 'license', 'vehicle'] as const
 type DocumentField = (typeof DOCUMENT_FIELDS)[number]
 
 const DOCUMENT_KEYS: Record<DocumentField, string> = {
@@ -29,7 +31,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const rateLimit = await checkRateLimitAsync(`documents-upload:${user.id}`, 5, 60 * 60 * 1000, 'provider_documents_upload')
+  const rateLimit = await checkRateLimitAsync(
+    `documents-upload:${user.id}`,
+    5,
+    60 * 60 * 1000,
+    'provider_documents_upload'
+  )
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many upload attempts. Please wait before trying again.' },
@@ -38,6 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+
   const { data: profile } = await admin
     .from('users')
     .select('role')
@@ -48,15 +56,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only provider accounts can upload documents' }, { status: 403 })
   }
 
+  const { data: currentProvider } = await admin
+    .from('providers')
+    .select('status, documents')
+    .eq('id', user.id)
+    .single<{ status: ProviderStatus; documents: Record<string, string> | null }>()
+
   const formData = await req.formData()
   const uploads: Record<string, string> = {}
+  let uploadedCount = 0
 
   for (const field of DOCUMENT_FIELDS) {
     const value = formData.get(field)
-
-    if (!(value instanceof File)) {
-      return NextResponse.json({ error: `Missing required document: ${field}` }, { status: 400 })
-    }
+    if (!(value instanceof File) || value.size === 0) continue
 
     if (value.size > MAX_FILE_SIZE) {
       return NextResponse.json({ error: `${field} must be 5 MB or smaller` }, { status: 400 })
@@ -75,26 +87,51 @@ export async function POST(req: NextRequest) {
     const fileBytes = await value.arrayBuffer()
     const { error: uploadError } = await admin.storage
       .from('provider-documents')
-      .upload(path, fileBytes, {
-        contentType: value.type,
-        upsert: true,
-      })
+      .upload(path, fileBytes, { contentType: value.type, upsert: true })
 
     if (uploadError) {
       return NextResponse.json({ error: `Failed to upload ${field}` }, { status: 500 })
     }
 
     uploads[DOCUMENT_KEYS[field]] = path
+    uploadedCount++
   }
+
+  if (uploadedCount === 0) {
+    return NextResponse.json({ error: 'At least one document is required' }, { status: 400 })
+  }
+
+  const mergedDocuments = { ...(currentProvider?.documents ?? {}), ...uploads }
+
+  const currentStatus = currentProvider?.status ?? 'pending'
+  const isActive = currentStatus === 'active'
+
+  const newStatus: ProviderStatus = isActive ? 'active' : 'under_review'
 
   const { error: updateError } = await admin
     .from('providers')
-    .update({ documents: uploads, status: 'pending' })
+    .update({ documents: mergedDocuments, status: newStatus })
     .eq('id', user.id)
 
   if (updateError) {
     return NextResponse.json({ error: 'Failed to save document records' }, { status: 500 })
   }
 
-  return NextResponse.json({ documents: uploads })
+  if (isActive) {
+    logger.info({
+      event: 'provider_documents_updated_while_active',
+      provider_id: user.id,
+      uploaded_fields: Object.keys(uploads),
+    })
+  } else {
+    logger.info({
+      event: 'provider_documents_submitted_for_review',
+      provider_id: user.id,
+      previous_status: currentStatus,
+      new_status: 'under_review',
+      uploaded_fields: Object.keys(uploads),
+    })
+  }
+
+  return NextResponse.json({ documents: mergedDocuments, status: newStatus })
 }

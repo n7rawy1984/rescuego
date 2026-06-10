@@ -24,6 +24,7 @@ type SubscriptionPlan = Exclude<ProviderPlan, 'pay_per_job'>
 
 type ProviderSubscriptionRow = {
   id: string
+  status: string
   plan: ProviderPlan
   jobs_this_month: number | null
   job_credit_balance: number | null
@@ -468,7 +469,13 @@ async function processStripeEvent(
       return
     }
 
-    const status = sub.status === 'active' ? 'active' : sub.status === 'past_due' ? 'suspended' : 'pending'
+    const KYC_PROTECTED: string[] = ['under_review', 'rejected']
+    const resolveStripeStatus = (currentDbStatus: string | undefined) => {
+      if (sub.status === 'active') return 'active'
+      if (sub.status === 'past_due') return 'suspended'
+      if (currentDbStatus && KYC_PROTECTED.includes(currentDbStatus)) return currentDbStatus
+      return 'pending'
+    }
     const resolvedPlan = resolveSubscriptionPlan(sub)
     const subscriptionWithPeriod = sub as Stripe.Subscription & {
       current_period_start?: number
@@ -485,7 +492,7 @@ async function processStripeEvent(
       job_credit_balance?: number
       last_upgrade_bonus_key?: string
     } = {
-      status,
+      status: 'pending',
       stripe_subscription_id: sub.id,
       stripe_current_period_start: currentPeriodStart,
       stripe_current_period_end: currentPeriodEnd,
@@ -506,10 +513,12 @@ async function processStripeEvent(
 
     const { data: existingProvider, error: providerLookupError } = await supabase
       .from('providers')
-      .select('id, plan, jobs_this_month, job_credit_balance, last_upgrade_bonus_key')
+      .select('id, status, plan, jobs_this_month, job_credit_balance, last_upgrade_bonus_key')
       .eq('stripe_customer_id', stripeCustomerId)
       .maybeSingle<ProviderSubscriptionRow>()
     throwIfError(providerLookupError, 'Failed to read provider before subscription update')
+
+    updatePayload.status = resolveStripeStatus(existingProvider?.status)
 
     if (existingProvider && resolvedPlan.plan) {
       const oldPlan = existingProvider.plan
@@ -556,7 +565,7 @@ async function processStripeEvent(
       subscription_status: sub.status,
     })
 
-    if (status === 'suspended') {
+    if (updatePayload.status === 'suspended') {
       logger.warn({
         event: notificationEvents.subscriptionRequiresAttention,
         stripe_subscription_id: sub.id,

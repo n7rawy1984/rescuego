@@ -25,6 +25,12 @@ type PendingProviderRow = {
   users: { name: string | null; email: string | null; phone: string | null } | null
 }
 
+type KycLogRow = {
+  notes: string | null
+  action: string
+  created_at: string
+}
+
 export default async function ProviderPendingPage() {
   const t = await getTranslations('provider.pending')
   const supabase = await createClient()
@@ -43,6 +49,16 @@ export default async function ProviderPendingPage() {
 
   if (provider.status === 'active') redirect('/provider/dashboard')
 
+  const { data: latestKycLog } = await admin
+    .from('provider_kyc_log')
+    .select('notes, action, created_at')
+    .eq('provider_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<KycLogRow>()
+
+  const reviewNotes = latestKycLog?.action === 'rejected' ? latestKycLog?.notes : null
+
   const state = getProviderOnboardingState({
     status: provider.status,
     plan: provider.plan,
@@ -52,6 +68,8 @@ export default async function ProviderPendingPage() {
     phone: provider.users?.phone ?? null,
   })
 
+  const isRejected = provider.status === 'rejected'
+  const isUnderReview = provider.status === 'under_review'
   const isSuspended = provider.status === 'suspended'
 
   const docs = [
@@ -60,30 +78,53 @@ export default async function ProviderPendingPage() {
     { key: 'vehicle_photo_url' as const, label: providerDocumentLabel('vehicle_photo_url') },
   ]
 
+  function statusIcon() {
+    if (isSuspended || isRejected) return <XCircle className="mx-auto mb-3 h-12 w-12 text-red-500" />
+    if (isUnderReview || state.pendingApproval) return <Clock className="mx-auto mb-3 h-12 w-12 text-amber-500" />
+    return <AlertCircle className="mx-auto mb-3 h-12 w-12 text-blue-500" />
+  }
+
+  function statusTitle() {
+    if (isSuspended) return t('accountSuspended')
+    if (isRejected) return t('applicationRejected')
+    if (isUnderReview || state.pendingApproval) return t('applicationUnderReview')
+    return t('completeApplication')
+  }
+
+  function statusDescription() {
+    if (isSuspended) return t('suspendedDescription')
+    if (isRejected) return t('rejectedDescription')
+    if (isUnderReview || state.pendingApproval) return t('reviewDescription')
+    return t('completeDescription')
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
 
         <div className="mb-8 text-center">
-          {isSuspended ? (
-            <XCircle className="mx-auto mb-3 h-12 w-12 text-red-500" />
-          ) : state.pendingApproval ? (
-            <Clock className="mx-auto mb-3 h-12 w-12 text-amber-500" />
-          ) : (
-            <AlertCircle className="mx-auto mb-3 h-12 w-12 text-blue-500" />
-          )}
-          <h1 className="text-2xl font-bold text-slate-900">
-            {isSuspended ? t('accountSuspended') : state.pendingApproval ? t('applicationUnderReview') : t('completeApplication')}
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            {isSuspended
-              ? t('suspendedDescription')
-              : state.pendingApproval
-              ? t('reviewDescription')
-              : t('completeDescription')}
-          </p>
+          {statusIcon()}
+          <h1 className="text-2xl font-bold text-slate-900">{statusTitle()}</h1>
+          <p className="mt-2 text-sm text-slate-500">{statusDescription()}</p>
         </div>
+
+        {isRejected && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
+            {reviewNotes && (
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-red-800">{t('reviewNotesLabel')}</p>
+                <p className="mt-1 text-sm leading-6 text-red-700">{reviewNotes}</p>
+              </div>
+            )}
+            <Link
+              href="/provider/register?step=documents"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+            >
+              {t('reUploadDocuments')}
+            </Link>
+          </div>
+        )}
 
         <div className="space-y-4">
 
@@ -121,6 +162,7 @@ export default async function ProviderPendingPage() {
               </div>
             </CardHeader>
             <CardBody>
+              <p className="mb-3 text-xs text-slate-500">{t('softLaunchDocumentHint')}</p>
               <ul className="space-y-2">
                 {docs.map(({ key, label }) => {
                   const uploaded = Boolean(provider.documents?.[key])
@@ -135,7 +177,7 @@ export default async function ProviderPendingPage() {
                 })}
               </ul>
               {!state.documentsComplete && (
-                <Link href="/provider/register" className="mt-3 block text-sm font-medium text-emerald-600 hover:underline">
+                <Link href="/provider/register?step=documents" className="mt-3 block text-sm font-medium text-emerald-600 hover:underline">
                   {t('uploadDocuments')}
                 </Link>
               )}
@@ -168,25 +210,29 @@ export default async function ProviderPendingPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-slate-700">{t('adminApproval')}</span>
-                {isSuspended
+                {isSuspended || isRejected
                   ? <XCircle className="h-5 w-5 text-red-500" />
-                  : <Clock className="h-5 w-5 text-amber-400" />}
+                  : isUnderReview || state.pendingApproval
+                    ? <Clock className="h-5 w-5 text-amber-400" />
+                    : <AlertCircle className="h-5 w-5 text-slate-300" />}
               </div>
             </CardHeader>
             <CardBody>
               <p className="text-sm text-slate-600">
                 {isSuspended
                   ? t('suspendedSupport')
-                  : state.pendingApproval
-                  ? t('submittedReview')
-                  : t('submitRequirements')}
+                  : isRejected
+                    ? t('rejectedSupport')
+                    : isUnderReview || state.pendingApproval
+                      ? t('submittedReview')
+                      : t('submitRequirements')}
               </p>
             </CardBody>
           </Card>
 
         </div>
 
-        {state.pendingApproval && (
+        {(isUnderReview || state.pendingApproval) && (
           <div className="mt-8 flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
             <div>

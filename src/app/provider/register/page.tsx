@@ -203,8 +203,8 @@ export default function ProviderRegisterPage() {
           const stateStep = stepNumber(onboarding.firstIncompleteStep)
           const nextStep = forcedStep && forcedStep <= Math.max(stateStep, 3) ? forcedStep : stateStep
 
-          if (onboarding.activeReady || onboarding.pendingApproval) {
-            router.replace('/provider/dashboard')
+          if (onboarding.activeReady || onboarding.pendingApproval || onboarding.underReview) {
+            router.replace('/provider/pending')
             return
           }
 
@@ -226,7 +226,7 @@ export default function ProviderRegisterPage() {
             setResumeProvider({
               isProvider: true,
               activeReady: onboarding.activeReady,
-              reviewReady: onboarding.pendingApproval,
+              reviewReady: onboarding.pendingApproval || onboarding.underReview,
               status: provider?.status ?? null,
               documents: provider?.documents ?? null,
             })
@@ -373,8 +373,8 @@ export default function ProviderRegisterPage() {
   async function handleDocumentUpload(e: React.FormEvent) {
     e.preventDefault()
     if (loading) return
-    if (!files.emirates_id || !files.license || !files.vehicle) {
-      setError(t('allDocsRequired'))
+    if (!files.emirates_id && !files.license && !files.vehicle) {
+      setError(t('atLeastOneDocRequired'))
       return
     }
     setLoading(true)
@@ -382,9 +382,9 @@ export default function ProviderRegisterPage() {
     setError('')
 
     const formData = new FormData()
-    formData.append('emirates_id', files.emirates_id)
-    formData.append('license', files.license)
-    formData.append('vehicle', files.vehicle)
+    if (files.emirates_id) formData.append('emirates_id', files.emirates_id)
+    if (files.license) formData.append('license', files.license)
+    if (files.vehicle) formData.append('vehicle', files.vehicle)
 
     try {
       const res = await fetch('/api/providers/documents', {
@@ -414,9 +414,10 @@ export default function ProviderRegisterPage() {
       setResumeProvider((current) => ({
         ...current,
         documents: {
-          emirates_id_url: 'uploaded',
-          license_url: 'uploaded',
-          vehicle_photo_url: 'uploaded',
+          ...(current.documents ?? {}),
+          ...(files.emirates_id ? { emirates_id_url: 'uploaded' } : {}),
+          ...(files.license ? { license_url: 'uploaded' } : {}),
+          ...(files.vehicle ? { vehicle_photo_url: 'uploaded' } : {}),
         },
       }))
       setStep(3)
@@ -645,7 +646,7 @@ export default function ProviderRegisterPage() {
                 <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-[#1D9E75]" aria-hidden="true" />
                 <div>
                   <h2 className="text-xl font-semibold text-slate-950">{t('uploadDocuments')}</h2>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">{t('uploadDocumentsDesc')}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">{t('softLaunchDocumentHint')}</p>
                 </div>
               </div>
               <form onSubmit={handleDocumentUpload} className="flex flex-col gap-5">
@@ -657,7 +658,7 @@ export default function ProviderRegisterPage() {
                   <div key={key} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex items-center gap-2">
                       <UploadCloud className="h-4 w-4 text-[#1D9E75]" aria-hidden="true" />
-                      <label className="text-sm font-semibold text-slate-700">{label} <span className="text-red-500">*</span></label>
+                      <label className="text-sm font-semibold text-slate-700">{label}</label>
                     </div>
                     <input
                       type="file"

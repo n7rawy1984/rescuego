@@ -1,6 +1,6 @@
 export type UserRole = 'customer' | 'provider' | 'admin'
 export type ProviderPlan = 'starter' | 'pro' | 'business' | 'pay_per_job'
-export type ProviderStatus = 'pending' | 'active' | 'suspended'
+export type ProviderStatus = 'pending' | 'under_review' | 'active' | 'rejected' | 'suspended'
 export type RequestStatus = 'open' | 'quoted' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 export type ProblemType = 'flat_tire' | 'battery' | 'tow' | 'other'
 export type ServiceType = 'tow' | 'battery' | 'flat_tire' | 'fuel' | 'lockout' | 'other'
@@ -157,6 +157,19 @@ export interface ProviderDispatchLog {
   sla_met: boolean | null
   is_soft_launch: boolean
   event_type: DispatchEventType
+  created_at: string
+}
+
+export type KycAction = 'submitted' | 'under_review' | 'approved' | 'rejected' | 'suspended' | 'reactivated'
+
+export interface ProviderKycLog {
+  id: string
+  provider_id: string
+  admin_id: string
+  action: KycAction
+  previous_status: ProviderStatus
+  new_status: ProviderStatus
+  notes: string | null
   created_at: string
 }
 

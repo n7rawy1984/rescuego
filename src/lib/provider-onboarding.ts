@@ -13,25 +13,31 @@ export type ProviderOnboardingState = {
   documentsComplete: boolean
   planComplete: boolean
   pendingApproval: boolean
+  underReview: boolean
+  rejected: boolean
   activeReady: boolean
   firstIncompleteStep: 'profile' | 'documents' | 'plan' | 'review' | 'ready'
   missingDocuments: MissingDocumentKey[]
 }
 
-export const REQUIRED_PROVIDER_DOCUMENTS: { key: MissingDocumentKey; label: string }[] = [
+export const ALL_PROVIDER_DOCUMENTS: { key: MissingDocumentKey; label: string }[] = [
   { key: 'emirates_id_url', label: 'Emirates ID' },
-  { key: 'license_url', label: 'UAE driving license' },
-  { key: 'vehicle_photo_url', label: 'Vehicle photo with visible plate' },
+  { key: 'license_url', label: 'UAE Driving License' },
+  { key: 'vehicle_photo_url', label: 'Vehicle Registration / Mulkiya' },
 ]
 
-export function missingProviderDocuments(documents: ProviderDocuments): MissingDocumentKey[] {
-  return REQUIRED_PROVIDER_DOCUMENTS
-    .filter((document) => !documents?.[document.key])
-    .map((document) => document.key)
+export function providerDocumentLabel(key: MissingDocumentKey): string {
+  return ALL_PROVIDER_DOCUMENTS.find((d) => d.key === key)?.label ?? key
 }
 
-export function providerDocumentLabel(key: MissingDocumentKey): string {
-  return REQUIRED_PROVIDER_DOCUMENTS.find((document) => document.key === key)?.label ?? key
+export function hasMinimumDocument(documents: ProviderDocuments): boolean {
+  if (!documents) return false
+  return Boolean(documents.emirates_id_url || documents.license_url || documents.vehicle_photo_url)
+}
+
+export function missingProviderDocuments(documents: ProviderDocuments): MissingDocumentKey[] {
+  if (hasMinimumDocument(documents)) return []
+  return ['emirates_id_url', 'license_url', 'vehicle_photo_url']
 }
 
 export function getProviderOnboardingState(input: {
@@ -48,6 +54,8 @@ export function getProviderOnboardingState(input: {
   const planComplete = Boolean(input.plan)
   const activeReady = profileComplete && documentsComplete && planComplete && input.status === 'active'
   const pendingApproval = profileComplete && documentsComplete && planComplete && input.status === 'pending'
+  const underReview = profileComplete && documentsComplete && planComplete && input.status === 'under_review'
+  const rejected = input.status === 'rejected'
 
   let firstIncompleteStep: ProviderOnboardingState['firstIncompleteStep'] = 'ready'
   if (!profileComplete) firstIncompleteStep = 'profile'
@@ -60,6 +68,8 @@ export function getProviderOnboardingState(input: {
     documentsComplete,
     planComplete,
     pendingApproval,
+    underReview,
+    rejected,
     activeReady,
     firstIncompleteStep,
     missingDocuments,

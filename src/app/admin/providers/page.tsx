@@ -49,12 +49,14 @@ type AdminProviderWithLinks = AdminProviderRow & {
   documentsComplete: boolean
 }
 
-type ProviderFilter = 'all' | 'pending' | 'active' | 'suspended' | 'missing-documents'
+type ProviderFilter = 'all' | 'pending' | 'under_review' | 'active' | 'rejected' | 'suspended' | 'missing-documents'
 
 const FILTERS: { id: ProviderFilter; labelKey: string }[] = [
   { id: 'all', labelKey: 'filters.all' },
+  { id: 'under_review', labelKey: 'filters.underReview' },
   { id: 'pending', labelKey: 'filters.pending' },
   { id: 'active', labelKey: 'filters.active' },
+  { id: 'rejected', labelKey: 'filters.rejected' },
   { id: 'suspended', labelKey: 'filters.suspended' },
   { id: 'missing-documents', labelKey: 'filters.missingDocuments' },
 ]
@@ -82,9 +84,10 @@ async function createDocumentLinks(provider: AdminProviderRow): Promise<Provider
   return links
 }
 
-function statusBadgeVariant(status: ProviderStatus): 'success' | 'warning' | 'danger' {
+function statusBadgeVariant(status: ProviderStatus): 'success' | 'warning' | 'danger' | 'info' {
   if (status === 'active') return 'success'
-  if (status === 'suspended') return 'danger'
+  if (status === 'suspended' || status === 'rejected') return 'danger'
+  if (status === 'under_review') return 'info'
   return 'warning'
 }
 
@@ -139,7 +142,9 @@ export default async function AdminProvidersPage({
   const filterCounts: Record<ProviderFilter, number> = {
     all: providersWithDocumentState.length,
     pending: providersWithDocumentState.filter((p) => p.status === 'pending').length,
+    under_review: providersWithDocumentState.filter((p) => p.status === 'under_review').length,
     active: providersWithDocumentState.filter((p) => p.status === 'active').length,
+    rejected: providersWithDocumentState.filter((p) => p.status === 'rejected').length,
     suspended: providersWithDocumentState.filter((p) => p.status === 'suspended').length,
     'missing-documents': providersWithDocumentState.filter((p) => !p.documentsComplete).length,
   }
@@ -230,8 +235,8 @@ export default async function AdminProvidersPage({
                         </td>
                         <td className="px-5 py-4"><Badge variant="info">{getPlanLabel(provider.plan)}</Badge></td>
                         <td className="px-5 py-4">
-                          <Badge variant={statusBadgeVariant(provider.status)} className="capitalize">
-                            {provider.status}
+                          <Badge variant={statusBadgeVariant(provider.status)}>
+                            {t(`statusLabel.${provider.status}`)}
                           </Badge>
                         </td>
                         <td className="px-5 py-4 text-slate-700">{provider.jobs_this_month ?? 0}</td>
