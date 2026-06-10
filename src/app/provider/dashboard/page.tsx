@@ -449,6 +449,8 @@ export default async function ProviderDashboardPage({
     ? { lat: providerLocation.lat, lng: providerLocation.lng }
     : null
 
+  const providerUaeLocation = providerCoords ? getUaeLocation(providerCoords.lat, providerCoords.lng) : null
+
   const nearbyOpenRequests: NearbyOpenRequestRow[] = Array.isArray(openRequests)
     ? openRequests.map((request) => {
         let computedDistance: number | null = 'distance_meters' in request ? (request as NearbyOpenRequestRow).distance_meters : null
@@ -846,6 +848,8 @@ export default async function ProviderDashboardPage({
                 locationFallback={requestFeedMode !== 'nearby'}
                 requestFeedMode={requestFeedMode}
                 ppjRecoveryCredits={provider.ppj_recovery_credits ?? 0}
+                providerEmirate={providerUaeLocation?.emirate ?? null}
+                providerArea={providerUaeLocation?.area ?? null}
               />
 
               {/* RECENT ACTIVITY */}

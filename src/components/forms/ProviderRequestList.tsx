@@ -44,6 +44,8 @@ interface Props {
   locationFallback?: boolean
   requestFeedMode?: 'nearby' | 'fallback' | 'offline'
   ppjRecoveryCredits?: number
+  providerEmirate?: string | null
+  providerArea?: string | null
 }
 
 function storePaymentHandoff(kind: 'ppj' | 'overage', requestId: string, clientSecret: string, feeAed: number): boolean {
@@ -66,6 +68,8 @@ export default function ProviderRequestList({
   locationFallback = false,
   requestFeedMode = locationFallback ? 'fallback' : 'nearby',
   ppjRecoveryCredits = 0,
+  providerEmirate,
+  providerArea,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('components.providerRequestList')
@@ -315,30 +319,34 @@ export default function ProviderRequestList({
                   </div>
                   <div className="min-w-0">
                     <div className="text-lg font-medium text-slate-950">{getProblemLabel(req.problem_type)}</div>
-                    <div className="mt-2 flex min-w-0 items-start gap-1.5 text-sm text-slate-600">
-                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-                      <div className="min-w-0">
-                        {req.uae_emirate ? (
-                          <div className="font-medium text-slate-800">{req.uae_emirate}{req.uae_area ? ` · ${req.uae_area}` : ''}</div>
-                        ) : (
-                          <div className="break-words">{req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}</div>
-                        )}
-                        {req.problem_type === 'tow' && req.destination && <div className="text-xs text-slate-500">{t('destination')}: {req.destination_area ?? req.destination}</div>}
-                        {!req.fuzzy_latitude && <div className="text-xs text-slate-400">{t('exactLocationSharedAfterAssignment')}</div>}
+                    {providerEmirate && (
+                      <div className="mt-2 text-sm font-medium text-slate-700">
+                        {providerEmirate}{providerArea ? ` \u2014 ${providerArea}` : ''}
                       </div>
-                    </div>
-                    {req.uae_emirate && (
-                      <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-700">
+                    )}
+                    <hr className="my-2 border-slate-200" />
+                    <div className="text-xs font-medium text-slate-500">{t('approximateCustomerLocation')}</div>
+                    {req.uae_emirate ? (
+                      <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-700">
                         <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0F6E56]" aria-hidden="true" />
                         <span className="font-medium">{req.uae_emirate}{req.uae_area ? ` \u2014 ${req.uae_area}` : ''}</span>
+                      </div>
+                    ) : (
+                      <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                        <span>{req.fuzzy_latitude ? t('fuzzyLocation') : t('locationHiddenUntilAccepted')}</span>
                       </div>
                     )}
                     <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
                       <Ruler className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
                       <span>{formatDistance(req.distance_meters, req.fuzzy_latitude != null)}</span>
-                      <span className="text-slate-400">{'\u00b7'}</span>
-                      <span suppressHydrationWarning>{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}</span>
                     </div>
+                    {req.problem_type === 'tow' && req.destination && (
+                      <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
+                        <Truck className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                        <span>{t('towDestination')}: {req.destination_area ?? req.destination}</span>
+                      </div>
+                    )}
                     {providerPlan === 'pay_per_job' && (
                       <div className="mt-2 inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
                         {ppjRecoveryCredits > 0

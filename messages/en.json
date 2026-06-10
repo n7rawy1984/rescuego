@@ -313,6 +313,8 @@
       "distanceCalculating": "Distance unavailable",
       "metersAway": "{distance} m away",
       "kilometersAway": "{distance} km away",
+      "approximateCustomerLocation": "Approximate Customer Location",
+      "towDestination": "Tow Destination",
       "accountMustBeActive": "Your account must be active to accept requests.",
       "goOnlineBeforeAccepting": "Go online before accepting requests.",
       "requestNoLongerAvailable": "This request is no longer available.",

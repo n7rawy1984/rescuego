@@ -313,6 +313,8 @@
       "distanceCalculating": "المسافة غير متاحة",
       "metersAway": "{distance} م بعيداً",
       "kilometersAway": "{distance} كم بعيداً",
+      "approximateCustomerLocation": "موقع العميل التقريبي",
+      "towDestination": "وجهة السحب",
       "accountMustBeActive": "يجب أن يكون حسابك نشطاً لقبول الطلبات.",
       "goOnlineBeforeAccepting": "اتصل قبل قبول الطلبات.",
       "requestNoLongerAvailable": "لم يعد هذا الطلب متاحاً.",
