@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { RequestStatus } from '@/types'
@@ -31,13 +31,19 @@ export default function JobStateAdvanceButton({ requestId, currentStatus }: Prop
   const router = useRouter()
   const t = useTranslations('components.jobStateAdvance')
   const [loading, setLoading] = useState(false)
+  const [advanced, setAdvanced] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setAdvanced(false)
+    setLoading(false)
+  }, [currentStatus])
 
   const config = STATE_CONFIG[currentStatus]
   if (!config) return null
 
   async function handleAdvance() {
-    if (loading) return
+    if (loading || advanced) return
     setLoading(true)
     setError('')
 
@@ -49,14 +55,20 @@ export default function JobStateAdvanceButton({ requestId, currentStatus }: Prop
       })
       const result = await res.json().catch(() => null) as { error?: string } | null
 
+      if (res.status === 409) {
+        setAdvanced(true)
+        router.refresh()
+        return
+      }
+
       if (!res.ok) {
         setError(result?.error ?? t('errors.updateFailed'))
         setLoading(false)
         return
       }
 
+      setAdvanced(true)
       router.refresh()
-      setTimeout(() => setLoading(false), 2000)
     } catch {
       setError(t('errors.connectionLost'))
       setLoading(false)
@@ -68,10 +80,10 @@ export default function JobStateAdvanceButton({ requestId, currentStatus }: Prop
       <button
         type="button"
         onClick={handleAdvance}
-        disabled={loading}
+        disabled={loading || advanced}
         className={`inline-flex min-h-10 items-center justify-center rounded-lg px-5 text-sm font-semibold transition-colors disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${config.color}`}
       >
-        {loading ? t(config.loadingLabelKey) : t(config.labelKey)}
+        {loading || advanced ? t(config.loadingLabelKey) : t(config.labelKey)}
       </button>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
