@@ -2,7 +2,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { BatteryCharging, HelpCircle, MapPin, Search, Truck, Wrench } from 'lucide-react'
+import { BatteryCharging, HelpCircle, MapPin, Ruler, Search, Truck, Wrench } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import ProviderQuoteForm from '@/components/provider/ProviderQuoteForm'
 import { getProblemLabel } from '@/lib/utils'
@@ -329,15 +329,15 @@ export default function ProviderRequestList({
                     </div>
                     {req.uae_emirate && (
                       <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-700">
-                        <span aria-hidden="true">📍</span>
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0F6E56]" aria-hidden="true" />
                         <span className="font-medium">{req.uae_emirate}{req.uae_area ? ` \u2014 ${req.uae_area}` : ''}</span>
                       </div>
                     )}
-                    <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600" suppressHydrationWarning>
-                      <span aria-hidden="true">📏</span>
+                    <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
+                      <Ruler className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
                       <span>{formatDistance(req.distance_meters, req.fuzzy_latitude != null)}</span>
                       <span className="text-slate-400">{'\u00b7'}</span>
-                      <span>{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}</span>
+                      <span suppressHydrationWarning>{(() => { const d = new Date(req.created_at); return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}` })()}</span>
                     </div>
                     {providerPlan === 'pay_per_job' && (
                       <div className="mt-2 inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
