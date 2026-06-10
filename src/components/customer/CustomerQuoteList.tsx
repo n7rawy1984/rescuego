@@ -37,8 +37,19 @@ export default function CustomerQuoteList({ requestId }: Props) {
   const [loading, setLoading] = useState(true)
   const [selecting, setSelecting] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const tick = setInterval(() => setNowMs(Date.now()), 30000)
+    return () => clearInterval(tick)
+  }, [])
   const fetchInFlightRef = useRef(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const applyQuotesResult = useCallback((result: QuotesResponse) => {
+    setQuotes(result.data ?? [])
+    setPriceRange(result.price_range ?? null)
+    setLoading(false)
+  }, [])
 
   const fetchQuotes = useCallback(async () => {
     if (fetchInFlightRef.current) return
@@ -47,15 +58,13 @@ export default function CustomerQuoteList({ requestId }: Props) {
       const res = await fetch(`/api/requests/quotes?request_id=${requestId}`)
       if (!res.ok) return
       const result = (await res.json()) as QuotesResponse
-      setQuotes(result.data ?? [])
-      setPriceRange(result.price_range ?? null)
+      applyQuotesResult(result)
     } catch {
       /* silent retry on next poll */
     } finally {
-      setLoading(false)
       fetchInFlightRef.current = false
     }
-  }, [requestId])
+  }, [requestId, applyQuotesResult])
 
   const debouncedFetchQuotes = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -65,8 +74,8 @@ export default function CustomerQuoteList({ requestId }: Props) {
   }, [fetchQuotes])
 
   useEffect(() => {
-    fetchQuotes()
-    const interval = setInterval(fetchQuotes, 30000)
+    void fetchQuotes()
+    const interval = setInterval(() => { void fetchQuotes() }, 30000)
     return () => {
       clearInterval(interval)
       if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -163,7 +172,7 @@ export default function CustomerQuoteList({ requestId }: Props) {
       </div>
 
       {quotes.map((quote) => {
-        const expiresMs = new Date(quote.expires_at).getTime() - Date.now()
+        const expiresMs = new Date(quote.expires_at).getTime() - nowMs
         const expiresMins = Math.max(0, Math.ceil(expiresMs / 60000))
 
         return (

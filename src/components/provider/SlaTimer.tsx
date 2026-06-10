@@ -15,16 +15,17 @@ export default function SlaTimer({
   slaWarningMinutes = 10,
 }: Props) {
   const t = useTranslations('components.slaTimer')
-  const [remainingMs, setRemainingMs] = useState(() => computeRemaining())
 
-  function computeRemaining() {
-    const deadline = new Date(acceptedAt).getTime() + slaDeadlineMinutes * 60 * 1000
+  function getRemaining(at: string, deadlineMin: number): number {
+    const deadline = new Date(at).getTime() + deadlineMin * 60 * 1000
     return Math.max(0, deadline - Date.now())
   }
 
+  const [remainingMs, setRemainingMs] = useState(() => getRemaining(acceptedAt, slaDeadlineMinutes))
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setRemainingMs(computeRemaining())
+      setRemainingMs(getRemaining(acceptedAt, slaDeadlineMinutes))
     }, 1000)
     return () => clearInterval(interval)
   }, [acceptedAt, slaDeadlineMinutes])

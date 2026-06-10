@@ -19,11 +19,7 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
   const t = useTranslations('components.providerRealtime')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastRefreshRef = useRef<number>(0)
-  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
-
-  if (!supabaseRef.current) {
-    supabaseRef.current = createClient()
-  }
+  const supabaseRef = useRef<ReturnType<typeof createClient>>(createClient())
 
   const scheduleRefresh = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -36,7 +32,7 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
   }, [router])
 
   useEffect(() => {
-    const supabase = supabaseRef.current!
+    const supabase = supabaseRef.current
 
     const openRequestsChannel = supabase
       .channel(`provider-open-requests:${providerId}`)
@@ -72,7 +68,7 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
   }, [providerId, scheduleRefresh, showToast, t])
 
   useEffect(() => {
-    const supabase = supabaseRef.current!
+    const supabase = supabaseRef.current
 
     const quotesChannel = supabase
       .channel(`provider-quotes:${providerId}`)
@@ -107,7 +103,7 @@ export default function ProviderRealtimeRefresh({ providerId, activeRequestId }:
   useEffect(() => {
     if (!activeRequestId) return
 
-    const supabase = supabaseRef.current!
+    const supabase = supabaseRef.current
 
     const activeJobChannel = supabase
       .channel(`provider-active-job:${activeRequestId}`)

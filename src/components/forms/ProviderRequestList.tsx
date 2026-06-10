@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { BatteryCharging, HelpCircle, MapPin, Search, Truck, Wrench } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
 import ProviderQuoteForm from '@/components/provider/ProviderQuoteForm'
 import { getProblemLabel } from '@/lib/utils'
 import {
@@ -86,21 +85,6 @@ export default function ProviderRequestList({
     if (meters < 1000) return t('metersAway', { distance: Math.round(meters) })
     return t('kilometersAway', { distance: (meters / 1000).toFixed(1) })
   }, [t])
-
-  function requestAcceptConfirmation(requestId: string) {
-    if (accepting || overageLoading) return
-    if (providerStatus !== 'active') {
-      setError(t('accountMustBeActive'))
-      return
-    }
-    if (!providerOnline) {
-      setError(t('goOnlineBeforeAccepting'))
-      return
-    }
-    setError('')
-    setNotice('')
-    setConfirmRequestId(requestId)
-  }
 
   async function handleAccept(requestId: string) {
     if (accepting || overageLoading) return
