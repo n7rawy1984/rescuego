@@ -1,67 +1,103 @@
 # RescueGo
 
-RescueGo is a UAE roadside recovery marketplace. Stranded drivers submit rescue requests; registered providers accept and complete jobs; admins review providers. Providers pay via monthly subscriptions or a per-job acceptance fee. Stripe handles all billing.
+RescueGo is a UAE roadside recovery marketplace. Customers request roadside assistance, providers submit quotes, customers select a provider, and admins operate provider review and marketplace oversight.
 
-**Domain:** rescuego.ae  
-**Status:** Phase 1A complete (tasks 1–7). Phase 1A Task 8 (slow-query identification) is next.
+Current status: Marketplace V2, provider KYC, admin document review, Stripe billing paths, operational crons, realtime request/quote updates, and RLS hardening are implemented in the codebase. Read `ARCHITECTURE.md` first for the current source-derived map.
+
+Last full source discovery: 2026-06-11, covering 187 source/config/migration/i18n files.
 
 ## Stack
 
-- Next.js 16.2.6 App Router
-- React 19 / TypeScript 5
+- Next.js 16 App Router
+- React 19
+- TypeScript 5 strict mode
 - Tailwind CSS v4
-- Supabase — Auth, Postgres, Storage, RLS, PostGIS
-- Stripe — subscriptions, Payment Intents, webhooks
-- Sentry — error capture (no replay, no tracing)
-- Vercel — hosting + cron
+- next-intl with Arabic as default locale
+- Supabase Auth, Postgres, Storage, Realtime, RLS, PostGIS
+- Stripe subscriptions, PaymentIntents, and webhooks
+- Sentry
+- Upstash Redis rate limiting with in-memory fallback
+- Vercel hosting and cron
 
 ## Quick Start
 
 ```bash
 npm install
 cp .env.example .env.local
-# Fill in all variables (see SETUP.md §2)
 npm run dev
 ```
 
 Open `http://localhost:3000`.
 
-## Documentation
-
-| File | Purpose |
-|---|---|
-| `SETUP.md` | Supabase, Stripe, Auth, Storage, local dev setup, common errors |
-| `VERDENT_HANDOFF.md` | Full project handoff — architecture, business logic, all phases, constraints |
-| `DEPLOYMENT_STATUS.md` | Current production state — env vars, migrations, webhooks |
-| `SESSION_LOG.md` | Engineering session log — decisions, findings, deferred items |
-| `CLAUDE.md` | AI session rules and project phase tracking |
-
 ## Scripts
 
 ```bash
-npm run dev      # local development (Turbopack)
+npm run dev      # local development
 npm run lint     # ESLint
 npm run build    # production build
 npm run start    # start production server locally
 ```
 
-Migrations are applied manually in the Supabase SQL Editor. Run all files in `supabase/migrations/` in order (001 → 016).
+## Documentation
 
-## Architecture
+| File | Purpose |
+|---|---|
+| `ARCHITECTURE.md` | Canonical current-state architecture and audit observations |
+| `PROJECT_HANDOFF.md` | Practical handoff for a fresh AI agent |
+| `ROADMAP.md` | Current phase status and remaining production work |
+| `MARKETPLACE_V2_SPEC.md` | Implemented quote-marketplace behavior |
+| `SESSION_LOG.md` | Chronological engineering session log |
+| `CLAUDE.md` | AI agent project notes |
+| `AGENTS.md` | Required engineering rules |
+| `SETUP.md` | Local setup and service configuration notes |
 
-Two-sided marketplace with three user roles: `customer`, `provider`, `admin`.
+Historical audit reports and older handoff files may contain stale context. Prefer `ARCHITECTURE.md` and current source code when resolving conflicts.
 
-- `src/proxy.ts` — Next.js middleware (token refresh, unauthenticated redirect)
-- `src/app/api/` — all server API routes
-- `src/app/admin/`, `src/app/provider/`, `src/app/customer/` — role-specific UI
-- `src/lib/supabase/admin.ts` — service_role client (server-side only)
-- `supabase/migrations/` — all 16 schema migrations
+## Current Architecture
 
-See `VERDENT_HANDOFF.md` for complete architecture, business logic, and phase roadmap.
+Roles:
 
-## Current Verification
+- `customer`
+- `provider`
+- `admin`
 
-- `npm run lint` passes.
-- `npm run build` passes with Next.js 16.2.6 and Turbopack.
-- 16 migrations applied in production.
-- Sentry error capture verified in production (June 3, 2026).
+Core marketplace flow:
+
+1. Customer creates a request.
+2. Providers see fuzzy request location before quote selection.
+3. Active online providers submit quotes.
+4. Customer selects one quote.
+5. Exact details are revealed to the selected provider.
+6. Provider advances the job lifecycle.
+7. Customer rates the completed job.
+
+Provider KYC currently requires one accepted document:
+
+- Emirates ID
+- Driving License
+- Vehicle Registration / Mulkiya
+
+## Migrations
+
+Migrations live in `supabase/migrations/`.
+
+Current latest migration:
+
+- `038_provider_kyc.sql`
+
+Next migration number:
+
+- `039`
+
+Run migrations in order. Do not edit deployed migrations.
+
+## Important Runtime Files
+
+- `proxy.ts` - session refresh, protected route redirects, API origin checks.
+- `next.config.ts` - Next config, CSP/security headers, Sentry wrapping.
+- `vercel.json` - operational cron schedule.
+- `src/lib/supabase/admin.ts` - server-only service-role client.
+- `src/lib/rate-limit.ts` - rate limiting.
+- `src/lib/logger.ts` - structured logging and redaction.
+- `src/types/database.ts` - database-facing TypeScript types.
+- `src/types/index.ts` - application constants and shared types.

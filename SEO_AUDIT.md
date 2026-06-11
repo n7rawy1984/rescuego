@@ -1,5 +1,7 @@
 # RescueGo — SEO Audit Report
 
+> Historical audit note: this report preserves the audit state from its original date. Validate every item against the current code before treating it as open or closed.
+
 **Last Updated:** 2026-06-08
 
 ---

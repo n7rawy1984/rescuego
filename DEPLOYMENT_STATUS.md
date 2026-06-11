@@ -1,4 +1,7 @@
 # RescueGo — Deployment Status
+
+> Historical note: this file is an older deployment snapshot. It has not been verified against live production environment state on 2026-06-11. For current code architecture and migration position, use `ARCHITECTURE.md`.
+
 آخر تحديث: 5 يونيو 2026 (Phase 1B + 1C complete)
 
 ---
@@ -174,4 +177,3 @@ Tasks:
 - [x] 2B-1: Cairo font + RTL infrastructure
 - [x] 2B-2: Physical → logical directional classes (18 files)
 - [ ] 2B-3: Arabic strings + full RTL activation ← **NEXT TASK**
-

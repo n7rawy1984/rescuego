@@ -1,5 +1,7 @@
 # RescueGo Setup Guide
 
+> Current-state note: this setup guide may still be useful for local service configuration, but the current architecture and migration position are documented in `ARCHITECTURE.md`. When in doubt, follow the source code and latest migrations.
+
 This guide explains how to connect RescueGo to Supabase and Stripe so login, registration, provider review, requests, documents, and payments work locally.
 
 ## 1. Supabase Project Setup

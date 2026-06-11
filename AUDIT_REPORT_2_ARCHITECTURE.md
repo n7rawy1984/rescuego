@@ -1,5 +1,7 @@
 # RescueGo — Audit Report 2: Technical & Architecture Overview
 
+> Historical audit note: this report is an older architecture snapshot. Use `ARCHITECTURE.md` for the current source-derived architecture.
+
 **Date:** June 7, 2026  
 **Domain:** rescuego.ae  
 **Deployment:** Vercel (production)

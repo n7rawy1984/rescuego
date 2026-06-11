@@ -1,5 +1,7 @@
 # RescueGo — Audit Report 1: Issues & Vulnerabilities
 
+> Historical audit note: this report is not the current source-derived architecture. Validate every finding against the current codebase before acting.
+
 **Date:** June 7, 2026  
 **Scope:** Full project audit — all source files, migrations, configs, and documentation  
 **Total findings:** 20 (0 CRITICAL, 2 HIGH, 7 MEDIUM, 11 LOW)

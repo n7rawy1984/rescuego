@@ -1,5 +1,7 @@
 # RescueGo — Pre-Launch Checklist
 
+> Current-state note: use this as a checklist aid, not as the canonical implementation map. Current code state and audit observations are in `ARCHITECTURE.md`; current roadmap items are in `ROADMAP.md`.
+
 Use this checklist before going live. Each item must be verified by the person deploying.
 
 ---

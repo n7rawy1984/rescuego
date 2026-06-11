@@ -1,5 +1,7 @@
 # Supabase Edge Functions Status
 
+Last refreshed: 2026-06-11
+
 These Edge Functions are deprecated for the current RescueGo Next.js MVP.
 Active production flows now use the App Router API routes under `src/app/api`.
 

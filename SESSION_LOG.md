@@ -2,6 +2,78 @@
 
 ---
 
+## Session: June 11, 2026 — Full Project Discovery Documentation Pass
+
+### Summary
+Ran a full repository discovery pass from source code before updating documentation. This was documentation-only work: no source code, feature, bug-fix, refactor, or commit was performed.
+
+### Source Discovery
+
+| Area | Result |
+|------|--------|
+| Source/config/migration/i18n files inspected | 187 |
+| API route handlers mapped | 28 |
+| App page/layout/loading/error/SEO files mapped | 50 |
+| Component files mapped | 32 |
+| Lib/type/i18n service files mapped | 22 |
+| Database migrations inspected | 38 |
+| Supabase functions area | Deprecated; only `supabase/functions/README.md` present |
+
+### Maps Built
+
+- Current architecture map
+- Database schema map
+- RLS model map
+- Marketplace lifecycle map
+- KYC lifecycle map
+- Stripe/payment lifecycle map
+- Customer journey
+- Provider journey
+- Admin journey
+- Realtime/event flow
+- Deployment model
+
+### Documentation Updated
+
+| File | Update |
+|------|--------|
+| `ARCHITECTURE.md` | Rebuilt as the canonical source-derived architecture, including required workflow maps and `OBSERVATIONS FOR AUDIT` |
+| `README.md` | Added full-discovery status and clarified current implementation state |
+| `CLAUDE.md` | Added full-discovery marker for future AI agents |
+| `PROJECT_HANDOFF.md` | Added source-discovery basis |
+| `ROADMAP.md` | Added source-discovery basis and realtime implementation status |
+| `MARKETPLACE_V2_SPEC.md` | Added source-discovery basis and realtime marketplace behavior |
+| `SESSION_LOG.md` | Recorded this discovery pass |
+
+### Notes
+No source files were modified. Live production environment state, applied remote migrations, Supabase bucket privacy, Stripe dashboard configuration, and Vercel environment variables were not verified from local source.
+
+---
+
+## Session: June 11, 2026 — Documentation Refresh From Source
+
+### Summary
+Refreshed the primary project documentation from the current codebase without touching source code. The goal was to make the docs usable as a current handoff for a fresh AI agent.
+
+### Documentation Updated
+
+| File | Update |
+|------|--------|
+| `ARCHITECTURE.md` | Created canonical current-state architecture, database/storage/KYC/payment map, and `OBSERVATIONS FOR AUDIT` section |
+| `README.md` | Replaced stale Phase 1A and migration 016 claims with current stack, migration, and documentation map |
+| `CLAUDE.md` | Rewritten as current AI-agent project notes |
+| `PROJECT_HANDOFF.md` | Rewritten as concise current handoff |
+| `ROADMAP.md` | Updated to reflect completed Marketplace V2, KYC, payment, ops, and production-hardening work |
+| `MARKETPLACE_V2_SPEC.md` | Updated from future/planning language to implemented behavior and current caveats |
+
+### Source Review Scope
+Read project configuration, migrations, API routes, app surfaces, components, lib utilities, shared types, i18n files, and existing markdown docs to align documentation with implementation.
+
+### Notes
+No source files were modified. Observed implementation concerns were documented only in `ARCHITECTURE.md` under `OBSERVATIONS FOR AUDIT`.
+
+---
+
 ## Session: June 10, 2026 — Lifecycle Bugfixes + Distance Fix + Lint Clean
 
 ### Summary

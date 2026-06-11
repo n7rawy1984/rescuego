@@ -1,5 +1,7 @@
 # RescueGo — Complete Project Handoff
 
+> Historical note: this file is a June 7 handoff snapshot and may contain stale implementation status. For the current source-derived handoff, use `ARCHITECTURE.md` and `PROJECT_HANDOFF.md`.
+
 **Last updated:** June 7, 2026  
 **Status:** Phases 0–4B complete. All 6 audit fix phases done. Migrations 001–027 applied. Next: Phase 2B-3 (Arabic strings + RTL activation).  
 **Branch:** main  
