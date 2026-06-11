@@ -7,7 +7,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import AdminProviderActions from '@/components/forms/AdminProviderActions'
 import { getPlanLabel } from '@/lib/utils'
-import { missingProviderDocuments, providerDocumentLabel } from '@/lib/provider-onboarding'
+import { hasMinimumDocument } from '@/lib/provider-onboarding'
 import type { Metadata } from 'next'
 import type { ProviderPlan, ProviderStatus } from '@/types'
 
@@ -45,7 +45,6 @@ type ProviderDocumentLinks = {
 
 type AdminProviderWithLinks = AdminProviderRow & {
   documentLinks: ProviderDocumentLinks
-  missingDocumentLabels: string[]
   documentsComplete: boolean
 }
 
@@ -60,6 +59,13 @@ const FILTERS: { id: ProviderFilter; labelKey: string }[] = [
   { id: 'suspended', labelKey: 'filters.suspended' },
   { id: 'missing-documents', labelKey: 'filters.missingDocuments' },
 ]
+
+const REVIEW_STATUSES: ProviderStatus[] = ['pending', 'under_review']
+
+function needsDocumentLinks(status: ProviderStatus, activeFilter: ProviderFilter): boolean {
+  if (activeFilter !== 'all') return true
+  return REVIEW_STATUSES.includes(status)
+}
 
 async function createDocumentLinks(provider: AdminProviderRow): Promise<ProviderDocumentLinks> {
   const admin = createAdminClient()
@@ -91,11 +97,11 @@ function statusBadgeVariant(status: ProviderStatus): 'success' | 'warning' | 'da
   return 'warning'
 }
 
-function documentLinkLabelKey(key: keyof ProviderDocumentLinks): string {
-  if (key === 'emiratesId') return 'documents.emiratesId'
-  if (key === 'license') return 'documents.uaeDrivingLicense'
-  return 'documents.vehiclePhoto'
-}
+const DOCUMENT_SLOTS = [
+  { key: 'emiratesId' as const, labelKey: 'documents.emiratesId' },
+  { key: 'license' as const, labelKey: 'documents.uaeDrivingLicense' },
+  { key: 'vehicle' as const, labelKey: 'documents.vehiclePhoto' },
+]
 
 export default async function AdminProvidersPage({
   searchParams,
@@ -124,14 +130,10 @@ export default async function AdminProvidersPage({
   const legitimateProviders = (providers ?? []).filter((provider) => provider.users?.role === 'provider')
   const invalidProviderRows = (providers ?? []).filter((provider) => provider.users?.role !== 'provider')
 
-  const providersWithDocumentState = legitimateProviders.map((provider) => {
-    const missingDocumentLabels = missingProviderDocuments(provider.documents).map(providerDocumentLabel)
-    return {
-      ...provider,
-      missingDocumentLabels,
-      documentsComplete: missingDocumentLabels.length === 0,
-    }
-  })
+  const providersWithDocumentState = legitimateProviders.map((provider) => ({
+    ...provider,
+    documentsComplete: hasMinimumDocument(provider.documents),
+  }))
 
   const filteredProviderRows = providersWithDocumentState.filter((provider) => {
     if (activeFilter === 'all') return true
@@ -152,7 +154,9 @@ export default async function AdminProvidersPage({
   const filteredProviders: AdminProviderWithLinks[] = await Promise.all(
     filteredProviderRows.map(async (provider) => ({
       ...provider,
-      documentLinks: await createDocumentLinks(provider),
+      documentLinks: needsDocumentLinks(provider.status, activeFilter)
+        ? await createDocumentLinks(provider)
+        : {},
     }))
   )
 
@@ -244,24 +248,34 @@ export default async function AdminProvidersPage({
                           {provider.created_at ? new Date(provider.created_at).toLocaleDateString('en-AE') : t('dash')}
                         </td>
                         <td className="px-5 py-4">
-                          <div className="min-w-48 space-y-2">
+                          <div className="min-w-52 space-y-1.5">
                             <Badge variant={provider.documentsComplete ? 'success' : 'warning'}>
                               {provider.documentsComplete ? t('documentsComplete') : t('missingDocuments')}
                             </Badge>
-                            <div className="flex flex-col gap-1">
-                              {(['emiratesId', 'license', 'vehicle'] as const).map((key) => (
-                                provider.documentLinks[key] ? (
-                                  <a key={key} className="text-xs font-semibold text-[#1D9E75] hover:underline" href={provider.documentLinks[key]} target="_blank" rel="noopener noreferrer">
-                                    {t('viewDocument', { document: t(documentLinkLabelKey(key)) })}
+                            <div className="flex flex-col gap-1 pt-1">
+                              {DOCUMENT_SLOTS.map(({ key, labelKey }) => {
+                                const url = provider.documentLinks[key]
+                                const label = t(labelKey)
+                                return url ? (
+                                  <a
+                                    key={key}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#1D9E75] hover:underline"
+                                  >
+                                    <span aria-hidden="true">&#10003;</span>
+                                    {t('viewDocument', { document: label })}
                                   </a>
-                                ) : null
-                              ))}
+                                ) : (
+                                  <span key={key} className="text-xs text-slate-400">
+                                    <span aria-hidden="true">&#8212;</span>
+                                    {' '}{label}
+                                    {': '}{t('notUploaded')}
+                                  </span>
+                                )
+                              })}
                             </div>
-                            {provider.missingDocumentLabels.length > 0 && (
-                              <p className="text-xs leading-5 text-slate-500">
-                                {t('missingList', { documents: provider.missingDocumentLabels.join(', ') })}
-                              </p>
-                            )}
                           </div>
                         </td>
                         <td className="px-5 py-4">

@@ -1526,7 +1526,8 @@
       "verifiedProvider": "موثّق",
       "notVerified": "غير موثّق",
       "noProvidersTitle": "لا يوجد مقدمو خدمة",
-      "noProvidersDescription": "لا يوجد مقدمو خدمة يطابقون الفلتر المحدد."
+      "noProvidersDescription": "لا يوجد مقدمو خدمة يطابقون الفلتر المحدد.",
+      "notUploaded": "لم يُرفع"
     },
     "requests": {
       "eyebrow": "الطلبات التشغيلية",

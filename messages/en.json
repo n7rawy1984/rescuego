@@ -1526,7 +1526,8 @@
       "verifiedProvider": "Verified",
       "notVerified": "Not Verified",
       "noProvidersTitle": "No providers found",
-      "noProvidersDescription": "No providers match the selected filter."
+      "noProvidersDescription": "No providers match the selected filter.",
+      "notUploaded": "Not uploaded"
     },
     "requests": {
       "eyebrow": "Operational requests",
