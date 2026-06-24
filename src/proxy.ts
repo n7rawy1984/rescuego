@@ -2,9 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { requireEnv } from '@/lib/env'
 
-// In Next.js 16 the middleware entry point is proxy.ts, not middleware.ts.
-// This proxy does two things only: refresh the Supabase session token and
-// redirect unauthenticated users away from protected routes.
+// Next.js 16 renamed the `middleware` file convention to `proxy` (deprecated
+// `middleware.ts`). This file at src/proxy.ts with a named `proxy` export is the
+// registered request proxy for Next.js 16.2.6 — see
+// node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md.
+// It does two things only: refresh the Supabase session token and redirect
+// unauthenticated users away from protected routes (plus a CSRF origin check on
+// state-mutating API requests).
 //
 // Role enforcement (customer vs provider vs admin) is NOT done here.
 // It happens at the page level and is backed by Supabase RLS.
@@ -50,24 +54,40 @@ export async function proxy(request: NextRequest) {
       const origin = request.headers.get('origin')
       const referer = request.headers.get('referer')
       const requestOrigin = origin || (referer ? new URL(referer).origin : null)
+      const requestHost = request.nextUrl.origin
 
-      if (requestOrigin && !ALLOWED_ORIGINS.some((a) => requestOrigin === a)) {
-        const requestHost = request.nextUrl.origin
-        const isVercelPreview = requestOrigin.endsWith('.vercel.app')
-        if (requestOrigin !== requestHost && !isVercelPreview) {
-          console.warn('[CSRF_BLOCK]', {
-            pathname,
-            origin,
-            referer,
-            requestOrigin,
-            requestHost,
-            allowedOrigins: ALLOWED_ORIGINS,
-          })
-          return NextResponse.json(
-            { error: 'Forbidden', message: 'Invalid request origin' },
-            { status: 403 }
-          )
-        }
+      // H7: if neither Origin nor Referer is present we cannot verify the
+      // request source. Previously this case silently skipped the check, which
+      // let a forged cross-site POST through. Treat a missing source as a
+      // rejection for state-mutating API requests.
+      if (!requestOrigin) {
+        console.warn('[CSRF_BLOCK]', {
+          pathname,
+          reason: 'missing_origin_and_referer',
+          requestHost,
+        })
+        return NextResponse.json(
+          { error: 'Forbidden', message: 'Missing request origin' },
+          { status: 403 }
+        )
+      }
+
+      // D9: the *.vercel.app wildcard was removed. Only the explicitly
+      // enumerated ALLOWED_ORIGINS (plus the request's own host) are accepted.
+      const isAllowed = requestOrigin === requestHost || ALLOWED_ORIGINS.includes(requestOrigin)
+      if (!isAllowed) {
+        console.warn('[CSRF_BLOCK]', {
+          pathname,
+          origin,
+          referer,
+          requestOrigin,
+          requestHost,
+          allowedOrigins: ALLOWED_ORIGINS,
+        })
+        return NextResponse.json(
+          { error: 'Forbidden', message: 'Invalid request origin' },
+          { status: 403 }
+        )
       }
     }
   }

@@ -26,6 +26,7 @@ type CheckoutRequestBody = {
 }
 
 type ProviderBillingRow = {
+  status: string | null
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   users: {
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Stripe price is not configured for this plan' }, { status: 500 })
   }
 
-  const { user, authError } = await getRequestUser(req)
+  const { user, authError } = await getRequestUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -93,12 +94,30 @@ export async function POST(req: NextRequest) {
 
   const { data: provider, error: providerError } = await supabase
     .from('providers')
-    .select('stripe_customer_id, stripe_subscription_id, users(email, name)')
+    .select('status, stripe_customer_id, stripe_subscription_id, users(email, name)')
     .eq('id', provider_id)
     .single<ProviderBillingRow>()
 
   if (providerError || !provider) {
     return NextResponse.json({ error: 'Provider profile not found' }, { status: 404 })
+  }
+
+  // M3 / F3-M3 (D1): KYC status gate. Rejected/suspended providers may not pay
+  // at all. Pending and under_review MAY subscribe — D1 permits payment, but
+  // activation waits for admin approval (enforced in the Stripe webhook, which
+  // preserves their non-active status). Applies to both the checkout and the
+  // billing-portal branches below since both run after this point.
+  if (provider.status === 'rejected' || provider.status === 'suspended') {
+    logger.warn({
+      event: 'subscription_checkout_blocked_kyc_status',
+      provider_id,
+      plan,
+      provider_status: provider.status,
+    })
+    return NextResponse.json(
+      { error: 'Your provider account is not eligible to subscribe. Please contact support.' },
+      { status: 403 }
+    )
   }
 
   const stripe = getStripe()

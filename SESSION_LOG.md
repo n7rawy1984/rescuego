@@ -2,6 +2,65 @@
 
 ---
 
+## Session: June 24, 2026 — Security Remediation Batch 1 (existential fixes)
+
+### Summary
+Closed the existential security findings from SECURITY_AUDIT_1 and SECURITY_AUDIT_3 across the database, the Stripe webhook, the subscription checkout route, the request proxy, and request-user auth. One audit finding (C1) was found to be based on outdated Next.js knowledge and was intentionally NOT applied — see "Decision required" below.
+
+### Migration 039 — `supabase/migrations/039_security_backstop.sql` (new, idempotent)
+- **C2** — `enforce_users_immutable_columns()` `BEFORE UPDATE` trigger on `users`: blocks any change to `role` unless the caller is admin or genuine service_role. Prevents self-escalation to admin.
+- **C3** — `enforce_providers_immutable_columns()` `BEFORE UPDATE` trigger on `providers`: locks `status, verified_badge, rating, plan, stripe_customer_id, stripe_subscription_id, stripe_current_period_start, stripe_current_period_end, jobs_this_month, jobs_reset_at, visibility_reduced, sla_failure_count, job_credit_balance, ppj_recovery_credits, release_count, provider_side_cancellation_count, unable_to_complete_count, last_upgrade_bonus_key, documents`. Prevents provider self-activation, plan changes, and billing/KYC tampering. (`max_active_jobs` and `completed_jobs_count` deliberately excluded — they do not exist on the table.)
+- **Server-side guard** — new `is_service_role()` helper inspects the JWT `role` claim (`request.jwt.claims`). The triggers use `is_admin() OR is_service_role()`, so admin/server (service_role) writes pass while anon and authenticated browser writes are blocked. `auth.uid() IS NULL` was rejected as too weak because the anon role also has a null uid.
+- **C5 (D2)** — `submit_quote_atomic` re-enables fair-price validation. Bounds are read exclusively from `fair_price_config` (no hard-coded prices); out-of-range quotes are rejected as `price_too_low` / `price_too_high`. Fallback: missing service-type row uses the `'other'` config row; if no config exists at all, range check is skipped (validity-only) to avoid blocking honest providers on an ops misconfiguration.
+- **D8** — `get_nearby_open_requests` recreated with `fuzzy_latitude` and `fuzzy_longitude` added to the return (all existing columns, including `destination` and `destination_area`, preserved). Fixes the emirate/area badge on the primary RPC path.
+- **F3-H1 schema** — `overage_payments.accept_failed BOOLEAN DEFAULT false` + partial index for manual-review tracking.
+- All modified RPCs keep `SECURITY DEFINER`, `SET search_path = public`, and the existing `service_role` grant.
+
+### `src/app/api/stripe/webhook/route.ts`
+- **C4 / F3-C1 (D1)** — `KYC_PROTECTED` extended to `['pending','under_review','rejected','suspended']` and checked before the `active` branch, so a payment never auto-activates a provider; activation waits for admin. Subscription details (plan, stripe ids, billing period) are still recorded.
+- **F3-H1** — on a failed overage accept, `overage_payments.accept_failed` is set and the event is logged for admin follow-up; `overage_cleared` is now set only after a successful accept. No automatic refund.
+- **F3-M1** — an active subscription whose plan cannot be resolved now logs (with subscription id and unmatched price ids) and throws so the event is recorded failed, instead of silently writing an unresolved plan.
+- **F3-M2 / M4** — `claimStripeEvent` is now atomic (conflict-aware upsert + status-guarded conditional re-claim), removing the TOCTOU window.
+- **F3-L1** — `payment_intent.canceled` handled; only currently-`pending` PPJ/overage rows move to `failed` (never touches paid/succeeded/`accept_failed`).
+- **L4** — `PROCESSING_TIMEOUT_MS` reduced from 10 minutes to 3 minutes.
+
+### `src/app/api/stripe/create-checkout/route.ts`
+- **M3 / F3-M3 (D1)** — KYC status gate: `rejected` and `suspended` providers get 403 before both the checkout and billing-portal branches; `pending`/`under_review`/`active` may proceed.
+
+### `src/proxy.ts` + `src/lib/supabase/request-user.ts`
+- **H7** — CSRF: a state-mutating `/api/` POST with neither Origin nor Referer is now rejected (was silently skipped).
+- **D9** — removed the `*.vercel.app` wildcard; only enumerated `ALLOWED_ORIGINS` (plus the request's own host) are accepted.
+- **D10** — removed the Bearer-token fallback from `getRequestUser`; auth is cookie-session only. The four callers were updated to call `getRequestUser()`. Cron/ops routes use `OPS_CRON_SECRET`, so they are unaffected.
+
+### Decision required — C1 (proxy vs middleware)
+The audit asked to convert `src/proxy.ts` to `src/middleware.ts` with `export default middleware`. The bundled Next.js 16.2.6 docs (`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`) show that in v16.0.0 the `middleware` convention was **deprecated and renamed to `proxy`**; the official codemod renames `middleware.ts` → `proxy.ts` (the opposite direction). The current `src/proxy.ts` with a named `proxy` export is the correct, registered convention — the production build confirms it as `ƒ Proxy (Middleware)`. The rename was therefore NOT performed. Awaiting a ruling.
+
+### Admin activation path check (read-only)
+`src/app/api/admin/providers/update/route.ts` accepts a `status` of `active` (validation schema), assigns it, and writes via the admin client. A manual admin activation path (`pending`/`under_review` → `active`) **EXISTS**. D1 is complete on the admin side.
+
+### Verification (static)
+- `npx tsc --noEmit` — exit 0.
+- `npm run lint` (eslint) — 0 errors, 0 warnings.
+- `npm run build` — exit 0; proxy registered as `ƒ Proxy (Middleware)`.
+
+### C1 ruling (confirmed)
+C1 recorded as **Not Applicable on Next.js 16**: `middleware` was deprecated and renamed to `proxy` in v16.0.0. `src/proxy.ts` is the active registered middleware/proxy entrypoint (build confirms `ƒ Proxy (Middleware)`). No open vulnerability remains.
+
+### Runtime verification of C2/C3 — ATTEMPTED, BLOCKED (not yet verified)
+- Probed the cloud DB read-only with the service-role key (introspection only, not a substitute test): `public.is_service_role()` → **PGRST202 "function not found"**, `overage_payments.accept_failed` → **42703 "column does not exist"**. Conclusion: **migration 039 is NOT applied to the cloud database yet.**
+- This environment has **no `supabase` CLI, no `psql`, no `docker`, no local Supabase stack, and no direct `DATABASE_URL`/`DIRECT_URL`** — so 039 cannot be applied locally and the anon/authenticated attacker-context UPDATEs cannot be executed here.
+- Per the explicit instruction, no `service_role` test or code-logic review was substituted as "runtime-verified." The C2/C3 (and the migration-dependent) findings are marked **CODE COMPLETE — NEEDS RUNTIME VERIFICATION**.
+- Exact verification steps (psql `SET request.jwt.claims` + Supabase anon JS) are documented in `RESCUEGO_MASTER_REFERENCE.md` §6.1 to run after 039 deploys. Pass criteria: tests 1 & 2 return SQLSTATE `42501`; test 3 (service_role/admin) succeeds.
+
+### Documentation corrections
+- `RESCUEGO_MASTER_REFERENCE.md` providers schema: `max_active_jobs` and `completed_jobs_count` corrected to **do NOT exist** on the `providers` table (verified against full migration history; the plan concurrency cap is derived from `plan` at runtime).
+- Marked **NEEDS RUNTIME VERIFICATION**: CSRF hardening (H7/D9), Stripe webhook behavior (C4/F3-C1, M4/F3-M2, F3-M1, F3-L1), and production payment-path validation (M3/F3-M3).
+
+### Batch 1 close-out
+Static verification passed. The only remaining gate is the post-deploy runtime check of the 039 triggers (§6.1). Once 039 is applied and §6.1 passes, Batch 1 is fully closed.
+
+---
+
 ## Session: June 11, 2026 — Full Project Discovery Documentation Pass
 
 ### Summary

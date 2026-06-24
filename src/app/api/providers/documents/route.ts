@@ -42,7 +42,7 @@ function extensionFor(file: File): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, authError } = await getRequestUser(req)
+  const { user, authError } = await getRequestUser()
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

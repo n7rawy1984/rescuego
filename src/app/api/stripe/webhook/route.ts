@@ -46,7 +46,8 @@ type PpjProtectionResult = {
 
 // If a webhook event is still marked 'processing' after this window, it is
 // considered stale and can be re-claimed. Protects against crashed handlers.
-const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000
+// Kept small (3m) to shrink the double-processing window (L4).
+const PROCESSING_TIMEOUT_MS = 3 * 60 * 1000
 
 // Maps Stripe price IDs → internal plan names. Built at module load from env
 // vars so the mapping is always in sync with the configured price IDs.
@@ -63,14 +64,59 @@ function isProcessingStale(startedAt: string | null): boolean {
   return Date.now() - new Date(startedAt).getTime() > PROCESSING_TIMEOUT_MS
 }
 
-// Idempotency guard: before processing any event, attempt to claim it by
+// Idempotency guard: before processing any event, atomically claim it by
 // writing status='processing' to stripe_events. Returns a NextResponse to
 // return immediately (duplicate or concurrent), or null to proceed.
-// Pattern: insert on first delivery, update on retry (handles Stripe retries).
+//
+// Atomicity (F3-M2/M4): the previous read-then-write had a TOCTOU window where
+// two concurrent deliveries could both pass the read and both claim the event.
+// We now rely on the primary-key conflict and a status-guarded conditional
+// UPDATE so exactly one caller can transition the row into 'processing':
+//   1. Try INSERT. If it inserts a row, we are the first delivery -> claimed.
+//   2. On PK conflict, run a conditional UPDATE that only matches when the row
+//      is reclaimable (not 'processed', and not a fresh 'processing'). The
+//      database evaluates the predicate atomically; whoever's UPDATE returns a
+//      row wins the claim. A loser sees zero rows updated -> duplicate/concurrent.
 async function claimStripeEvent(
   supabase: SupabaseClient,
   event: Stripe.Event
 ): Promise<NextResponse | null> {
+  const now = new Date().toISOString()
+
+  // Step 1 — first-delivery insert. ignoreDuplicates makes a PK conflict a
+  // no-op (no error, no returned row) so it falls through to the conditional
+  // re-claim path below instead of throwing.
+  const { data: inserted, error: insertError } = await supabase
+    .from('stripe_events')
+    .upsert(
+      {
+        id: event.id,
+        type: event.type,
+        payload: event,
+        status: 'processing',
+        processing_started_at: now,
+        updated_at: now,
+      },
+      { onConflict: 'id', ignoreDuplicates: true }
+    )
+    .select('id')
+
+  if (insertError) {
+    logger.error({
+      event: 'stripe_webhook_failed',
+      stripe_event_id: event.id,
+      event_type: event.type,
+      error: insertError.message,
+    })
+    return NextResponse.json({ error: 'Failed to claim webhook event' }, { status: 500 })
+  }
+
+  if (inserted && inserted.length > 0) {
+    // We inserted the row — claim won.
+    return null
+  }
+
+  // Step 2 — row already exists. Inspect current state.
   const { data: existing, error: lookupError } = await supabase
     .from('stripe_events')
     .select('status, processing_started_at')
@@ -105,38 +151,46 @@ async function claimStripeEvent(
     return NextResponse.json({ error: 'Webhook event is already processing' }, { status: 409 })
   }
 
-  const now = new Date().toISOString()
-  const write = existing
-    ? supabase
-      .from('stripe_events')
-      .update({
-        status: 'processing',
-        processing_started_at: now,
-        error_message: null,
-        updated_at: now,
-      })
-      .eq('id', event.id)
-    : supabase
-      .from('stripe_events')
-      .insert({
-        id: event.id,
-        type: event.type,
-        payload: event,
-        status: 'processing',
-        processing_started_at: now,
-        updated_at: now,
-      })
+  // Reclaimable: status is 'failed' or a stale 'processing'. The status guard in
+  // the UPDATE predicate makes the re-claim atomic across concurrent callers —
+  // only one update matches and returns a row.
+  const reclaimQuery = supabase
+    .from('stripe_events')
+    .update({
+      status: 'processing',
+      processing_started_at: now,
+      error_message: null,
+      updated_at: now,
+    })
+    .eq('id', event.id)
 
-  const { error } = await write
+  const guarded =
+    existing?.status === 'processing'
+      ? reclaimQuery
+          .eq('status', 'processing')
+          .lt('processing_started_at', new Date(Date.now() - PROCESSING_TIMEOUT_MS).toISOString())
+      : reclaimQuery.eq('status', 'failed')
 
-  if (error) {
+  const { data: reclaimed, error: reclaimError } = await guarded.select('id')
+
+  if (reclaimError) {
     logger.error({
       event: 'stripe_webhook_failed',
       stripe_event_id: event.id,
       event_type: event.type,
-      error: error.message,
+      error: reclaimError.message,
     })
     return NextResponse.json({ error: 'Failed to claim webhook event' }, { status: 500 })
+  }
+
+  if (!reclaimed || reclaimed.length === 0) {
+    // Another delivery won the re-claim between our read and update.
+    logger.warn({
+      event: 'stripe_webhook_already_processing',
+      stripe_event_id: event.id,
+      event_type: event.type,
+    })
+    return NextResponse.json({ error: 'Webhook event is already processing' }, { status: 409 })
   }
 
   return null
@@ -240,6 +294,7 @@ function handledStripeEventType(type: string): boolean {
     'invoice.payment_failed',
     'payment_intent.succeeded',
     'payment_intent.payment_failed',
+    'payment_intent.canceled',
     'payout.created',
     'payout.paid',
     'checkout.session.completed',
@@ -356,15 +411,18 @@ async function processPaymentIntentSucceeded(
       .eq('stripe_payment_intent_id', paymentIntent.id)
     throwIfError(paymentError, 'Failed to mark overage payment as paid')
 
-    const { error: overageError } = await supabase
-      .from('requests')
-      .update({ overage_cleared: true })
-      .eq('id', request_id)
-    throwIfError(overageError, 'Failed to mark overage as cleared')
-
     const accepted = await finalizeAcceptedRequest(supabase, provider_id, request_id)
 
     if (accepted) {
+      // Only clear the overage flag once the job is actually assigned. Doing it
+      // before the accept (the previous order) could leave overage_cleared=true
+      // for a request the provider never got.
+      const { error: overageError } = await supabase
+        .from('requests')
+        .update({ overage_cleared: true })
+        .eq('id', request_id)
+      throwIfError(overageError, 'Failed to mark overage as cleared')
+
       logger.info({
         event: 'overage_payment_accepted_request',
         provider_id,
@@ -372,12 +430,30 @@ async function processPaymentIntentSucceeded(
         payment_intent_id: paymentIntent.id,
       })
     } else {
+      // F3-H1: provider was charged the overage fee but the request was already
+      // taken (race). We do NOT auto-refund in this batch. Flag the payment for
+      // manual admin review so the charge is not silently lost, and log clearly.
+      const { error: flagError } = await supabase
+        .from('overage_payments')
+        .update({ accept_failed: true, updated_at: new Date().toISOString() })
+        .eq('stripe_payment_intent_id', paymentIntent.id)
+      if (flagError) {
+        logger.error({
+          event: 'overage_payment_accept_failed_flag_error',
+          provider_id,
+          request_id,
+          payment_intent_id: paymentIntent.id,
+          error: flagError.message,
+        })
+      }
+
       logger.warn({
         event: 'overage_payment_request_already_taken',
         provider_id,
         request_id,
         payment_intent_id: paymentIntent.id,
         stripe_event_id: stripeEvent.id,
+        needs_manual_review: true,
       })
     }
   }
@@ -431,6 +507,35 @@ async function processPaymentIntentFailed(
   }
 }
 
+// F3-L1: payment_intent.canceled — a PPJ/overage intent that was canceled (e.g.
+// abandoned, expired, or canceled in the dashboard) would otherwise stay
+// 'pending' forever. Move ONLY currently-pending rows to 'failed' so we never
+// touch already-paid/succeeded rows or the accept_failed manual-review flag.
+async function processPaymentIntentCanceled(
+  supabase: SupabaseClient,
+  paymentIntent: Stripe.PaymentIntent
+): Promise<void> {
+  const { error: ppjError } = await supabase
+    .from('ppj_payments')
+    .update({ status: 'failed' })
+    .eq('stripe_payment_intent_id', paymentIntent.id)
+    .eq('status', 'pending')
+  throwIfError(ppjError, 'Failed to mark canceled PPJ payment as failed')
+
+  const { error: overageError } = await supabase
+    .from('overage_payments')
+    .update({ status: 'failed', updated_at: new Date().toISOString() })
+    .eq('stripe_payment_intent_id', paymentIntent.id)
+    .eq('status', 'pending')
+  throwIfError(overageError, 'Failed to mark canceled overage payment as failed')
+
+  logger.info({
+    event: 'stripe_payment_intent_canceled',
+    payment_intent_id: paymentIntent.id,
+    metadata_fee_type: paymentIntent.metadata?.fee_type ?? null,
+  })
+}
+
 async function processStripeEvent(
   supabase: SupabaseClient,
   event: Stripe.Event
@@ -469,11 +574,18 @@ async function processStripeEvent(
       return
     }
 
-    const KYC_PROTECTED: string[] = ['under_review', 'rejected']
+    // C4 / F3-C1 (D1): a pending/under_review provider MAY pay and subscribe,
+    // but payment must NOT auto-activate them — activation waits for admin
+    // approval. 'suspended' likewise must not be silently revived by a payment.
+    // So if the provider is in a KYC-protected status, preserve it; the
+    // subscription details (plan, stripe ids, billing period) are still recorded
+    // below. Only a genuine active subscription on a non-protected provider
+    // moves the status to 'active'.
+    const KYC_PROTECTED: string[] = ['pending', 'under_review', 'rejected', 'suspended']
     const resolveStripeStatus = (currentDbStatus: string | undefined) => {
+      if (currentDbStatus && KYC_PROTECTED.includes(currentDbStatus)) return currentDbStatus
       if (sub.status === 'active') return 'active'
       if (sub.status === 'past_due') return 'suspended'
-      if (currentDbStatus && KYC_PROTECTED.includes(currentDbStatus)) return currentDbStatus
       return 'pending'
     }
     const resolvedPlan = resolveSubscriptionPlan(sub)
@@ -500,6 +612,25 @@ async function processStripeEvent(
 
     if (resolvedPlan.plan) {
       updatePayload.plan = resolvedPlan.plan
+    } else if (sub.status === 'active') {
+      // F3-M1: an active subscription whose plan cannot be resolved usually
+      // means a price ID env var is missing or a new price was added without
+      // mapping. Silently leaving the plan unresolved would let an active
+      // subscriber sit with a stale/unknown plan. Fail loudly so the event is
+      // recorded as failed (Stripe will retry) and an admin can fix the mapping.
+      logger.error({
+        event: 'stripe_subscription_plan_unresolved',
+        stripe_subscription_id: sub.id,
+        stripe_customer_id: stripeCustomerId,
+        price_ids: resolvedPlan.priceIds,
+        metadata_plan: sub.metadata?.plan ?? null,
+        price_mapping_configured: PLAN_BY_PRICE_ID.size,
+      })
+      throw new Error(
+        `Unable to resolve plan for active subscription ${sub.id} ` +
+          `(price ids: ${resolvedPlan.priceIds.join(',') || 'none'}). ` +
+          'Check STRIPE_*_PRICE_ID env vars.'
+      )
     } else {
       logger.warn({
         event: 'stripe_subscription_plan_unresolved',
@@ -508,6 +639,7 @@ async function processStripeEvent(
         price_ids: resolvedPlan.priceIds,
         metadata_plan: sub.metadata?.plan ?? null,
         price_mapping_configured: PLAN_BY_PRICE_ID.size,
+        subscription_status: sub.status,
       })
     }
 
@@ -615,6 +747,10 @@ async function processStripeEvent(
 
   if (event.type === 'payment_intent.payment_failed') {
     await processPaymentIntentFailed(supabase, event.data.object as Stripe.PaymentIntent)
+  }
+
+  if (event.type === 'payment_intent.canceled') {
+    await processPaymentIntentCanceled(supabase, event.data.object as Stripe.PaymentIntent)
   }
 
   if (event.type === 'payout.created' || event.type === 'payout.paid') {
