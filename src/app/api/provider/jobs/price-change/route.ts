@@ -35,55 +35,39 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  const [
-    { data: profile },
-    { data: request },
-  ] = await Promise.all([
-    supabase.from('users').select('role').eq('id', user.id).single(),
-    admin.from('requests')
-      .select('id, accepted_by, status, price_change_count')
-      .eq('id', parsed.data.request_id)
-      .single<{ id: string; accepted_by: string | null; status: string; price_change_count: number }>(),
-  ])
-
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (profile?.role !== 'provider') {
     return NextResponse.json({ error: 'Only providers can request price changes' }, { status: 403 })
   }
 
-  if (!request) {
-    return NextResponse.json({ error: 'Request not found' }, { status: 404 })
-  }
+  // CRIT-01: count-check + update happen atomically inside the RPC.
+  // The route keeps no separate count/update logic that could race.
+  const { data: rpcRows, error: rpcError } = await admin.rpc('request_price_change_atomic', {
+    p_provider_id: user.id,
+    p_request_id: parsed.data.request_id,
+    p_new_price: parsed.data.new_price,
+  })
 
-  if (request.accepted_by !== user.id) {
-    return NextResponse.json({ error: 'This job is not assigned to you' }, { status: 403 })
-  }
+  const result = (rpcRows as { success: boolean; reason: string }[] | null)?.[0] ?? null
 
-  if (request.status !== 'in_progress') {
-    return NextResponse.json({ error: 'Price changes are only allowed during active work' }, { status: 409 })
-  }
+  if (rpcError || !result?.success) {
+    const reason = result?.reason ?? rpcError?.message ?? 'unknown'
 
-  if (request.price_change_count >= 1) {
-    return NextResponse.json({ error: 'Maximum one price change per job' }, { status: 409 })
-  }
-
-  const { error: updateError } = await admin
-    .from('requests')
-    .update({
-      price_change_requested: parsed.data.new_price,
-      price_change_status: 'pending',
-      price_change_count: (request.price_change_count ?? 0) + 1,
-    })
-    .eq('id', parsed.data.request_id)
-    .eq('accepted_by', user.id)
-    .eq('status', 'in_progress')
-
-  if (updateError) {
-    logger.error({
+    logger.warn({
       event: 'price_change_update_failed',
       provider_id: user.id,
       request_id: parsed.data.request_id,
-      error: updateError.message,
+      reason,
     })
+
+    if (result?.reason === 'price_change_not_allowed') {
+      // Job not in progress, not assigned to this provider, or a price change was already used.
+      return NextResponse.json(
+        { error: 'Price change is not allowed for this job', code: reason },
+        { status: 409 }
+      )
+    }
+
     return NextResponse.json({ error: 'Failed to submit price change' }, { status: 500 })
   }
 

@@ -2,6 +2,52 @@
 
 ---
 
+## Session: June 25, 2026 — Security Remediation Batch 2 (RPC integrity & state-machine safety)
+
+### Summary
+Closed the RPC-integrity and state-machine findings from SECURITY_AUDIT_2 (CRIT-01, CRIT-02, HIGH-03, HIGH-04, HIGH-05, HIGH-06, MED-04, LOW-01, LOW-03, LOW-04), SECURITY_AUDIT_3 (F3-H2), and SECURITY_AUDIT_1 (H1). All DB changes are in one new idempotent migration, `040_rpc_integrity_state_safety.sql` (one block per RPC). No deployed migration was edited. Four API routes were updated to call the new/changed RPCs and drop racy or leaky logic. `admin/providers/update` (H5) and V2 overage enforcement (H3/D5) were deliberately left untouched per Batch scope.
+
+### Schema verification (done before writing SQL)
+- `requests.accepted_at` (031), `selected_quote_id` (031), `overage_cleared` (005), `price_change_requested`/`_status`/`_count` (031) — all exist.
+- `jobs.en_route_at` and `jobs.arrived_at` (025) — confirmed to exist; used for en_route/arrived SLA breach timing.
+- `ratings.customer_id` — confirmed absent; added in this migration.
+
+### Migration 040 — `supabase/migrations/040_rpc_integrity_state_safety.sql` (new, idempotent)
+- **2.1 helper `release_target_status(request_id)`** — read-only `STABLE` function; returns `'quoted'` if a quote with `status='pending' AND expires_at > now()` exists, else `'open'`. Mutates nothing. Shared by both release paths (D6).
+- **2.3 `release_job_atomic` (HIGH-03 + MED-04 + F3-H2)** — single block; preserves `(success, reason)` return. Now sets status via `release_target_status()`, clears `selected_quote_id`/`accepted_at`, sets `overage_cleared=false`, and decrements `jobs_this_month` (`GREATEST(0, .. - 1)`) only when `selected_quote_id` was present before release (V2 slot consumed; captured beforehand).
+- **2.2 `sla_check_and_release` (CRIT-02 + HIGH-04)** — single block; preserves `(success, reason, released_provider_id, needs_refund)` return. Now releases from `accepted`/`en_route`/`arrived`. Breach computed inside the RPC with named-constant thresholds: **accepted = 20 minutes** (vs `requests.accepted_at`), **en_route = 2 hours** (vs `jobs.en_route_at`), **arrived = 60 minutes** (vs `jobs.arrived_at`). Sets status via the shared helper, clears `accepted_by`/`selected_quote_id`/`accepted_at`/`overage_cleared`, decrements `jobs_this_month` only when a slot was consumed (HIGH-04, no double-decrement).
+- **2.4 `expire_stuck_active_requests` (LOW-03)** — single block; preserves `RETURNS INTEGER` + `(p_stuck_cutoff TIMESTAMPTZ)`. Per-row decrement of `jobs_this_month` (`GREATEST(0, .. - 1)`) only when the released request had `selected_quote_id` set.
+- **2.5 `advance_provider_job_state` (LOW-01 + LOW-04)** — single block; added `SET search_path = public` and a whitelist rejecting any `p_to_status` outside `('en_route','arrived','in_progress')` (`invalid_target_status`).
+- **2.6 `request_price_change_atomic` (CRIT-01)** — new RPC; single guarded `UPDATE ... WHERE accepted_by=<prov> AND status='in_progress' AND price_change_count=0 RETURNING id`. Eliminates the read-then-write race.
+- **2.7 `respond_price_change_atomic` (HIGH-06)** — new RPC; guard `status='in_progress' AND price_change_status='pending'` inside the RPC. Reject → `final_price=NULL` (never surfaces the requested price); approve → `final_price=price_change_requested`. `price_change_count` untouched (stays 1; no second attempt).
+- **2.8 `ratings.customer_id` (HIGH-05)** — `ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES users(id)` + index + deterministic backfill via `jobs → requests` (job_id is UNIQUE so each rating maps to exactly one customer).
+- **2.9 `select_quote_atomic` (H1)** — single block; `provider_documents JSONB` removed from `RETURNS TABLE` and from the `RETURN QUERY` (6 → 5 columns). Customer still gets name/phone/rating.
+- All RPCs keep `SECURITY DEFINER`, `SET search_path = public`, and the revoke-from-anon/authenticated + grant-to-service_role pattern.
+
+### Routes updated
+- `src/app/api/provider/jobs/price-change/route.ts` (CRIT-01) — removed the pre-fetch + manual count/status checks + racy `.update()`; now calls `request_price_change_atomic`; maps `price_change_not_allowed` → 409.
+- `src/app/api/customer/price-change/respond/route.ts` (HIGH-06) — removed the pre-fetch guards + racy `.update()`; now calls `respond_price_change_atomic`; uses returned `final_price`.
+- `src/app/api/ratings/route.ts` (HIGH-05) — writes `customer_id: user.id` on insert (route already verifies the job's request belongs to this customer).
+- `src/app/api/customer/quote/select/route.ts` (H1) — dropped `provider_documents` from the result type and stopped returning `documents`; keeps name/phone/rating. Verified no client consumes `documents` from this response.
+
+### Backfill decision (ratings.customer_id)
+Backfill existing rows. `ratings.job_id` is UNIQUE (migration 022) and each job maps to exactly one request, so the customer is unambiguous — there is no fan-out or duplicate mapping. The backfill UPDATE only sets rows where the joined `requests.customer_id` is non-null; any rating whose job/request cannot be resolved is left null and populated going forward. Post-deploy check in §6.2-H must return 0.
+
+### Discrepancies vs reports
+None. All columns the audits referenced exist as described; `ratings.customer_id` was genuinely missing (matches HIGH-05). No phantom columns encountered.
+
+### Pending in Batch 3 (noted, not done here)
+- **CRIT-02 cron routing:** `enforceSla()` in `src/app/api/ops/marketplace-cron/route.ts:115–121` still queries `status='accepted'` only. It must be widened to `status IN ('accepted','en_route','arrived')` (and compute the cutoff per state) so the now-extended `sla_check_and_release` actually receives `en_route`/`arrived` breaches. The RPC side is ready.
+- H5 (`admin/providers/update`) and H3/D5 (V2 overage enforcement) intentionally deferred.
+
+### Verification
+- `npx tsc --noEmit` — exit 0, no output.
+- `npm run lint` — exit 0, no errors/warnings.
+- `npm run build` — succeeded; full route manifest emitted (including `/api/provider/jobs/price-change`, `/api/ratings`).
+- All migration-040 RPC changes are **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** until 040 is deployed; post-deploy SQL is in `RESCUEGO_MASTER_REFERENCE.md` §6.2.
+
+---
+
 ## Session: June 24, 2026 — Security Remediation Batch 1 (existential fixes)
 
 ### Summary

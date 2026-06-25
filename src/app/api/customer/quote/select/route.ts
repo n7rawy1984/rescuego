@@ -16,7 +16,6 @@ type SelectQuoteResult = {
   reason: string
   provider_name: string | null
   provider_phone: string | null
-  provider_documents: Record<string, string> | null
   provider_rating: number | null
 }
 
@@ -98,7 +97,6 @@ export async function POST(req: NextRequest) {
     provider: {
       name: result.provider_name,
       phone: result.provider_phone,
-      documents: result.provider_documents,
       rating: result.provider_rating,
     },
   })

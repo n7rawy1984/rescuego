@@ -195,7 +195,7 @@ All ops routes require `OPS_CRON_SECRET` header (or Vercel's injected `CRON_SECR
 
 ## 4. Database Schema
 
-**Migration baseline:** 38 migrations applied (`001_initial_schema.sql` through `038_provider_kyc.sql`). Next migration number: `039`.
+**Migration baseline:** 38 migrations applied (`001_initial_schema.sql` through `038_provider_kyc.sql`). Migrations `039_security_backstop.sql` (Batch 1) and `040_rpc_integrity_state_safety.sql` (Batch 2) exist in the repo but are **NOT yet applied to the cloud database**. Next migration number: `041`.
 
 ### Core Tables
 
@@ -311,7 +311,7 @@ Customer ratings for completed jobs.
 | `stars` INT (1–5) | |
 | `comment` TEXT | |
 
-**Missing column:** `customer_id` is not stored in this table. Attribution requires joining through `jobs → requests`. See Audit 2 HIGH-05.
+**`customer_id`:** added in migration 040 (`UUID REFERENCES users(id)`, indexed) and deterministically backfilled via `jobs → requests`. Before 040, attribution required joining through `jobs → requests`. See Audit 2 HIGH-05.
 
 #### `stripe_events`
 Webhook idempotency table. One row per Stripe event ID.
@@ -518,6 +518,8 @@ All findings below come from four security audits (Parts 1–4, dates June 2026)
 
 > **Deployment note (Batch 1):** As of the Batch 1 session, `supabase/migrations/039_security_backstop.sql` exists in the repo but is **NOT yet applied to the cloud database** (verified at runtime: `public.is_service_role()` returns PGRST202 "function not found" and `overage_payments.accept_failed` returns 42703 "column does not exist"). The C2/C3 trigger enforcement therefore cannot be runtime-verified until 039 is deployed. Apply 039, then run §6.1.
 
+> **Deployment note (Batch 2):** `supabase/migrations/040_rpc_integrity_state_safety.sql` exists in the repo but is **NOT yet applied to the cloud database**. It must be applied after 039. It modifies `release_job_atomic`, `sla_check_and_release`, `expire_stuck_active_requests`, `advance_provider_job_state`, `select_quote_atomic`; adds helper `release_target_status`, new RPCs `request_price_change_atomic` and `respond_price_change_atomic`; adds `ratings.customer_id` (+ deterministic backfill). All Batch 2 RPCs are **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** until 040 is deployed and tested. **Still pending in Batch 3:** the `enforceSla()` query in `ops/marketplace-cron/route.ts` must be widened to `status IN ('accepted','en_route','arrived')` so the now-extended `sla_check_and_release` actually receives `en_route`/`arrived` breaches (the RPC side is ready). See §6.2 for the post-deploy verification SQL.
+
 ### 6.1 C2/C3 Runtime Verification Plan (run AFTER migration 039 is applied)
 
 These tests MUST run under an anon/authenticated JWT (the attacker's context), NOT the `service_role` key — a `service_role` connection bypasses the guard by design and proves nothing.
@@ -558,6 +560,56 @@ const r2 = await supabase.from('providers').update({ status: 'active' }).eq('id'
 
 Pass criteria: Tests 1 and 2 return error `42501` (`role_change_not_allowed` / `provider_protected_field_change_not_allowed`); Test 3 succeeds. Record the exact returned codes/messages here once run.
 
+### 6.2 Batch 2 Runtime Verification Plan (run AFTER migration 040 is applied)
+
+Run these in the Supabase SQL editor (service_role context). Use a disposable test request/provider.
+
+```sql
+-- A) release_target_status helper (read-only): 'quoted' when a valid pending quote exists, else 'open'.
+SELECT public.release_target_status('<request_with_pending_nonexpired_quote>');  -- expect 'quoted'
+SELECT public.release_target_status('<request_with_no_pending_quote>');          -- expect 'open'
+-- Confirm it mutated nothing: re-select the request_quotes statuses before/after; they must be identical.
+
+-- B) release_job_atomic — quoted/open target, slot decrement only when consumed, overage cleared.
+-- Setup: request status='accepted', accepted_by=<prov>, selected_quote_id set, providers.jobs_this_month=N.
+SELECT * FROM public.release_job_atomic('<provider_id>', '<request_id>');  -- expect (true,'released')
+SELECT status, accepted_by, selected_quote_id, accepted_at, overage_cleared
+FROM requests WHERE id = '<request_id>';
+-- expect status 'quoted' (if pending quote remains) else 'open'; accepted_by/selected_quote_id/accepted_at NULL; overage_cleared false
+SELECT jobs_this_month FROM providers WHERE id = '<provider_id>';  -- expect N-1 (slot was consumed)
+-- Repeat with a request where selected_quote_id IS NULL → jobs_this_month must be UNCHANGED.
+
+-- C) sla_check_and_release — extended states + thresholds.
+-- accepted breach (accepted_at older than 20m):
+SELECT * FROM public.sla_check_and_release('<accepted_breached_request>');  -- expect (true,'released',<prov>,<bool>)
+-- en_route breach requires jobs.en_route_at older than 2h; arrived breach requires jobs.arrived_at older than 60m.
+-- Not-yet-breached request:
+SELECT * FROM public.sla_check_and_release('<fresh_request>');              -- expect (false,'sla_not_breached',NULL,false)
+
+-- D) advance_provider_job_state — whitelist.
+SELECT * FROM public.advance_provider_job_state('<prov>','<req>','arrived','completed',NULL); -- expect (false,'invalid_target_status',NULL)
+SELECT * FROM public.advance_provider_job_state('<prov>','<req>','accepted','en_route','en_route_at'); -- expect (true,NULL,'en_route') if owned & matching
+
+-- E) request_price_change_atomic — one change per job, atomic.
+SELECT * FROM public.request_price_change_atomic('<prov>','<in_progress_req>', 250); -- expect (true,'requested'); price_change_count→1
+SELECT * FROM public.request_price_change_atomic('<prov>','<same_req>', 300);        -- expect (false,'price_change_not_allowed'); count stays 1
+
+-- F) respond_price_change_atomic — guard inside + reject never surfaces price.
+SELECT * FROM public.respond_price_change_atomic('<cust>','<in_progress_req>','reject');  -- expect (true,'responded',NULL); count stays 1
+SELECT * FROM public.respond_price_change_atomic('<cust>','<same_req>','approve');        -- expect (false,'no_pending_price_change',NULL)
+
+-- G) select_quote_atomic — no documents leaked.
+-- Confirm the function's RETURNS TABLE has 5 columns (no provider_documents):
+SELECT pg_get_function_result(oid) FROM pg_proc WHERE proname = 'select_quote_atomic';
+
+-- H) ratings.customer_id backfill — must be fully populated for ratings with a resolvable request.
+SELECT count(*) FROM ratings r
+  JOIN jobs j ON j.id = r.job_id
+  JOIN requests req ON req.id = j.request_id
+  WHERE r.customer_id IS NULL AND req.customer_id IS NOT NULL;  -- expect 0
+```
+
+
 ### Critical Findings
 
 | ID | Title | What it enables | Status |
@@ -567,8 +619,8 @@ Pass criteria: Tests 1 and 2 return error `42501` (`role_change_not_allowed` / `
 | **C3** | `providers` RLS UPDATE has no `WITH CHECK` — any provider can self-activate | `supabase.from('providers').update({ status: 'active', verified_badge: true })` from browser succeeds. Bypasses entire KYC process. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 039 NOT yet applied to cloud DB). `BEFORE UPDATE` trigger `enforce_providers_immutable_columns` locks status/verified_badge/rating/plan/stripe/allowance/KYC columns unless `is_admin() OR is_service_role()`. Must be confirmed under an anon/authenticated JWT after 039 deploys (see §6.1 Verification Plan). |
 | **C4 / F3-C1** | Stripe subscription webhook unconditionally sets `providers.status = 'active'` | Provider in `pending` or `suspended` status pays for a subscription → webhook activates them. `KYC_PROTECTED` only guards `under_review` and `rejected`. Full exploit chain in FEC-3. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION (production payment path)** — `KYC_PROTECTED` now includes `pending` + `suspended` and is checked before the `active` branch in `resolveStripeStatus()`; payment records the subscription but never auto-activates (D1). Confirm against live Stripe webhook events. |
 | **C5** | Fair price validation disabled in `submit_quote_atomic` (migration 032) | Providers can quote any amount from 1 AED to 50,000 AED for any service type with no range check. | **RESOLVED** (migration 039) — `submit_quote_atomic` re-reads bounds from `fair_price_config` and rejects `price_too_low`/`price_too_high` (D2) |
-| **CRIT-01** | Price-change count enforced by read-then-write (TOCTOU race) | Provider submits two concurrent price-change requests → both pass the `count >= 1` check → second request resets a customer's rejected decision → customer unknowingly approves a second (higher) price change | **OPEN** — `provider/jobs/price-change/route.ts:44–74` |
-| **CRIT-02** | SLA auto-release only fires on `accepted` status | Provider accepts a job, immediately advances to `en_route`, then abandons. Customer is locked for up to one week with no automated recovery. `jobs_this_month` counter permanently inflated (see HIGH-04). | **OPEN** — `ops/marketplace-cron/route.ts:115–121` |
+| **CRIT-01** | Price-change count enforced by read-then-write (TOCTOU race) | Provider submits two concurrent price-change requests → both pass the `count >= 1` check → second request resets a customer's rejected decision → customer unknowingly approves a second (higher) price change | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — new `request_price_change_atomic` RPC performs the count-check + update in a single guarded statement (`price_change_count = 0`); route calls the RPC and keeps no separate count/update logic. |
+| **CRIT-02** | SLA auto-release only fires on `accepted` status | Provider accepts a job, immediately advances to `en_route`, then abandons. Customer is locked for up to one week with no automated recovery. `jobs_this_month` counter permanently inflated (see HIGH-04). | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — `sla_check_and_release` now releases from `accepted`/`en_route`/`arrived`, computing breach inside the RPC (accepted=20m vs `requests.accepted_at`, en_route=2h vs `jobs.en_route_at`, arrived=60m vs `jobs.arrived_at`). **Batch 3 still pending:** the cron query in `ops/marketplace-cron/route.ts:115–121` must be widened to `status IN ('accepted','en_route','arrived')` so these states are actually passed to the RPC. |
 | **P4-C1** | Realtime broadcasts to ALL online providers on every new request INSERT | At 1,000+ online providers, one new request triggers 1,000 simultaneous `router.refresh()` SSR renders (5–8 DB queries each) → Supabase connection pool exhaustion → platform outage. | **OPEN** — architectural issue in `ProviderRealtimeRefresh.tsx`, no geographic pre-filter |
 | **P4-C2** | Monthly allowance reset loads all providers in a single serverless function | `Promise.all()` on all qualifying providers crashes at ~500 providers due to memory/concurrency limits → all providers stay locked at their monthly limit for the full next billing cycle. | **OPEN** — `ops/monthly-allowance-reset/route.ts:34–86` |
 
@@ -576,20 +628,20 @@ Pass criteria: Tests 1 and 2 return error `42501` (`role_change_not_allowed` / `
 
 | ID | Title | What it enables | Status |
 |---|---|---|---|
-| **H1** | `select_quote_atomic` returns KYC document storage paths to customer | Customer receives `provider.documents` containing Supabase storage paths (includes provider UUID). Privacy concern; bucket misconfiguration → direct file access. | **OPEN** — strip `documents` from route response and RPC return |
+| **H1** | `select_quote_atomic` returns KYC document storage paths to customer | Customer receives `provider.documents` containing Supabase storage paths (includes provider UUID). Privacy concern; bucket misconfiguration → direct file access. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — `provider_documents` removed from the `select_quote_atomic` return type and from the route response; customer still receives name/phone/rating only. |
 | **H2** | Legacy accept endpoint bypasses V2 quote model | Any provider can first-accept any `open` request, denying customers competitive quotes. Still used by PPJ/overage paths. | **OPEN** (known, deferred decision) |
 | **H3** | V2 quote selection doesn't collect overage fee | `select_quote_atomic` increments `jobs_this_month` but doesn't check the monthly limit or trigger overage payment. At-limit providers get free extra jobs in V2 path. | **OPEN** — `031_marketplace_v2_schema.sql:566–568` |
-| **H4** | `jobs_this_month` permanently inflated for stuck `en_route`/`arrived` jobs | Consequence of CRIT-02: counter increments on select, never decrements until monthly reset for abandoned jobs. | **OPEN** |
+| **H4** | `jobs_this_month` permanently inflated for stuck `en_route`/`arrived` jobs | Consequence of CRIT-02: counter increments on select, never decrements until monthly reset for abandoned jobs. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — addressed by HIGH-04 decrement in `sla_check_and_release` once CRIT-02 cron routing (Batch 3) feeds `en_route`/`arrived` breaches to the RPC. |
 | **H5** | KYC status update not atomic with audit log insert | Admin status change committed in DB, then KYC log inserted separately. If log insert fails, status is changed with no audit trail. Compliance risk under UAE regulations. | **OPEN** — `api/admin/providers/update/route.ts:87–121` |
 | **H6 (Audit 1)** | `accept_provider_request_atomic` active-job check misses `en_route`/`arrived` states | TOCTOU window: if provider's job transitions `accepted` → `en_route` between route preflight and RPC, RPC allows a second accept. Provider can hold two simultaneous active jobs. | **OPEN** — `migrations/024_accept_rpc_overage_guard.sql:54–59` |
 | **H7 (Audit 1)** | CSRF check bypassed on null Origin + `*.vercel.app` wildcard allowed | Requests with no `Origin` or `Referer` header skip CSRF check entirely. Any `*.vercel.app` deployment passes the origin check. Compounded by C1 (CSRF not running at all). | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** — missing Origin+Referer on a state-mutating `/api/` POST is now rejected; `*.vercel.app` wildcard removed (D9). Confirm in a deployed environment that legitimate same-origin POSTs pass and forged/null-origin POSTs get 403. |
 | **HIGH-01 (Audit 2)** | `GET /api/requests/quotes` accepts unvalidated `request_id` query string | Non-UUID values sent directly to DB; different error responses for valid-UUID-not-found vs malformed-input leaks information. | **OPEN** |
 | **HIGH-02 (Audit 2)** | `GET /api/requests` performs state-mutating expiry write with no error handling | GET endpoint mutates DB state on every poll when a quoted request is >20 min old. No error handling on the write; races with marketplace-cron. | **OPEN** |
-| **HIGH-03 (Audit 2)** | `release_job_atomic` doesn't decrement `jobs_this_month` for V2 jobs | Provider who accepts and releases a job loses a monthly slot permanently for that month. Counter drifts upward over time. | **OPEN** |
-| **HIGH-05 (Audit 2)** | Rating row doesn't store `customer_id` | No DB-level attribution of which customer submitted a rating. Dispute resolution lacks DB evidence chain. | **OPEN** |
-| **HIGH-06 (Audit 2)** | Price-change respond route lacks `status = 'in_progress'` DB guard | Race: provider completes job, then customer's approve call arrives; DB shows `price_change_status = 'approved'` on a completed job but actual charge used original quote price. | **OPEN** |
+| **HIGH-03 (Audit 2)** | `release_job_atomic` doesn't decrement `jobs_this_month` for V2 jobs | Provider who accepts and releases a job loses a monthly slot permanently for that month. Counter drifts upward over time. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — `release_job_atomic` decrements `jobs_this_month` via `GREATEST(0, .. - 1)` only when a slot was consumed (`selected_quote_id IS NOT NULL` captured before clearing); PPJ/legacy jobs untouched. |
+| **HIGH-05 (Audit 2)** | Rating row doesn't store `customer_id` | No DB-level attribution of which customer submitted a rating. Dispute resolution lacks DB evidence chain. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — `ratings.customer_id` column + index added and deterministically backfilled via `jobs → requests` (job_id is UNIQUE); `/api/ratings` writes `customer_id` on insert. |
+| **HIGH-06 (Audit 2)** | Price-change respond route lacks `status = 'in_progress'` DB guard | Race: provider completes job, then customer's approve call arrives; DB shows `price_change_status = 'approved'` on a completed job but actual charge used original quote price. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — new `respond_price_change_atomic` RPC enforces `status = 'in_progress'` AND `price_change_status = 'pending'` inside the RPC; reject returns `final_price = NULL` and never surfaces the requested price; `price_change_count` stays 1 (no second attempt). |
 | **F3-H1 (Audit 3)** | No recovery for failed overage accepts | Provider pays 12 AED overage fee, `accept_provider_request_atomic` fails (request already taken, capacity full, etc.). No refund, no credit. Money taken with no service. | **PARTIAL** — minimal tracking added: `overage_payments.accept_failed` flag set + logged for admin follow-up; `overage_cleared` now set only after a successful accept. Automatic refund/credit deferred. |
-| **F3-H2 (Audit 3)** | `overage_cleared` not reset on job release | When a released request's `overage_cleared = true` flag persists, the next provider to accept gets the free overage slot. Platform loses revenue. | **OPEN** |
+| **F3-H2 (Audit 3)** | `overage_cleared` not reset on job release | When a released request's `overage_cleared = true` flag persists, the next provider to accept gets the free overage slot. Platform loses revenue. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — `overage_cleared` reset to `false` on release in `release_job_atomic`, `sla_check_and_release`, and `expire_stuck_active_requests`. |
 | **P4-H1 (Audit 4)** | No rate limiting on polling endpoints | `GET /api/requests` and `GET /api/requests/quotes` have no `checkRateLimitAsync` calls. At 10,000 customers polling every 5 seconds: ~2,000 req/s to unprotected DB read endpoints. | **OPEN** |
 | **P4-H2 (Audit 4)** | SLA enforcement loop is sequential over up to 50 requests | 50 serial RPCs per cron invocation; can exceed Vercel `maxDuration` under load. | **OPEN** |
 | **P4-H3 (Audit 4)** | Weekly SLA reset is non-atomic two-phase update | Two separate DB writes; partial failure corrupts provider SLA flags without rollback. | **OPEN** |
@@ -611,7 +663,7 @@ Pass criteria: Tests 1 and 2 return error `42501` (`role_change_not_allowed` / `
 | MED-01 (Audit 2) | Ring eligibility and `visibility_reduced` not enforced in quote API | OPEN |
 | MED-02 (Audit 2) | Provider score uses `jobs_this_month` as lifetime completions — new-provider boost fires every month | OPEN |
 | MED-03 (Audit 2) | Customer cancel counter updated outside RPC — silently under-counts on DB failure | OPEN |
-| MED-04 (Audit 2) | `release_job_atomic` resets to `open` ignoring pending quotes; stale `selected_quote_id` not cleared | OPEN |
+| MED-04 (Audit 2) | `release_job_atomic` resets to `open` ignoring pending quotes; stale `selected_quote_id` not cleared | CODE COMPLETE — NEEDS RUNTIME VERIFICATION (migration 040) — release uses shared read-only `release_target_status()` helper (→ `quoted` if valid pending non-expired quotes remain, else `open`) and clears `selected_quote_id`/`accepted_at` |
 | MED-05 (Audit 2) | Acceptance rate in scoring is tautological | OPEN |
 | F3-M1 (Audit 3) | Subscription plan silently unresolved when Stripe price ID env vars absent | CODE COMPLETE — NEEDS RUNTIME VERIFICATION (payment path) — active sub with unresolved plan now logs (sub id + unmatched price ids) and throws so the event is recorded failed |
 | F3-M2 (Audit 3) | Non-atomic Stripe event claim (TOCTOU) — re-verified | CODE COMPLETE — NEEDS RUNTIME VERIFICATION (payment path) — see M4 |
@@ -632,10 +684,10 @@ Pass criteria: Tests 1 and 2 return error `42501` (`role_change_not_allowed` / `
 | L3 (Audit 1) | Provider anonymous ID is first 4 chars of UUID (weak anonymisation) | OPEN |
 | L4 (Audit 1) | Webhook stale-processing timeout is 10 minutes (too long) | RESOLVED — reduced to 3 minutes |
 | L5 (Audit 1) | `spatial_ref_sys` RLS disabled (PostGIS system table — cannot be fixed) | Acknowledged |
-| LOW-01 (Audit 2) | `advance_provider_job_state` RPC missing `SET search_path = public` | OPEN |
+| LOW-01 (Audit 2) | `advance_provider_job_state` RPC missing `SET search_path = public` | CODE COMPLETE — NEEDS RUNTIME VERIFICATION (migration 040) — `SET search_path = public` added |
 | LOW-02 (Audit 2) | Customer RLS on `request_quotes` exposes rejected/expired quotes with provider UUIDs | OPEN |
-| LOW-03 (Audit 2) | `expire_stuck_active_requests` weekly cron doesn't decrement `jobs_this_month` | OPEN |
-| LOW-04 (Audit 2) | `advance_provider_job_state` RPC doesn't whitelist valid `p_to_status` values | OPEN |
+| LOW-03 (Audit 2) | `expire_stuck_active_requests` weekly cron doesn't decrement `jobs_this_month` | CODE COMPLETE — NEEDS RUNTIME VERIFICATION (migration 040) — decrements `jobs_this_month` (`GREATEST(0, .. - 1)`) per released row only when `selected_quote_id IS NOT NULL` |
+| LOW-04 (Audit 2) | `advance_provider_job_state` RPC doesn't whitelist valid `p_to_status` values | CODE COMPLETE — NEEDS RUNTIME VERIFICATION (migration 040) — rejects any `p_to_status` outside `('en_route','arrived','in_progress')` with `invalid_target_status` |
 | LOW-05 (Audit 2) | SLA enforcement processes max 50 requests per cron run | OPEN |
 | LOW-06 (Audit 2) | Migrations 033 and 034 each contain function body defined twice | OPEN |
 | F3-L1 (Audit 3) | `payment_intent.canceled` not handled — canceled PPJ intents stay `pending` forever | CODE COMPLETE — NEEDS RUNTIME VERIFICATION (payment path) — handler moves only currently-`pending` PPJ/overage rows to `failed` |

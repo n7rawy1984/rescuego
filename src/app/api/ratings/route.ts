@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
     .insert({
       job_id: parsed.data.job_id,
       provider_id: parsed.data.provider_id,
+      customer_id: user.id,
       stars: parsed.data.stars,
       comment: parsed.data.comment || null,
     })

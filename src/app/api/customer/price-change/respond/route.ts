@@ -35,50 +35,39 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  const [
-    { data: profile },
-    { data: request },
-  ] = await Promise.all([
-    supabase.from('users').select('role').eq('id', user.id).single(),
-    admin.from('requests')
-      .select('id, customer_id, status, price_change_status, price_change_requested')
-      .eq('id', parsed.data.request_id)
-      .single<{ id: string; customer_id: string; status: string; price_change_status: string | null; price_change_requested: number | null }>(),
-  ])
-
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (profile?.role !== 'customer') {
     return NextResponse.json({ error: 'Only customers can respond to price changes' }, { status: 403 })
   }
 
-  if (!request || request.customer_id !== user.id) {
-    return NextResponse.json({ error: 'Request not found' }, { status: 404 })
-  }
+  // HIGH-06: the status='in_progress' guard and the pending-state check live INSIDE
+  // the RPC, so the approve/reject response is atomic and cannot race.
+  const { data: rpcRows, error: rpcError } = await admin.rpc('respond_price_change_atomic', {
+    p_customer_id: user.id,
+    p_request_id: parsed.data.request_id,
+    p_action: parsed.data.action,
+  })
 
-  if (request.price_change_status !== 'pending') {
-    return NextResponse.json({ error: 'No pending price change to respond to' }, { status: 409 })
-  }
+  const result = (rpcRows as { success: boolean; reason: string; final_price: number | null }[] | null)?.[0] ?? null
 
-  if (request.status !== 'in_progress') {
-    return NextResponse.json({ error: 'Job is not in progress' }, { status: 409 })
-  }
+  if (rpcError || !result?.success) {
+    const reason = result?.reason ?? rpcError?.message ?? 'unknown'
 
-  const newStatus = parsed.data.action === 'approve' ? 'approved' : 'rejected'
-
-  const { error: updateError } = await admin
-    .from('requests')
-    .update({ price_change_status: newStatus })
-    .eq('id', parsed.data.request_id)
-    .eq('customer_id', user.id)
-    .eq('price_change_status', 'pending')
-
-  if (updateError) {
-    logger.error({
+    logger.warn({
       event: 'price_change_respond_failed',
       customer_id: user.id,
       request_id: parsed.data.request_id,
       action: parsed.data.action,
-      error: updateError.message,
+      reason,
     })
+
+    if (result?.reason === 'no_pending_price_change') {
+      return NextResponse.json(
+        { error: 'No pending price change to respond to, or the job is no longer in progress', code: reason },
+        { status: 409 }
+      )
+    }
+
     return NextResponse.json({ error: 'Failed to update price change' }, { status: 500 })
   }
 
@@ -87,12 +76,12 @@ export async function POST(req: NextRequest) {
     customer_id: user.id,
     request_id: parsed.data.request_id,
     action: parsed.data.action,
-    new_price: parsed.data.action === 'approve' ? request.price_change_requested : null,
+    new_price: result.final_price,
   })
 
   return NextResponse.json({
     success: true,
     action: parsed.data.action,
-    final_price: parsed.data.action === 'approve' ? request.price_change_requested : null,
+    final_price: result.final_price,
   })
 }
