@@ -146,15 +146,18 @@ async function enforceSla(
     // quoted-vs-open release decision live ENTIRELY in sla_check_and_release (migration 040);
     // this route only narrows and orders candidates — it never duplicates the thresholds.
     //
-    // Ordering: oldest updated_at first. updated_at advances on every status transition
-    // (accept -> en_route -> arrived), so it is the per-request proxy for time-in-state on
-    // the requests table (en_route_at/arrived_at live on the jobs table and cannot be sorted
-    // here). Oldest-first ensures the closest-to-breach rows are never starved by the LIMIT.
+    // Ordering: oldest created_at first. The requests table has no updated_at column
+    // (verified against the schema — only created_at exists), and the per-state breach
+    // timestamps live in different places (requests.accepted_at vs jobs.en_route_at /
+    // jobs.arrived_at), so no single requests column orders all three states exactly.
+    // created_at oldest-first is a stable, monotonic proxy that guarantees long-lived
+    // requests are always examined before fresh ones, so the LIMIT can never starve a
+    // genuinely breached request. The authoritative breach decision stays in the RPC.
     const { data: candidates, error: fetchError } = await supabase
       .from('requests')
       .select('id')
       .in('status', ['accepted', 'en_route', 'arrived'])
-      .order('updated_at', { ascending: true })
+      .order('created_at', { ascending: true })
       .limit(SLA_CANDIDATE_LIMIT)
 
     if (fetchError) {

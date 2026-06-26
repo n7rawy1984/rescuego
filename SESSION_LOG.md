@@ -2,6 +2,54 @@
 
 ---
 
+## Session: June 26, 2026 — Batch 3 Runtime Hotfix (CRIT-02 cron phantom column)
+
+**Runtime finding:** Calling `GET /api/ops/marketplace-cron` returned
+`{ "success": false, "errors": ["sla_fetch: column requests.updated_at does not exist"], "sla_releases": 0 }`.
+The SLA release path threw on every run and never executed.
+
+**Root cause:** `enforceSla()` ordered the candidate query by `requests.updated_at`, which does not
+exist on the `requests` table. Verified against the schema: `requests` (`001_initial_schema.sql:32-45`)
+has `created_at` only; `accepted_at`/`quoted_at` were added in `031`; no migration ever adds
+`updated_at` to `requests`. The earlier `updated_at` assumption was a phantom column.
+
+**Fix (single file, no business-logic change):** `src/app/api/ops/marketplace-cron/route.ts` —
+`enforceSla()` candidate query now orders by `requests.created_at` ascending (oldest-first) instead of
+`updated_at`. Chosen over a `jobs` join on `COALESCE(arrived_at, en_route_at, accepted_at)` because
+`created_at` is verified to exist, is monotonic, and accepted requests may have no `jobs` row yet
+(making the COALESCE order fragile). Oldest-first still guarantees long-lived (most-likely-breached)
+requests are examined before fresh ones, so `LIMIT 50` cannot starve a genuine breach. The CRIT-02
+design is unchanged: the cron fetches `accepted`/`en_route`/`arrived` candidates and delegates ALL
+threshold/release decisions to `sla_check_and_release`.
+
+**Related risk — NOW FIXED in migration 042:** the same phantom `requests.updated_at` was referenced
+inside `expire_stuck_active_requests` at `028:105` and `040:340` (`r.updated_at`) — the weekly stuck-
+request cleanup RPC would throw `column requests.updated_at does not exist` at runtime and never run.
+Fixed via new migration `042_fix_expire_stuck_phantom_column.sql`: `CREATE OR REPLACE FUNCTION
+expire_stuck_active_requests(...)` superseding the deployed RPC, with the single line `r.updated_at`
+→ `r.created_at`. Deployed migrations 028/040 are NOT edited. Signature `(p_stuck_cutoff TIMESTAMPTZ)
+RETURNS INTEGER`, `SECURITY DEFINER`, `SET search_path = public`, and the REVOKE(anon,authenticated)
+/ GRANT(service_role) pattern are all preserved. ALL Batch 2 / LOW-03 logic preserved verbatim
+(jobs_this_month decrement only when `selected_quote_id` slot consumed, `GREATEST(0, ..-1)` no-double-
+decrement guard, full release cleanup). Executable-SQL check: 1 function, 0 `r.updated_at`, 1
+`r.created_at`, both LOW-03 guards present.
+
+**Project-wide `updated_at` audit (every match classified):** the ONLY `updated_at` references that
+bind to the `requests` table were the two phantom ones above (`028`/`040`, alias `r` = `FROM requests`),
+now fixed. All other matches are legitimate columns on OTHER tables and were left untouched:
+`provider_locations.updated_at` (`001:29`, plus the `pl.updated_at` staleness filters in
+`002/004/010/018/033/035/039`), `fair_price_config.updated_at` (`031:178`), `stripe_events.updated_at`
+(`013` indexes; `admin/dashboard` order), `billing/overage_payments.updated_at` (`006`), and the
+`provider_locations`/route `updated_at` reads-writes in `provider/location`, `quote`, `accept`,
+`overage-checkout`, `ppj-checkout`, `webhook`, `expire-requests`, `provider/dashboard`, and
+`src/types/database.ts`. No remaining phantom `requests.updated_at` anywhere in src or migrations.
+
+**Verification:** `npx tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0.
+CRIT-02 remains **CODE COMPLETE — NOT runtime-verified** until this fix is deployed and the cron test
+returns `success` with `sla_releases >= 1` on a prepared `arrived`/`en_route` breach request.
+
+---
+
 ## Session: June 26, 2026 — Security Remediation Batch 3 (shared ops/admin files)
 
 ### Summary
