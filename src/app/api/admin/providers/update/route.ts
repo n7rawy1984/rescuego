@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import type { KycAction, ProviderStatus } from '@/types'
 
@@ -45,6 +46,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // M1: rate-limit this admin route (30 requests / 60s per admin) to bound abuse and
+  // accidental tight loops. Keyed by admin id so one admin cannot exhaust another's budget.
+  const rateLimit = await checkRateLimitAsync(`admin-provider-update:${user.id}`, 30, 60_000, 'admin_provider_update')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
+  }
+
   const updates: { status?: string; verified_badge?: boolean } = {}
   if (parsed.data.status) updates.status = parsed.data.status
   if (typeof parsed.data.verified_badge === 'boolean') updates.verified_badge = parsed.data.verified_badge
@@ -84,41 +95,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Provider account role mismatch' }, { status: 409 })
   }
 
-  const { error } = await admin
-    .from('providers')
-    .update(updates)
-    .eq('id', parsed.data.provider_id)
+  // H5: the status/verified_badge change AND the audit-log insert happen atomically
+  // inside admin_update_provider_status_atomic (migration 041). Either both commit or both
+  // roll back — the status can never change without its audit trail. The RPC is narrow:
+  // it writes ONLY status/verified_badge (each applied only when non-null) plus the log row.
+  const action: KycAction = parsed.data.status
+    ? (KYC_STATUS_TO_ACTION[parsed.data.status as ProviderStatus] ?? 'under_review')
+    : 'under_review'
 
-  if (error) {
+  const { data: rpcRows, error } = await admin.rpc('admin_update_provider_status_atomic', {
+    p_admin_id: user.id,
+    p_provider_id: parsed.data.provider_id,
+    p_new_status: parsed.data.status ?? null,
+    p_verified_badge: typeof parsed.data.verified_badge === 'boolean' ? parsed.data.verified_badge : null,
+    p_review_notes: parsed.data.review_notes ?? null,
+    p_previous_status: targetProvider.status,
+    p_action: action,
+  })
+
+  const result = (rpcRows as { success: boolean; reason: string }[] | null)?.[0] ?? null
+
+  if (error || !result?.success) {
     logger.error({
       event: 'admin_provider_update_failed',
       admin_id: user.id,
       provider_id: parsed.data.provider_id,
       attempted_status: parsed.data.status,
       attempted_verified_badge: parsed.data.verified_badge,
-      error: error.message,
+      reason: result?.reason ?? error?.message ?? 'unknown',
     })
-    return NextResponse.json({ error: 'Failed to update provider' }, { status: 500 })
-  }
 
-  if (parsed.data.status && parsed.data.status !== targetProvider.status) {
-    const action = KYC_STATUS_TO_ACTION[parsed.data.status as ProviderStatus] ?? 'under_review'
-    const { error: logError } = await admin.from('provider_kyc_log').insert({
-      provider_id: parsed.data.provider_id,
-      admin_id: user.id,
-      action,
-      previous_status: targetProvider.status,
-      new_status: parsed.data.status,
-      notes: parsed.data.review_notes ?? null,
-    })
-    if (logError) {
-      logger.warn({
-        event: 'admin_kyc_log_write_failed',
-        admin_id: user.id,
-        provider_id: parsed.data.provider_id,
-        error: logError.message,
-      })
+    if (result?.reason === 'provider_not_found') {
+      return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
     }
+
+    return NextResponse.json({ error: 'Failed to update provider' }, { status: 500 })
   }
 
   logger.info({

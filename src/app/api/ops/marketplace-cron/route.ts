@@ -6,6 +6,10 @@ import { authorizeOpsRequest } from '@/lib/ops-auth'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
+// P4-M2: cap how many rows a single expiry statement can lock per invocation, so the
+// cron can never hold write locks on an unbounded batch. The remainder is handled next run.
+const EXPIRE_BATCH_LIMIT = 500
+
 async function handleMarketplaceCron(req: NextRequest) {
   const unauthorized = authorizeOpsRequest(req)
   if (unauthorized) return unauthorized
@@ -24,7 +28,7 @@ async function handleMarketplaceCron(req: NextRequest) {
   const [expireQuotesResult, expireRequestsResult, slaResult] = await Promise.all([
     expireStaleQuotes(supabase),
     expireUnselectedRequests(supabase, now),
-    enforceSla(supabase, now),
+    enforceSla(supabase),
   ])
 
   results.expired_quotes = expireQuotesResult.count
@@ -37,10 +41,32 @@ async function handleMarketplaceCron(req: NextRequest) {
   results.sla_releases = slaResult.releases
   if (slaResult.error) results.errors.push(slaResult.error)
 
+  // P4-H4: a subtask reports `error` only when the WHOLE query/RPC-fetch failed or threw
+  // (e.g. DB unreachable). Normal per-row outcomes from sla_check_and_release such as
+  // 'sla_not_breached' are NOT errors and are not collected here. If any critical subtask
+  // failed, return 500 so Vercel retries the route and alerting fires.
+  //
+  // Idempotency under retry (no double-decrement): every operation is guarded so a retry
+  // that re-runs an already-completed step is a no-op.
+  //   - expireStaleQuotes / expireUnselectedRequests: status-guarded UPDATEs
+  //     (.eq('status','pending') / .eq('status','quoted')); rerunning matches zero
+  //     already-expired rows.
+  //   - sla_check_and_release: re-selects the request FOR UPDATE and returns early
+  //     ('not_in_releasable_status' / 'sla_not_breached') if the row is no longer in
+  //     accepted/en_route/arrived, so an already-released request is never decremented
+  //     a second time.
+  const criticalFailure = results.errors.length > 0
+
   logger.info({
     event: 'marketplace_cron_complete',
+    critical_failure: criticalFailure,
     ...results,
   })
+
+  if (criticalFailure) {
+    logger.error({ event: 'marketplace_cron_critical_failure', errors: results.errors })
+    return NextResponse.json({ success: false, ...results }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true, ...results })
 }
@@ -53,6 +79,7 @@ async function expireStaleQuotes(supabase: ReturnType<typeof createAdminClient>)
       .eq('status', 'pending')
       .lt('expires_at', new Date().toISOString())
       .select('id')
+      .limit(EXPIRE_BATCH_LIMIT)
 
     if (error) {
       logger.error({ event: 'expire_quotes_failed', error: error.message })
@@ -84,6 +111,7 @@ async function expireUnselectedRequests(
       .eq('status', 'quoted')
       .lt('quoted_at', cutoff)
       .select('id')
+      .limit(EXPIRE_BATCH_LIMIT)
 
     if (error) {
       logger.error({ event: 'expire_unselected_requests_failed', error: error.message })
@@ -101,40 +129,54 @@ async function expireUnselectedRequests(
   }
 }
 
-async function enforceSla(
-  supabase: ReturnType<typeof createAdminClient>,
-  now: Date
-) {
-  const slaDeadlineMs = 20 * 60 * 1000
-  const slaDeadlineCutoff = new Date(now.getTime() - slaDeadlineMs).toISOString()
+// Max SLA candidates processed per cron invocation (P4-H2: bound work within maxDuration).
+// If more than this exist in one minute, the oldest-first ordering below guarantees the
+// closest-to-breach rows are handled first; the remainder is processed on the next run.
+const SLA_CANDIDATE_LIMIT = 50
 
+async function enforceSla(
+  supabase: ReturnType<typeof createAdminClient>
+) {
   const warnings = 0
   let releases = 0
 
   try {
-    const { data: breachedRequests, error: fetchError } = await supabase
+    // CRIT-02 (cron side): consider every active SLA state, not just 'accepted'.
+    // The per-state breach thresholds (accepted 20m / en_route 2h / arrived 60m) and the
+    // quoted-vs-open release decision live ENTIRELY in sla_check_and_release (migration 040);
+    // this route only narrows and orders candidates — it never duplicates the thresholds.
+    //
+    // Ordering: oldest updated_at first. updated_at advances on every status transition
+    // (accept -> en_route -> arrived), so it is the per-request proxy for time-in-state on
+    // the requests table (en_route_at/arrived_at live on the jobs table and cannot be sorted
+    // here). Oldest-first ensures the closest-to-breach rows are never starved by the LIMIT.
+    const { data: candidates, error: fetchError } = await supabase
       .from('requests')
-      .select('id, accepted_at')
-      .eq('status', 'accepted')
-      .not('accepted_at', 'is', null)
-      .lt('accepted_at', slaDeadlineCutoff)
-      .limit(50)
+      .select('id')
+      .in('status', ['accepted', 'en_route', 'arrived'])
+      .order('updated_at', { ascending: true })
+      .limit(SLA_CANDIDATE_LIMIT)
 
     if (fetchError) {
       logger.error({ event: 'sla_fetch_breached_failed', error: fetchError.message })
       return { warnings: 0, releases: 0, error: `sla_fetch: ${fetchError.message}` }
     }
 
-    if (!breachedRequests || breachedRequests.length === 0) {
+    if (!candidates || candidates.length === 0) {
       return { warnings: 0, releases: 0, error: null }
     }
 
-    for (const request of breachedRequests) {
+    // Sequential per-request RPC calls. Each is a short transactional RPC; 50 sequential
+    // calls stay well within maxDuration. The RPC decides whether each row is actually
+    // breached — a non-release (e.g. 'sla_not_breached') is a NORMAL outcome, not a failure.
+    for (const request of candidates) {
       const { data: rpcResult, error: rpcError } = await supabase.rpc('sla_check_and_release', {
         p_request_id: request.id,
       })
 
       if (rpcError) {
+        // Per-row RPC failure: log and continue. This does NOT mark the subtask critical;
+        // a single bad row must not fail the whole batch (P4-H4 critical-vs-per-row).
         logger.error({ event: 'sla_release_rpc_error', request_id: request.id, error: rpcError.message })
         continue
       }
@@ -155,6 +197,7 @@ async function enforceSla(
 
     return { warnings, releases, error: null }
   } catch (err) {
+    // A thrown exception means the whole subtask failed (e.g. DB unreachable) -> critical.
     const msg = err instanceof Error ? err.message : 'unknown'
     return { warnings: 0, releases: 0, error: `sla_exception: ${msg}` }
   }

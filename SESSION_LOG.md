@@ -2,6 +2,50 @@
 
 ---
 
+## Session: June 26, 2026 — Security Remediation Batch 3 (shared ops/admin files)
+
+### Summary
+Closed the remaining findings that live in three shared ops/admin files, plus one new migration. **CRIT-02 is now FULLY closed** (the migration-040 RPC side shipped in Batch 2; this session shipped the cron side). Also closed P4-C2, P4-H2, P4-H4, P4-M2 (SECURITY_AUDIT_4), F3-L4 (SECURITY_AUDIT_3), and H5 + M1 (SECURITY_AUDIT_1). Each file was opened once and received all its changes. `admin/providers/update` is the only admin route touched; V2 overage enforcement remains deferred.
+
+### Files modified
+- **`src/app/api/ops/marketplace-cron/route.ts`**
+  - **CRIT-02 (cron side):** `enforceSla()` now selects candidates with `status IN ('accepted','en_route','arrived')`, ordered `updated_at` ascending (oldest-first) before `LIMIT 50`, and calls `sla_check_and_release(id)` per row. The RPC remains the single source of truth for the 20m/2h/60m thresholds and the quoted-vs-open decision — no threshold math in the route. The old `accepted_at` cutoff filter was removed (it can't gate en_route/arrived, whose timestamps live on `jobs`).
+  - **P4-H2:** candidates capped at `SLA_CANDIDATE_LIMIT = 50`, processed sequentially within `maxDuration`. Oldest-first ordering guarantees the closest-to-breach rows are never starved; if >50 candidates exist in one minute, the remainder is handled by subsequent minute runs.
+  - **P4-M2:** `EXPIRE_BATCH_LIMIT = 500` added as `.limit(500)` to both `expireStaleQuotes` and `expireUnselectedRequests`.
+  - **P4-H4:** the route returns **HTTP 500** when any critical subtask (a whole query/RPC-fetch that errors or throws) fails, so Vercel retries and alerting fires. Normal per-row outcomes (e.g. `sla_not_breached`) are not failures — logged and skipped.
+- **`src/app/api/ops/monthly-allowance-reset/route.ts`**
+  - **P4-C2:** unbounded load + `Promise.all` replaced with `.range()` pagination in pages of `PAGE_SIZE = 50` (ordered by id), processed page-by-page; memory stays flat.
+  - **F3-L4:** query widened to `plan IN ('starter','pro','business')`. Business resets on the same monthly Stripe-period cadence and zeroes **only `jobs_this_month`** (+ advances `jobs_reset_at`); it never touches `job_credit_balance` or any billing/allowance field. starter/pro behavior unchanged.
+  - Each reset UPDATE carries its eligibility in the WHERE clause (id, plan, `stripe_current_period_start`, `jobs_reset_at`), so pagination drift or a retry can never reset an ineligible/already-reset provider. P4-H4: 500 on load failure or any per-provider failure.
+- **`supabase/migrations/041_admin_provider_status_atomic.sql`** (new, idempotent)
+  - **H5:** `admin_update_provider_status_atomic(p_admin_id, p_provider_id, p_new_status, p_verified_badge, p_review_notes, p_previous_status, p_action)` — SECURITY DEFINER, `SET search_path = public`, revoke anon/authenticated + grant service_role. Validates status/action against the CHECK allow-lists; `COALESCE`-updates ONLY `status`/`verified_badge`; inserts one `provider_kyc_log` row when status changed — all in one transaction. Narrow named params only, so it is not a generic provider-update bypass and preserves the C3 immutable-column protection from migration 039.
+- **`src/app/api/admin/providers/update/route.ts`**
+  - **H5:** the two separate writes (provider update + audit-log insert) replaced with a single call to `admin_update_provider_status_atomic`. All existing validations (auth, admin role, target lookup, provider-role mismatch, no-updates guard) preserved; the route maps status→action and passes the previous status.
+  - **M1:** `checkRateLimitAsync('admin-provider-update:'+user.id, 30, 60000, 'admin_provider_update')` added after the admin-role check; 429 + Retry-After when exceeded.
+- **`RESCUEGO_MASTER_REFERENCE.md`** / **`SESSION_LOG.md`** — finding statuses, migration baseline (next = 042), Batch 3 deployment note, and §6.3 post-deploy verification plan.
+
+### Decisions
+- **Business reset cadence = monthly** (aligned with starter/pro via `stripe_current_period_start > jobs_reset_at`), not daily. Business subscribes via Stripe so it has a billing period; monthly keeps the admin dashboard "jobs this month" figure meaningful and the operation idempotent. Verified (code evidence) that no path gates a business provider on `jobs_this_month` (`provider-allowance.ts` returns null/unlimited for business; `accept_provider_request_atomic` is passed `-1`), so zeroing it is data-integrity only.
+- **No double-decrement under cron retry (P4-H4 idempotency):**
+  - `sla_check_and_release` re-selects the request `FOR UPDATE` and returns early (`not_in_releasable_status` / `sla_not_breached`) if the row is no longer in `accepted/en_route/arrived`; an already-released request is never decremented again.
+  - `expireStaleQuotes` / `expireUnselectedRequests` are status-guarded UPDATEs (`.eq('status', …)`); a retry matches zero already-expired rows.
+  - `monthly-allowance-reset` enforces eligibility in the UPDATE WHERE clause and advances `jobs_reset_at`, so a retry resets nothing twice.
+
+### Discrepancies vs reports
+None. `providers.status` is TEXT with a CHECK allow-list; `provider_kyc_log` columns matched the audit. No phantom columns.
+
+### Pending / follow-up
+- **CRIT-02 post-deploy QA (re-run required):** leave a job in `en_route` past 2h or `arrived` past 60m → the minute cron must auto-release it to `quoted`/`open` per D6. This could not pass before this batch. See `RESCUEGO_MASTER_REFERENCE.md` §6.3.
+- **M1 follow-up:** `src/app/api/admin/sentry-verify/route.ts` still needs `checkRateLimitAsync` (only other admin route lacking it).
+- Migration 041 RPC is **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** until 041 is deployed.
+
+### Verification
+- `npx tsc --noEmit` — exit 0.
+- `npm run lint` — exit 0 (removed an unused param to keep it clean).
+- `npm run build` — succeeded; full route manifest emitted (including the changed ops/admin routes).
+
+---
+
 ## Session: June 25, 2026 — Security Remediation Batch 2 (RPC integrity & state-machine safety)
 
 ### Summary
