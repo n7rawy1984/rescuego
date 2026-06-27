@@ -54,6 +54,17 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // P4-H1: this is a high-frequency polling / realtime-fallback endpoint. 60/min (1/s) per customer
+  // is safe for normal UI refresh while blocking a 2,000 req/s polling-abuse vector. SOFT mode so a
+  // Redis outage degrades to per-instance limiting rather than denying legitimate polling.
+  const rateLimit = await checkRateLimitAsync(`customer-active-request:${user.id}`, 60, 60 * 1000, 'customer_get_active_request')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
+  }
+
   const { data: profile } = await supabase
     .from('users')
     .select('role, phone')
@@ -133,17 +144,17 @@ export async function GET() {
 
   let activeRequest = rawActiveRequest
 
+  // HIGH-02: GET is read-only. A 'quoted' request older than 20 minutes is treated as expired in
+  // the RESPONSE only — we do NOT write to the database here. The marketplace-cron owns request/quote
+  // expiry (typically within ~1 minute). This is safe because every write action is server-authoritative:
+  // e.g. select_quote_atomic re-validates live DB state and rejects with request_not_in_quoted_status /
+  // quote_expired, so a brief read-display vs DB mismatch cannot cause an inconsistent write.
   if (activeRequest?.status === 'quoted') {
     const quotedAt = activeRequest.quoted_at
     const quotedAge = quotedAt
       ? Date.now() - new Date(quotedAt).getTime()
       : Infinity
     if (quotedAge > 20 * 60 * 1000) {
-      await admin
-        .from('requests')
-        .update({ status: 'expired' })
-        .eq('id', activeRequest.id)
-        .eq('status', 'quoted')
       activeRequest = null
     }
   }

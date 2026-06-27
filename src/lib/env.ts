@@ -71,6 +71,17 @@ export function validateEnv(): void {
   }
 
   const opsSecret = process.env.OPS_CRON_SECRET
+
+  // P4-L4: OPS_CRON_SECRET is required in production — a missing secret made every ops/cron route
+  // return silent 503s at runtime (see ops-auth.ts) instead of failing fast. Hard-fail at startup
+  // in production only; it is NOT required in local development (cron routes are not exercised
+  // locally), so dev startup is unaffected.
+  if (process.env.NODE_ENV === 'production' && !opsSecret) {
+    throw new Error(
+      '[RescueGo] OPS_CRON_SECRET is required in production. Set it in Vercel. Generate one with: openssl rand -hex 32'
+    )
+  }
+
   if (opsSecret && opsSecret.length < 32) {
     throw new Error(
       '[RescueGo] OPS_CRON_SECRET must be at least 32 characters. Generate one with: openssl rand -hex 32'

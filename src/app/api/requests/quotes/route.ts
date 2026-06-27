@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
@@ -6,6 +7,11 @@ import { distanceKm, type Coordinates } from '@/lib/geo'
 import { computeProviderScore, computeAcceptanceRate, getMaxRingDistanceKm } from '@/lib/provider-score'
 import { computePriceRange } from '@/lib/range-estimator'
 import type { FairPriceConfig } from '@/types'
+
+// HIGH-01: request_id arrives from the query string and must be a well-formed UUID before it ever
+// reaches the database. Validating here returns a uniform 400 for malformed input so that
+// malformed-input and valid-UUID-not-found cannot be distinguished by an unintended DB-level error.
+const requestIdSchema = z.string().uuid()
 
 type QuoteRow = {
   id: string
@@ -42,11 +48,14 @@ type ScoredQuote = {
 }
 
 export async function GET(req: NextRequest) {
-  const requestId = req.nextUrl.searchParams.get('request_id')
+  const rawRequestId = req.nextUrl.searchParams.get('request_id')
 
-  if (!requestId) {
-    return NextResponse.json({ error: 'request_id is required' }, { status: 400 })
+  const parsedRequestId = requestIdSchema.safeParse(rawRequestId)
+  if (!parsedRequestId.success) {
+    // Uniform 400 for both missing and malformed request_id — no info leak, no DB call.
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
+  const requestId = parsedRequestId.data
 
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()

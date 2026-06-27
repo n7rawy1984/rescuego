@@ -2,6 +2,30 @@
 
 ---
 
+## Session: June 27, 2026 — Security Remediation Batch 4 (rate limiting, GET hardening, lib hardening, index)
+
+Last active security batch (Batch 5 is deferred/architectural). 7 files; one DB change in new migration 043.
+
+**Findings closed:**
+- **P4-H1** (`src/app/api/requests/route.ts`) — added `checkRateLimitAsync('customer-active-request:'+user.id, 60, 60_000, 'customer_get_active_request')` (SOFT) to the GET handler; 429 + Retry-After. The quotes GET was already rate-limited (60/min) and is kept at 60/min per ruling (not lowered to the audit's suggested 30/min — already deployed, safe for active polling).
+- **HIGH-02** (`src/app/api/requests/route.ts`) — removed the state-mutating expiry write (former lines 136-149). GET is now read-only: a `quoted` request older than 20 min is treated as expired in the response only (`activeRequest = null`), no DB write. `marketplace-cron` owns DB expiry. Confirmed safe — writes are server-authoritative: `select_quote_atomic` (`customer/quote/select/route.ts:52-56`) re-validates live DB state and rejects with `request_not_in_quoted_status`/`quote_expired`, so the brief read-vs-DB mismatch cannot cause an inconsistent write. Response shape unchanged.
+- **HIGH-01** (`src/app/api/requests/quotes/route.ts`) — `request_id` is validated as a UUID (`z.string().uuid()`) before any DB call; missing/malformed input returns a uniform `400 { error: 'Invalid request' }`. No DB-level error reaches malformed input, removing the info-leak distinguishability.
+- **M1 (fully closed)** (`src/app/api/admin/sentry-verify/route.ts`) — added `checkRateLimitAsync('admin-sentry-verify:'+user.id, 30, 60_000, 'admin_sentry_verify')` (SOFT) after the admin role check, matching Batch 3's `admin/providers/update`. No admin route now lacks rate limiting.
+- **P4-M4 / H4** (`src/lib/rate-limit.ts`) — replaced the lifetime-of-instance `redisFallbackLogged` boolean with a 60s time-throttled timestamp (`lastFallbackLogAt` + `FALLBACK_LOG_THROTTLE_MS`) so a degraded fleet stays visible instead of silently logging once. Added `RateLimitMode = 'soft' | 'hard'`: SOFT (default) keeps in-memory fallback; HARD fails closed (deny) when Redis is unavailable and logs `rate_limit_redis_unavailable_hard_fail`.
+- **P4-M6** (`src/lib/ops-auth.ts`) — Vercel's `CRON_SECRET` is honored only if ≥32 chars (else ignored + `ops_route_weak_cron_secret` warning); both secret comparisons now use constant-time `timingSafeEqual` (closes the timing side-channel). Fail-closed behavior preserved (missing OPS secret → 503, wrong → 401).
+- **P4-L4** (`src/lib/env.ts`) — `OPS_CRON_SECRET` is now a production-only hard-fail in `validateEnv()` (throws at startup if missing in production), eliminating silent runtime 503s. NOT required in development (cron not exercised locally) → dev startup unaffected. Existing ≥32-char check retained.
+- **P4-M1** (`supabase/migrations/043_jobs_en_route_at_index.sql`, new) — partial index `idx_jobs_en_route_at_active ON public.jobs (en_route_at) WHERE completed_at IS NULL`, matching the admin stuck-job query (`admin/dashboard/page.tsx:80-85`). Columns verified against `025_provider_state_machine.sql:19-21` (not phantom). Idempotent (`IF NOT EXISTS`). **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** until applied.
+
+**Rate-limit helper signature change:** `checkRateLimitAsync` gains an optional 5th param `mode: RateLimitMode = 'soft'`. All 20 existing callers use the 4-arg form → fully backward compatible (tsc/lint/build pass). HARD mode is capability-only this batch — **NOT wired into any payment route** (deferred to a payment verification pass).
+
+**Decisions stated:** quotes route kept at 60/min (ruling); env.ts = production-only hard requirement; GET rate limits = 60/min (requests), 60/min (quotes, pre-existing), 30/min (sentry-verify).
+
+**Verification:** `npx tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0.
+
+**Migration baseline:** 001-042 deployed + runtime-verified; 043 CODE COMPLETE — NEEDS RUNTIME VERIFICATION. Next = 044.
+
+---
+
 ## Session: June 26, 2026 — Batch 3 Runtime Hotfix (CRIT-02 cron phantom column)
 
 **Runtime finding:** Calling `GET /api/ops/marketplace-cron` returned
