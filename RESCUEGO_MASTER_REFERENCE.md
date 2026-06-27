@@ -46,6 +46,8 @@ Providers pay to access the platform through one of two monetisation models:
 | Provider within 10 km of request | 30 AED |
 | Provider 10 km or more from request | 70 AED |
 
+> **PPJ payment enforcement (fixed June 27, 2026):** PPJ providers are charged the acceptance fee only through `/api/provider/ppj-checkout` (PaymentIntent → Stripe Elements → webhook `payment_intent.succeeded` → `finalizeAcceptedRequest`). The free `/api/provider/requests/accept` route now hard-rejects `plan === 'pay_per_job'` with `403 { code: 'PPJ_PAYMENT_REQUIRED' }` (server-side defense-in-depth — the atomic RPC does not gate PPJ payment, so the route must). Previously this route had no PPJ guard and could assign a PPJ job for free. To show the 15 AED promo fee instead of the 30/70 distance-based default, set `NEXT_PUBLIC_LAUNCH_PROMO=true` + `NEXT_PUBLIC_PPJ_PROMO_FEE_AED=15` (env only).
+
 **Additional revenue streams (defined but not yet active):**
 - Platform commission on job completion (currently hardcoded to 0% — intentional soft-launch decision, see Section 6 M5)
 

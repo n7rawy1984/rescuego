@@ -89,6 +89,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Your provider account must be active before accepting requests' }, { status: 403 })
   }
 
+  // PPJ providers must pay the per-job acceptance fee via /api/provider/ppj-checkout.
+  // This route never assigns a Pay Per Job job for free (defense-in-depth: the UI already
+  // routes PPJ providers to checkout at ProviderRequestList.tsx, but the server must enforce
+  // it too — a stale/alternate client or direct call must not bypass payment).
+  if (provider.plan === 'pay_per_job') {
+    logger.warn({
+      event: 'accept_request_blocked_ppj_payment_required',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+    })
+    return NextResponse.json(
+      {
+        error: 'Pay Per Job providers must complete the acceptance fee payment.',
+        code: 'PPJ_PAYMENT_REQUIRED',
+        request_id: parsed.data.request_id,
+      },
+      { status: 403 }
+    )
+  }
+
   if (!providerLocation) {
     return NextResponse.json({ error: 'Go online before accepting requests.' }, { status: 403 })
   }

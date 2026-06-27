@@ -2,6 +2,18 @@
 
 ---
 
+## Session: June 27, 2026 — PPJ free-accept bypass fix (server-side payment guard)
+
+**Finding:** A Pay Per Job (PPJ) provider could be assigned a job WITHOUT paying the per-job acceptance fee. The free accept route `src/app/api/provider/requests/accept/route.ts` had no PPJ-plan guard: its checks were role/active/online/no-active-job, and the overage guard deliberately skips PPJ (`hasMonthlyAllowance=false`). It then called `accept_provider_request_atomic` directly and assigned the job. The atomic RPC itself does not gate PPJ payment (migrations 011/015/024 — PPJ logic there is only `p_consume_ppj_credit` and `p_plan_limit`), so PPJ payment enforcement is entirely the caller's responsibility. The UI (`ProviderRequestList.tsx:117`) correctly routes PPJ to `/api/provider/ppj-checkout`, but the server had no defense-in-depth, so any stale/alternate client or direct call to the accept route bypassed payment. The PPJ payment chain (ppj-checkout → PaymentIntent → webhook `finalizeAcceptedRequest`) was intact and NOT disabled; Stripe (test keys) and subscription checkout were working.
+
+**Fix (code-only, minimal, one file):** Added a server-side guard in `accept/route.ts` immediately after the active-status check — when `provider.plan === 'pay_per_job'`, log `accept_request_blocked_ppj_payment_required` and return `403 { error, code: 'PPJ_PAYMENT_REQUIRED', request_id }`. PPJ never legitimately uses this route, so the subscription/overage path is untouched. No changes to subscription checkout, Stripe webhook, ppj-checkout route, database, migrations, or launch behavior.
+
+**Fee amount (env-only, NOT changed in code — to be set by operator):** PPJ test fee is currently 30/70 AED by distance because `NEXT_PUBLIC_LAUNCH_PROMO` is unset. To use the 15 AED promo fee in test, set in Vercel + `.env.local`: `NEXT_PUBLIC_LAUNCH_PROMO=true` and `NEXT_PUBLIC_PPJ_PROMO_FEE_AED=15`. Stays on Stripe TEST keys; no live impact.
+
+**Verification:** `npx tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0.
+
+---
+
 ## Session: June 27, 2026 — Security Remediation Batch 4 (rate limiting, GET hardening, lib hardening, index)
 
 Last active security batch (Batch 5 is deferred/architectural). 7 files; one DB change in new migration 043.
