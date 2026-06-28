@@ -68,7 +68,7 @@ Core tables:
 - `overage_payments` - subscription overage payment tracking.
 - `request_quotes` - Marketplace V2 provider quotes.
 - `provider_dispatch_log` - quote, selection, SLA, and completion analytics.
-- `fair_price_config` - fair price config used for UI/scoring; DB enforcement is currently disabled.
+- `fair_price_config` - fair price config used for UI/scoring AND DB enforcement. Enforcement was disabled by migration `032`, RE-ENABLED by migration `039` (Batch 1, C5/D2), and TEMPORARILY WIDENED by migration `044` for testing (bounds 0.01/10000; validation still runs). LAUNCH BLOCKER: the formula must be redesigned (two-leg distance: provider→breakdown + breakdown→destination, tied to a mandatory 7-emirate destination dropdown) before go-live — see DEFERRED_PRODUCT_BACKLOG.md P9/P1/P2.
 - `provider_kyc_log` - provider status transition history.
 
 Important RPCs:
@@ -262,7 +262,7 @@ Current code assumptions:
 ## Known Technical Debt
 
 - Legacy first-accept flow coexists with Marketplace V2.
-- Fair price config exists, but DB fair price enforcement is disabled by migration `032`.
+- Fair price config exists; DB fair price enforcement was disabled by migration `032`, RE-ENABLED by migration `039` (Batch 1), and TEMPORARILY WIDENED by migration `044` for testing (validation still active, bounds 0.01/10000). The formula will be REDESIGNED (two-leg + emirate destination) before launch, not restored — see DEFERRED_PRODUCT_BACKLOG.md P9.
 - Destination latitude/longitude columns exist, but request creation stores only destination text/area.
 - There is no test framework or CI pipeline in the repo.
 - Some admin/protected routes lack route-level rate limiting.
@@ -274,7 +274,7 @@ Current code assumptions:
 
 Do not treat this section as fixes. Validate in a dedicated audit before action.
 
-1. `submit_quote_atomic` fair price enforcement is disabled by `032_disable_range_estimator.sql`, while UI/scoring still computes fair price ranges.
+1. `submit_quote_atomic` fair price enforcement was disabled by `032_disable_range_estimator.sql`, RE-ENABLED by `039_security_backstop.sql` (Batch 1), and TEMPORARILY WIDENED by `044_temp_widen_fair_price_bounds.sql` for testing (bounds 0.01/10000, base_fee unchanged; the RPC still runs `v_min_fair = base_fee + distance_km × min_price_per_km` / `v_max_fair = base_fee + distance_km × max_price_per_km`). UI/scoring still computes fair price ranges. Redesign (two-leg + emirate) required before launch — see DEFERRED_PRODUCT_BACKLOG.md P9.
 
 2. `select_quote_atomic` returns `provider_documents` to the customer selection route. Review whether KYC document paths should ever be returned to customers.
 

@@ -2,6 +2,35 @@
 
 ---
 
+## Session: June 27, 2026 — Migration 044: temporarily WIDEN fair-price bounds for testing
+
+**Task:** Allow any reasonable test quote to pass during testing WITHOUT disabling the fair-price validation, then correct stale docs and enrich the deferred backlog.
+
+**Confirmed formula (read from `submit_quote_atomic`, migration `039_security_backstop.sql:262-274`):**
+- `v_min_fair = base_fee + (distance_km × min_price_per_km)`
+- `v_max_fair = base_fee + (distance_km × max_price_per_km)`
+- reject `price_too_low` if `proposed_price < v_min_fair`; reject `price_too_high` if `proposed_price > v_max_fair`.
+- `distance_km` is the single leg provider→customer (route-side haversine). The route (`provider/jobs/quote/route.ts`) has no independent price check — the RPC is the sole enforcement point; `range-estimator.ts` is UI-only.
+
+**Change — migration `044_temp_widen_fair_price_bounds.sql` (created, NOT applied by me):**
+- `UPDATE public.fair_price_config SET min_price_per_km = 0.01, max_price_per_km = 10000, updated_at = now();` for ALL service types. `base_fee` left unchanged. Idempotent (absolute values). Includes before/after snapshot SELECT comments and a `DO $$` block that raises if any row was not widened.
+- WIDENS, does NOT disable: the RPC logic is untouched and still runs the range check on every quote. Amounts below the base_fee floor are still correctly rejected `price_too_low` (expected).
+- Header documents this as TEMPORARY test scaffolding and a LAUNCH BLOCKER to REDESIGN (two-leg distance: provider→breakdown + breakdown→destination, mandatory 7-emirate dropdown) — NOT a restore target. References backlog P9/P1/P2. Previous seeded values listed for the record only: tow 3–8/100, battery 2–5/80, flat_tire 2–5/60, fuel 2–5/50, lockout 2–6/70, other 2–6/80.
+
+**Stale-doc corrections (fair-price enforcement was: disabled by 032 → RE-ENABLED by 039 (Batch 1) → TEMPORARILY WIDENED by 044; redesign before launch, not restore):**
+- `ARCHITECTURE.md` (3 lines: config note, deployment-state note, known-gap note)
+- `MARKETPLACE_V2_SPEC.md` (1 line: the 032-disables claim)
+- `RESCUEGO_MASTER_REFERENCE.md` (5 lines: file-tree note, `fair_price_config` table doc, RPC table row, quote-flow note, "known issue" item — plus the C5 findings-table row annotated with the 044 widen + launch-blocker note)
+- Deliberately LEFT UNCHANGED: `SECURITY_AUDIT_1/2/3.md` — these are point-in-time audit records that correctly describe the 032 state at the time of each audit; they are historical, not stale.
+
+**Backlog:** Saved the owner's authoritative `DEFERRED_PRODUCT_BACKLOG.md` (items P1–P10) into the repo root, keeping P1–P8 and P10 verbatim; only P9 was enriched (confirmed formula, migration 044 reference, widened values 0.01/10000, base_fee unchanged, two-leg+emirate redesign launch-blocker, QA scenarios) and its status set to "DONE (widen migration created) — redesign still OPEN".
+
+**Verification:** `npx tsc --noEmit`, `npm run lint`, `npm run build` (SQL + markdown changes only; no TS touched).
+
+**Deploy:** apply `044` by pasting it into the Supabase SQL editor and running it (production DB). No code deploy required for the widening itself.
+
+---
+
 ## Session: June 27, 2026 — PPJ free-accept bypass fix (server-side payment guard)
 
 **Finding:** A Pay Per Job (PPJ) provider could be assigned a job WITHOUT paying the per-job acceptance fee. The free accept route `src/app/api/provider/requests/accept/route.ts` had no PPJ-plan guard: its checks were role/active/online/no-active-job, and the overage guard deliberately skips PPJ (`hasMonthlyAllowance=false`). It then called `accept_provider_request_atomic` directly and assigned the job. The atomic RPC itself does not gate PPJ payment (migrations 011/015/024 — PPJ logic there is only `p_consume_ppj_credit` and `p_plan_limit`), so PPJ payment enforcement is entirely the caller's responsibility. The UI (`ProviderRequestList.tsx:117`) correctly routes PPJ to `/api/provider/ppj-checkout`, but the server had no defense-in-depth, so any stale/alternate client or direct call to the accept route bypassed payment. The PPJ payment chain (ppj-checkout → PaymentIntent → webhook `finalizeAcceptedRequest`) was intact and NOT disabled; Stripe (test keys) and subscription checkout were working.

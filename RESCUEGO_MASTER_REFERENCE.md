@@ -164,7 +164,7 @@ src/
     provider-allowance.ts     # Monthly allowance lookup by plan
     provider-onboarding.ts    # KYC onboarding state logic
     location-display.ts       # Provider location display helper
-    range-estimator.ts        # Fair price range estimation (UI only; DB enforcement disabled)
+    range-estimator.ts        # Fair price range estimation (UI only; DB enforcement re-enabled by 039, temporarily widened by 044)
     utils.ts                  # cn(), getProblemLabel(), getStatusBadgeVariant()
     notifications.ts          # Notification event constants for logger
     sentry-redaction.ts       # Event scrubbing before Sentry send
@@ -348,7 +348,7 @@ Immutable audit trail of provider status transitions (added migration 038).
 **Atomicity gap:** Status update and log insert are two separate DB operations. If the log insert fails, the status change is already committed with no audit trail. See H5.
 
 #### `fair_price_config`
-Configuration for fair price ranges by service type. Present in schema. DB enforcement is disabled by migration 032. Used only for UI display and provider scoring.
+Configuration for fair price ranges by service type. Present in schema. DB enforcement was disabled by migration 032, RE-ENABLED by migration 039 (Batch 1, C5/D2), and TEMPORARILY WIDENED by migration 044 for testing (bounds 0.01/10000, base_fee unchanged; validation still runs). Also used for UI display and provider scoring. LAUNCH BLOCKER: the formula must be redesigned (two-leg distance: provider→breakdown + breakdown→destination, mandatory 7-emirate dropdown) before go-live, NOT restored to the current values — see DEFERRED_PRODUCT_BACKLOG.md P9.
 
 #### Other Tables
 `request_locks` (legacy acceptance lock), `price_estimates` (public estimate config), `provider_dispatch_log` (quote/selection/SLA/completion analytics).
@@ -369,7 +369,7 @@ All critical state-mutating operations go through RPCs that are `SECURITY DEFINE
 |---|---|
 | `accept_provider_request_atomic` | Legacy first-accept with overage guard and active-job check |
 | `select_quote_atomic` | V2 quote selection — accepts request, rejects competing quotes, reveals provider details |
-| `submit_quote_atomic` | V2 quote submission (fair price validation disabled by migration 032) |
+| `submit_quote_atomic` | V2 quote submission (fair price validation disabled by 032, re-enabled by 039, temporarily widened by 044 for testing) |
 | `complete_provider_job_atomic` | Job completion with price derivation logic |
 | `cancel_request_and_compensate_atomic` | Customer cancellation with PPJ credit restore |
 | `release_job_atomic` | Provider-initiated job release |
@@ -428,7 +428,7 @@ All critical state-mutating operations go through RPCs that are `SECURITY DEFINE
    - Request must be `open` or `quoted`
    - Rate limited (30/minute per provider)
    - `submit_quote_atomic` inserts/updates `request_quotes` row; moves first-quote requests from `open` to `quoted`
-   - Fair price range check is **disabled** (migration 032) — any amount 1–50,000 AED accepted
+   - Fair price range check was **disabled** (migration 032), **re-enabled** (migration 039, Batch 1), and is currently **temporarily widened** (migration 044) for testing — validation still runs, but bounds 0.01/10000 let any reasonable amount above the base-fee floor pass; amounts below base_fee are still rejected `price_too_low`
    - No monthly allowance check in V2 quote path — overage not collected for V2 selections (see H3)
 
 4. **Customer views quotes** via `GET /api/requests/quotes`:
@@ -680,7 +680,7 @@ SELECT plan, jobs_this_month, job_credit_balance, jobs_reset_at FROM providers W
 | **C2** | `users` RLS UPDATE has no `WITH CHECK` — any user can self-escalate to admin | `supabase.from('users').update({ role: 'admin' })` from browser succeeds. Admin gains full access to all admin API routes and all admin RLS policies. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 039 NOT yet applied to cloud DB). `BEFORE UPDATE` trigger `enforce_users_immutable_columns` blocks `role` change unless `is_admin() OR is_service_role()`. Must be confirmed under an anon/authenticated JWT after 039 deploys (see §6.1 Verification Plan). |
 | **C3** | `providers` RLS UPDATE has no `WITH CHECK` — any provider can self-activate | `supabase.from('providers').update({ status: 'active', verified_badge: true })` from browser succeeds. Bypasses entire KYC process. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 039 NOT yet applied to cloud DB). `BEFORE UPDATE` trigger `enforce_providers_immutable_columns` locks status/verified_badge/rating/plan/stripe/allowance/KYC columns unless `is_admin() OR is_service_role()`. Must be confirmed under an anon/authenticated JWT after 039 deploys (see §6.1 Verification Plan). |
 | **C4 / F3-C1** | Stripe subscription webhook unconditionally sets `providers.status = 'active'` | Provider in `pending` or `suspended` status pays for a subscription → webhook activates them. `KYC_PROTECTED` only guards `under_review` and `rejected`. Full exploit chain in FEC-3. | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION (production payment path)** — `KYC_PROTECTED` now includes `pending` + `suspended` and is checked before the `active` branch in `resolveStripeStatus()`; payment records the subscription but never auto-activates (D1). Confirm against live Stripe webhook events. |
-| **C5** | Fair price validation disabled in `submit_quote_atomic` (migration 032) | Providers can quote any amount from 1 AED to 50,000 AED for any service type with no range check. | **RESOLVED** (migration 039) — `submit_quote_atomic` re-reads bounds from `fair_price_config` and rejects `price_too_low`/`price_too_high` (D2) |
+| **C5** | Fair price validation disabled in `submit_quote_atomic` (migration 032) | Providers can quote any amount from 1 AED to 50,000 AED for any service type with no range check. | **RESOLVED** (migration 039) — `submit_quote_atomic` re-reads bounds from `fair_price_config` and rejects `price_too_low`/`price_too_high` (D2). NOTE: bounds TEMPORARILY WIDENED for testing by migration 044 (0.01/10000) — C5 effectively re-opened while widened; LAUNCH BLOCKER to redesign the formula (two-leg + emirate) before go-live, see DEFERRED_PRODUCT_BACKLOG.md P9 |
 | **CRIT-01** | Price-change count enforced by read-then-write (TOCTOU race) | Provider submits two concurrent price-change requests → both pass the `count >= 1` check → second request resets a customer's rejected decision → customer unknowingly approves a second (higher) price change | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — new `request_price_change_atomic` RPC performs the count-check + update in a single guarded statement (`price_change_count = 0`); route calls the RPC and keeps no separate count/update logic. |
 | **CRIT-02** | SLA auto-release only fires on `accepted` status | Provider accepts a job, immediately advances to `en_route`, then abandons. Customer is locked for up to one week with no automated recovery. `jobs_this_month` counter permanently inflated (see HIGH-04). | **CODE COMPLETE — NEEDS RUNTIME VERIFICATION** (migration 040) — `sla_check_and_release` now releases from `accepted`/`en_route`/`arrived`, computing breach inside the RPC (accepted=20m vs `requests.accepted_at`, en_route=2h vs `jobs.en_route_at`, arrived=60m vs `jobs.arrived_at`). **Batch 3 closed the cron side:** the `enforceSla()` query was widened to `status IN ('accepted','en_route','arrived')` (oldest-first by `requests.created_at`, LIMIT 50); the RPC owns the thresholds. **Runtime hotfix (June 26):** the ordering originally used the phantom column `requests.updated_at` (cron threw `column requests.updated_at does not exist`, `sla_releases:0`); corrected to `requests.created_at` (verified present in `001`; `updated_at` never added to `requests`). **CRIT-02 is now FULLY closed (RPC + cron)** — NEEDS RUNTIME VERIFICATION until 040+041 deploy AND the cron test returns `success` with `sla_releases >= 1` (see §6.3 end-to-end QA). **Related risk RESOLVED:** `expire_stuck_active_requests` (`028`/`040`) had the same phantom `r.updated_at` → fixed in migration `042` (`r.created_at`), so the weekly cleanup no longer throws. |
 | **P4-C1** | Realtime broadcasts to ALL online providers on every new request INSERT | At 1,000+ online providers, one new request triggers 1,000 simultaneous `router.refresh()` SSR renders (5–8 DB queries each) → Supabase connection pool exhaustion → platform outage. | **OPEN** — architectural issue in `ProviderRealtimeRefresh.tsx`, no geographic pre-filter |
@@ -827,7 +827,7 @@ Based on `DEPLOYMENT_STATUS.md` (last verified June 5, 2026 — may be partially
 
 1. **Legacy accept path coexists with Marketplace V2.** `/api/provider/requests/accept` is still fully functional. PPJ and overage webhook paths call it. This means two parallel models for accepting requests exist simultaneously with no clean separation.
 
-2. **Fair price validation disabled.** Migration 032 permanently replaced `submit_quote_atomic` with a version that skips all `fair_price_config` range checks. The comment says "re-enable before soft launch" but soft launch is already running with it disabled. The `fair_price_config` table and `range-estimator.ts` still exist and are used for UI display only.
+2. **Fair price validation — disabled (032) → re-enabled (039) → temporarily widened (044).** Migration 032 replaced `submit_quote_atomic` with a version that skipped all `fair_price_config` range checks. Migration 039 (Batch 1, C5/D2) RE-ENABLED the range check (reads bounds from `fair_price_config`; rejects `price_too_low`/`price_too_high`). Migration 044 TEMPORARILY WIDENED the bounds to 0.01/10000 for testing — the check still runs but accepts any reasonable amount above the base-fee floor. The `fair_price_config` table and `range-estimator.ts` are also used for UI display. LAUNCH BLOCKER: redesign the formula (two-leg distance + mandatory emirate destination) before soft launch — do NOT restore the current values (see DEFERRED_PRODUCT_BACKLOG.md P9).
 
 3. **Commission always zero.** `complete_provider_job_atomic` hardcodes `commission_rate = 0, commission_amount = 0`. `calculateCommission()` exists in `utils.ts` but is never called. Platform earns no commission revenue on completed jobs.
 

@@ -79,7 +79,7 @@ Current behavior:
 
 Important current caveat:
 
-- Migration `032_relax_fair_price_validation.sql` disables database fair price range enforcement. The configured `fair_price_config` table exists, but the active quote RPC currently accepts any positive quote that passes route validation.
+- Migration `032_relax_fair_price_validation.sql` disabled database fair price range enforcement. It was RE-ENABLED by migration `039_security_backstop.sql` (Batch 1, C5/D2) and is currently TEMPORARILY WIDENED by migration `044_temp_widen_fair_price_bounds.sql` for testing — the validation still runs (`v_min_fair = base_fee + distance_km × min_price_per_km`, `v_max_fair = base_fee + distance_km × max_price_per_km`) but with bounds 0.01/10000 so any reasonable test amount above the base-fee floor passes. The fair-price formula is a LAUNCH BLOCKER to redesign (two-leg distance + mandatory emirate destination), NOT to restore — see DEFERRED_PRODUCT_BACKLOG.md P9/P1/P2.
 
 ## Quote Listing
 
