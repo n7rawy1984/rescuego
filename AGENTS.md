@@ -143,7 +143,7 @@ messages/                      → i18n JSON files (ar.json, en.json)
 - **RPC for complex logic** — use Postgres functions (`SECURITY DEFINER`) for multi-step operations that need atomicity.
 
 ## Migrations
-- Sequential numbering: `001` → `030` (current). Next = `031`.
+- Sequential numbering: sequential, idempotent, never modify deployed ones. For the current migration baseline and next migration number, see `PROJECT_STATUS.md`.
 - Each migration is idempotent — safe to re-run.
 - Never modify a deployed migration — create a new one.
 - Test migration both UP and DOWN before committing.
@@ -508,7 +508,7 @@ If ANY step fails → block deploy.
 | `admin` | Full system access, user management | `/admin/*` |
 
 ## Rules
-- Role is stored in `profiles.role` — source of truth.
+- Role is stored in `users.role` — source of truth.
 - Every protected page checks role server-side in layout/page.
 - API routes verify role before executing — never trust client-side role checks.
 - Future roles (e.g., `fleet_manager`, `support_agent`) — add to enum, extend RBAC matrix.

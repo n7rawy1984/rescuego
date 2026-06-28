@@ -1,175 +1,270 @@
-# RescueGo Roadmap
+# RescueGo — Roadmap
 
-Last refreshed: 2026-06-11
+This document owns phase definitions, completion status, priorities, and ordering rationale.
 
-Full source discovery on 2026-06-11 inspected 187 source/config/migration/i18n files. This roadmap is code-derived, not copied from historical planning docs.
+For the **current migration baseline, open findings, and launch blockers**, see [PROJECT_STATUS.md].
+For **architecture and system design**, see [ARCHITECTURE.md].
+For **deferred product and UX items**, see [DEFERRED_PRODUCT_BACKLOG.md].
+For **environment setup and migration application**, see [SETUP.md].
 
-This roadmap reflects the current codebase. For implementation details, read `ARCHITECTURE.md`.
+When the status of any phase changes, update this document. Do not update [PROJECT_STATUS.md] here — reference it.
 
-## Current Status
+---
 
-RescueGo has moved past the original early launch foundation. The code now contains:
+## Current State Summary
 
-- Marketplace V2 quote flow.
-- Provider KYC with simplified one-document requirement.
-- Admin provider review and document signed URL viewing.
-- Provider lifecycle states through job completion.
-- Stripe subscription, Pay-Per-Job, overage, and webhook paths.
-- Operational cron routes.
-- RLS hardening through migration `037`.
-- Provider KYC schema through migration `038`.
-- Realtime publication and client subscriptions for request and quote updates.
+The application is feature-complete through Phase 5 (KYC) and has received four security/infrastructure remediation batches (migrations 039–045). PPJ has been re-enabled via migration 045 and is under end-to-end testing. The fair-price formula has been intentionally relaxed for testing (migration 044) and must be redesigned before launch.
 
-Current latest migration:
+For the current migration baseline, open findings, and launch blockers, see [PROJECT_STATUS.md §1–§6].
 
-- `038_provider_kyc.sql`
+---
 
-Next migration:
+## Phase Completion Status
 
-- `039`
+### Phase 1 — Core Foundation ✅ COMPLETE
 
-## Completed Foundations
+All foundational infrastructure is implemented and operational.
 
-- Next.js App Router structure.
-- Supabase Auth integration.
-- Supabase Postgres schema and migrations.
-- Role model for customer, provider, and admin.
-- Customer request creation.
-- Provider onboarding.
-- Provider profile and plan setup.
-- Provider online location.
-- UAE location validation helpers.
-- Structured logging and redaction.
-- Sentry setup.
-- CSP and security headers.
-- Rate limiting utility.
-- Stripe helper utilities.
-- Arabic and English message files.
+- Next.js 16 App Router structure with `src/proxy.ts` middleware (Next.js 16 convention)
+- Supabase Auth: customer, provider, admin role model
+- Supabase Postgres schema: users, providers, provider\_locations, requests, jobs, ratings, request\_locks, price\_estimates
+- PostGIS for geospatial queries
+- Customer request creation wizard (issue → location → confirm)
+- Provider registration and onboarding (3-step: profile → documents → plan)
+- Provider online/offline toggle with GPS location capture
+- UAE location validation and emirate/sub-area detection
+- Role-based route protection in middleware
+- Structured logging (`src/lib/logger.ts`) with PII redaction
+- Sentry setup (server, edge, client; `beforeSend` scrubbing)
+- CSP and security headers (enforced, not report-only) in `next.config.ts`
+- Rate limiting utility (`src/lib/rate-limit.ts`; soft/hard modes; Upstash Redis + in-memory fallback)
+- Stripe helper utilities
+- Arabic and English message files (1,600+ lines each; next-intl v4)
+- Tailwind CSS v4 with logical CSS properties for RTL
 
-## Completed Marketplace V2 Work
+---
 
-- `request_quotes` table.
-- `provider_dispatch_log` table.
-- `fair_price_config` table.
-- Quote submission route.
-- Quote listing route.
-- Customer quote selection route.
-- Quote expiration in marketplace cron.
-- Selected quote assignment.
-- Competing quote rejection.
-- Provider scoring helper.
-- Dispatch helper logic.
-- Customer quote list UI.
-- Provider quote form UI.
-- Final price resolution from selected quote or approved price change.
+### Phase 2 — Provider Lifecycle ✅ COMPLETE
 
-Important current caveat:
+All provider job lifecycle states and RPC-backed transitions are implemented.
 
-- Database fair price enforcement was relaxed by migration `032`. Route-level broad validation remains, but configured fair price range enforcement is not active in `submit_quote_atomic`.
+- Provider job states: `accepted` → `en_route` → `arrived` → `in_progress` → `completed`
+- `advance_provider_job_state` RPC (atomic, whitelisted `to_status`, `SET search_path = public`)
+- Provider SLA timer UI (warning at 10 min, breach at 20 min from `accepted_at`)
+- Provider job release (`release_job_atomic`; decrements `jobs_this_month` only when V2 slot consumed)
+- Stuck-job auto-release (`expire_stuck_active_requests`; uses `requests.created_at`)
+- Cancellation compensation path (`cancel_request_and_compensate_atomic`)
+- Price-change request and atomic customer response (`request_price_change_atomic`, `respond_price_change_atomic`)
+- Customer rating flow (stars + comment; `ratings.customer_id` persisted)
+- Operational cron routes (expire requests, monthly allowance reset, weekly SLA reset)
+- `payout_log` with UNIQUE constraint on `stripe_payout_id`
 
-## Completed Provider Lifecycle Work
+---
 
-- Provider job states: accepted, en_route, arrived, in_progress, completed.
-- RPC-backed state advancement.
-- Provider SLA timer UI.
-- Provider job release.
-- Stuck job cleanup.
-- Cancellation compensation path.
-- Price-change request and customer response.
-- Customer rating flow.
+### Phase 3 — Stripe Subscriptions ✅ COMPLETE
 
-## Completed KYC Work
+Subscription billing for all three plan tiers is implemented and functional in TEST mode.
 
-- Provider status enum expanded to `pending`, `under_review`, `active`, `rejected`, and `suspended`.
-- Simplified one-document policy implemented.
-- Document upload route with MIME, size, and magic-byte validation.
-- Provider documents stored under provider-owned paths.
-- Admin provider update route.
-- Provider KYC log table.
-- Admin document viewer with signed URLs.
+- Subscription checkout (`/api/stripe/create-checkout`; KYC guard: `rejected`/`suspended` → 403)
+- Stripe billing portal redirect for existing subscriptions
+- Stripe webhook signature verification
+- Stripe event idempotency (`stripe_events` table; atomic conflict-aware upsert)
+- `customer.subscription.created` → plan activation (gated by `KYC_PROTECTED` status list)
+- `customer.subscription.updated` → plan change and early-cancellation guard
+- `customer.subscription.deleted` → plan reset to `pay_per_job`
+- `checkout.session.completed` → log only (activation comes from subscription event)
+- Overage checkout and webhook path (`overage_payments` table; `accept_provider_request_atomic` with `plan_limit = -1`)
+- PPJ checkout and webhook path (see Phase 6)
+- `payout.created` → payout log upsert
+- `payment_intent.canceled` → failed status on pending PPJ/overage rows
+- Subscription plan tiers: Starter (249 AED/15 jobs), Pro (449 AED/35 jobs), Business (849 AED/unlimited)
+- Commission: `commission_rate = 0` intentionally until Phase 8
 
-Business rule:
+> Stripe is currently in TEST mode. See [PROJECT_STATUS.md §11] for go-live steps.
 
-- One document is enough for the current launch stage. Do not treat that as a bug unless code contradicts the policy.
+---
 
-## Completed Payment Work
+### Phase 4 — Operational Infrastructure ✅ COMPLETE
 
-- Stripe subscription checkout.
-- Stripe billing portal redirection for existing subscriptions.
-- Stripe webhook signature verification.
-- Stripe event idempotency table usage.
-- Subscription status handling.
-- PPJ checkout route.
-- Overage checkout route.
-- Recovery credit support.
-- Payout event logging.
+All four cron routes are configured and deployed in `vercel.json`.
 
-## Current Operational Work
+| Route | Schedule | Purpose |
+|---|---|---|
+| `/api/ops/expire-requests` | Every 30 minutes | Expire stale open requests; auto-release stuck jobs; clear stuck Stripe events |
+| `/api/ops/monthly-allowance-reset` | Daily midnight | Reset `jobs_this_month` for all subscription plans (batches of 50) |
+| `/api/ops/marketplace-cron` | Every minute | Expire stale quotes; expire unselected requests; SLA enforcement (LIMIT 50, `created_at ASC`); expire PPJ payment windows |
+| `/api/ops/weekly-sla-reset` | Sunday midnight | Apply `visibility_reduced` for 3+ SLA failures; reset `sla_failure_count` |
 
-Configured Vercel cron routes:
+- Ops auth: `authorizeOpsRequest` using `OPS_CRON_SECRET` (≥32 chars, constant-time comparison)
+- `env.ts` hard-fails at startup in production if `OPS_CRON_SECRET` is missing or < 32 chars
 
-- Expire stale requests.
-- Reset monthly provider allowances.
-- Run marketplace maintenance.
-- Reset weekly SLA counters and visibility reduction.
+> Open item: weekly SLA reset is non-atomic (two UPDATE statements). See [PROJECT_STATUS.md §13].
 
-## Before Production Launch
+---
 
-These items should be validated or completed before real production traffic and payments:
+### Phase 5 — KYC ✅ COMPLETE
 
-- Run a dedicated database, RLS, storage, and upload security audit.
-- Confirm `provider-documents` bucket exists and is private in production.
-- Review legacy first-accept routes beside Marketplace V2.
-- Decide whether fair price enforcement should be re-enabled before launch.
-- Review Stripe subscription status interaction with provider KYC status.
-- Confirm all public/protected API routes have appropriate rate limits.
-- Confirm admin actions and provider status changes meet audit-log requirements.
-- Add automated tests for critical lib utilities, API routes, RPC behavior, and payment webhooks.
-- Add CI for lint, typecheck, tests, build, security scan, and secret scanning.
-- Verify production env vars against `.env.example`.
-- Run Supabase migration smoke tests against a staging project.
-- Verify backup and restore process.
-- Verify Sentry redaction and operational alerting.
+Provider KYC flow is fully implemented.
 
-## Future Product Phases
+- Provider status machine: `pending` → `under_review` → `active` | `rejected` | `suspended`
+- Document upload route (`/api/providers/documents`): MIME type, magic bytes, file size ≤ 5 MB, extension validation
+- Supabase Storage bucket `provider-documents` with provider-owned path RLS (migration 023)
+- `provider_kyc_log` audit table (migration 038)
+- `admin_update_provider_status_atomic` RPC: atomic status update + audit log insert (migration 041)
+- Admin provider review UI with document signed URL viewer and `AdminProviderActions` component
+- KYC-protected Stripe activation: `KYC_PROTECTED = ['pending', 'under_review', 'rejected', 'suspended']` prevents auto-activation in webhook
+- `create-checkout` route: `rejected`/`suspended` providers receive 403 before checkout begins
+- `getProviderOnboardingState()` helper for multi-step onboarding UI
 
-### Phase: Production Hardening
+> Runtime verification of C2/C3/C4 (immutable-column triggers and KYC webhook guard) is pending cloud confirmation. See [PROJECT_STATUS.md §7].
 
-- Security audit remediation.
-- Test suite setup.
-- CI enforcement.
-- Admin audit log completeness.
-- Monitoring and uptime checks.
-- Production migration rehearsal.
+---
 
-### Phase: Payments at Scale
+### Phase 6 — Marketplace V2 ✅ COMPLETE (PPJ sub-feature under test)
 
-- Finalize soft launch versus full production payment behavior.
-- Validate Stripe webhooks with replayed events.
-- Add stronger payment state reconciliation.
-- Confirm payout reporting requirements.
+The full Marketplace V2 quote flow is implemented. PPJ post-selection fee gate re-enabled via migration 045.
 
-### Phase: Dispatch Optimization
+**Schema and RPCs:**
+- `request_quotes` table, `provider_dispatch_log` table, `fair_price_config` table (migration 031)
+- `submit_quote_atomic` RPC: fair-price validation, daily limit check, quote insert (migration 031/039)
+- `select_quote_atomic` RPC: plan-branched selection (migration 031/040/045)
+- `sla_check_and_release` RPC: SLA enforcement for `accepted`/`en_route`/`arrived` states (migration 031/040)
+- `expire_ppj_payment_selection_atomic` RPC: expires timed-out PPJ payment windows (migration 045)
+- `finalize_ppj_selection_atomic` RPC: atomic PPJ fee payment → request accepted (migration 045)
+- `get_nearby_open_requests` updated to return `open` + `quoted` requests with destination and fuzzy coordinates (migrations 033/035/039)
 
-- Revisit provider ranking.
-- Re-enable or replace fair price validation.
-- Improve destination distance handling.
-- Add provider availability and SLA analytics.
+**Provider scoring:** Four-component formula (rating 40%, proximity 30%, price 20%, acceptance 10%); top 5 of up to 20 pending quotes. See [ARCHITECTURE.md §4].
 
-### Phase: Operations
+**Request lifecycle (V2):**
+`open` → `quoted` → `selected_pending_payment` (PPJ only) → `accepted` → `en_route` → `arrived` → `in_progress` → `completed`
 
-- Improve admin dashboards.
-- Add support workflows.
-- Add provider suspension and appeal process documentation.
-- Add incident runbooks.
+**PPJ post-selection fee gate (migration 045):**
+- `selected_pending_payment` status: customer has selected a PPJ provider; payment window open (10 minutes)
+- Contact withheld until `finalize_ppj_selection_atomic` confirms payment
+- Two-timer separation: payment window clock (`payment_window_started_at`) separate from SLA clock (`accepted_at`)
+- Competitors held as `pending` during payment window; rejected on finalization
 
-## Documentation Rule
+**PPJ operational status:** Implemented and in end-to-end testing. See [PROJECT_STATUS.md §9].
 
-When code changes, update the relevant current-state docs:
+**Fair price status:** Validation active; bounds intentionally widened by migration 044 for testing. LAUNCH BLOCKER — formula must be redesigned before go-live. See [PROJECT_STATUS.md §10] and [DEFERRED_PRODUCT_BACKLOG P9].
 
-- `ARCHITECTURE.md`
-- `MARKETPLACE_V2_SPEC.md`
-- `PROJECT_HANDOFF.md`
-- `SESSION_LOG.md`
+**Open marketplace security items:** Legacy accept bypass (H2), overage gap in V2 selection (H3), accept RPC active-job check (H6). See [PROJECT_STATUS.md §7].
 
-Do not let historical audit files become the source of truth.
+---
+
+### Security Remediation Batches 1–4 ✅ COMPLETE (cloud verification pending)
+
+Four successive security and integrity remediation batches have been implemented in migrations 039–045.
+
+| Batch | Migration(s) | Key fixes |
+|---|---|---|
+| Batch 1 | 039 | C2 `enforce_users_immutable_columns` trigger; C3 `enforce_providers_immutable_columns` trigger; C5 re-enable fair-price validation; D8 fuzzy coordinates; CSRF H7 fix (null origin 403, vercel.app wildcard removed); Bearer token D10 removal; KYC_PROTECTED expansion C4 |
+| Batch 2 | 040 | CRIT-01 `request_price_change_atomic`; CRIT-02 SLA for en\_route/arrived; HIGH-01 unvalidated request\_id; HIGH-02 GET read-only; HIGH-03 release decrement; HIGH-05 ratings.customer\_id; HIGH-06 respond guard; LOW-01/04 advance\_job whitelist/search\_path; LOW-03 stuck expiry decrement |
+| Batch 3 | 041, 042, 043 | H5 `admin_update_provider_status_atomic` (atomic KYC log); phantom `updated_at` → `created_at` fix (migration 042); `idx_jobs_en_route_at` partial index (migration 043) |
+| Batch 4 | 044, 045 | Fair-price bounds widened for testing (migration 044); PPJ post-selection fee gate re-enabled (migration 045); P4-H1 GET rate limits; P4-C2 monthly reset pagination; P4-M2 EXPIRE\_BATCH\_LIMIT; P4-H4 cron HTTP 500 on failure |
+
+All fixes are code-complete. Runtime verification of cloud migration state is pending. See [PROJECT_STATUS.md §4] for the full runtime verification table and [PROJECT_STATUS.md §7] for remaining open security findings.
+
+---
+
+## Before Launch — Required
+
+The following must be resolved before production traffic and real payments. See [PROJECT_STATUS.md §5–§6] for the detailed current status of each.
+
+| Blocker | Owner reference |
+|---|---|
+| LB-1 Fair price formula redesign (two-leg distance + destination) | [DEFERRED_PRODUCT_BACKLOG P9, P1, P2] |
+| LB-2 Cloud migration verification (039–045 applied?) | [PROJECT_STATUS.md §3–§4] |
+| LB-3 C2/C3 runtime verification (immutable-column triggers confirmed?) | [PROJECT_STATUS.md §7] |
+| LB-4 Stripe go-live switch | [PROJECT_STATUS.md §11] |
+| LB-5 H6 — accept RPC active-job check misses en\_route/arrived | [PROJECT_STATUS.md §7] |
+| LB-6 H2 — legacy accept bypasses V2 for subscription providers | [PROJECT_STATUS.md §7] |
+| LB-7 H3 — no overage gate in `select_quote_atomic` | [PROJECT_STATUS.md §7] |
+| LB-8 P4-C1 — thundering herd realtime broadcast | [PROJECT_STATUS.md §13] |
+| LB-9 OG image / logo file extension gaps | [PROJECT_STATUS.md §2] |
+| LB-10 P4-H3 — weekly SLA reset non-atomic | [PROJECT_STATUS.md §13] |
+| LB-11 `NEXT_PUBLIC_SITE_URL` not set in Vercel | [PROJECT_STATUS.md §11] |
+
+---
+
+## Future Phases
+
+### Phase 7 — Production Hardening
+
+Work required before real-money production traffic.
+
+- Resolve all launch blockers (see table above)
+- Cloud migration smoke tests against a staging Supabase project
+- Runtime verification of C2/C3 triggers, C4 Stripe KYC path, and all PARTIALLY VERIFIED findings
+- Automated test suite: Vitest for `src/lib/` utilities (target 80% coverage), integration tests for API routes and RPCs
+- CI pipeline via GitHub Actions: lint → type-check → tests → `npm audit` → `next build`
+- `/api/health` endpoint with DB connectivity check
+- External uptime monitoring (Better Stack or UptimeRobot)
+- Alerting: 5xx spike, response time > 2 s, DB connection failures
+- Verify backup and restore process (Supabase Pro daily PITR)
+- Resolve P4-H3 weekly SLA reset atomicity (wrap in transaction or convert to RPC)
+- Resolve P4-C1 thundering herd (geographic filter on Realtime channel or pull-based polling)
+- Confirm `provider-documents` bucket is private and RLS policies are verified in production dashboard
+
+### Phase 8 — Commission and Revenue
+
+Platform revenue infrastructure.
+
+- Set non-zero `commission_rate` in `complete_provider_job_atomic` (currently 0 by design)
+- Confirm payout reporting requirements for UAE market
+- Validate Stripe webhook replay coverage for all payment events
+- Stronger payment state reconciliation and recovery for failed payouts
+- Admin revenue reporting improvements
+
+### Phase 9 — Fair Price Redesign
+
+Required before V2 marketplace can enforce economically meaningful quote validation.
+
+- Mandatory emirate destination dropdown on request creation (P1)
+- Two-leg distance calculation: provider → breakdown + breakdown → destination (P9)
+- Redesigned `fair_price_config` bounds based on UAE two-leg market economics (P2)
+- New migration replacing migration 044 widened values with realistic bounds
+- Re-enable C5 fair price enforcement in full
+
+See [DEFERRED_PRODUCT_BACKLOG P1, P2, P9] for full scope.
+
+### Phase 10 — Dispatch Optimization
+
+Provider-side marketplace improvements.
+
+- Re-enable or replace `dispatch.ts` dispatch engine (currently has zero callers; see [DEFERRED_PRODUCT_BACKLOG P8])
+- Geographic filtering on Realtime channels (addresses P4-C1)
+- Provider availability and SLA analytics
+- Dispatch ring optimization based on real UAE traffic data
+
+### Phase 11 — Payments at Scale
+
+Production payment operations hardening.
+
+- Switch all Stripe keys to live mode
+- Register production webhook endpoint at `https://rescuego.ae/api/stripe/webhook`
+- Validate Stripe webhooks with replayed test events
+- Commission enforcement (Phase 8 prerequisite)
+- Upstash Redis confirmed for cross-instance rate limiting
+
+### Phase 12 — Operations and Support
+
+Operational maturity.
+
+- Improved admin dashboards (KPI trends, SLA heatmaps)
+- Support workflow tooling
+- Provider suspension and appeal process
+- Incident runbooks
+- Admin audit log completeness review
+
+---
+
+## Documentation Maintenance Rule
+
+When any phase status changes:
+
+1. Update the phase section above to reflect the new status.
+2. Update [PROJECT_STATUS.md] for any new open findings, launch blockers, or runtime verification results.
+3. Append to [SESSION_LOG.md] with what was done.
+4. Do NOT restate finding detail or migration baselines in this document — reference [PROJECT_STATUS.md].
+5. Do NOT reference `MARKETPLACE_V2_SPEC.md`, `PROJECT_HANDOFF.md`, or `RESCUEGO_MASTER_REFERENCE.md` — those are archived historical documents.

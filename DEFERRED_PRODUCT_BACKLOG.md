@@ -1,6 +1,6 @@
 # RescueGo — Deferred Product / UX Backlog
 
-This file tracks product, UX, pricing, and non-security findings discovered during live testing. It is intentionally **separate** from `RESCUEGO_MASTER_REFERENCE.md` (which is the security/architecture source of truth). Items here are deferred until the security remediation batches are closed and runtime-verified.
+This file tracks product, UX, pricing, and non-security findings discovered during live testing. It is intentionally **separate** from `ARCHITECTURE.md` (system design and security architecture) and `PROJECT_STATUS.md` (current security findings and open state). Items here are deferred until the security remediation batches are closed and runtime-verified.
 
 **How to use this file:** Add new findings as they come up during testing. Each item gets the full field set below. Do not start implementing any of these until the security batches (1–5) are closed, unless explicitly re-prioritized.
 
@@ -311,7 +311,22 @@ These are the grouping buckets the items below map to. They run **after** the se
   2. Inspect the notice text.
   - **Expected:** it identifies the specific request (ID/number, or service type + time), not a generic "this request."
 
-
+### P13 — PPJ payment prompt shows "pay 15 AED" even when the provider has a recovery credit
+- **Type:** UX/Copy (PPJ flow)
+- **Priority:** Medium
+- **Severity:** UX (confusing/alarming to the provider; logic is already correct)
+- **Effort:** S
+- **Target batch:** UX & State Machine (part of the PPJ messaging pass; ties to P7 + P11)
+- **Target release:** Soft Launch
+- **Status:** OPEN
+- **Detail:** Found during PPJ end-to-end testing. A PPJ provider who had a recovery credit (from an earlier customer cancellation) was selected. The system correctly applied the credit and finalized the job immediately without going to Stripe (the credit covers the per-job fee — logically correct). BUT the UI still showed the "pay 15 AED within 10 minutes" prompt with the countdown timer before/around the auto-finalize. That payment-and-countdown message is wrong for a provider who has a credit — it's misleading and alarming (they think they must pay and may "time out" even though the credit covers it).
+- **Desired behavior:** when the selected PPJ provider has an available recovery credit, the prompt must NOT say "pay 15 AED within 10 minutes." Instead show something like: "لديك رصيد سابق — اضغط لتأكيد استخدام الرصيد واستلام بيانات العميل" ("You have an existing credit — tap to confirm using it and receive the customer's details"). No payment amount, no 10-minute countdown framed as a payment deadline. The action confirms credit use and reveals contact / finalizes the job.
+- **Note:** the underlying logic is already correct (credit is consumed, job finalized, no Stripe charge). This is purely a UI/copy branch in PpjPaymentPrompt: detect `job_credit_balance > 0` (or the recovery-credit flag) for the selected PPJ provider and render the credit-confirmation message instead of the pay-15/countdown message. Keep both copies simple Arabic (consistent with P5/P11).
+- **QA scenario:**
+  1. A PPJ provider with a recovery credit is selected by a customer.
+  - **Expected:** the prompt offers to confirm using the existing credit (no "pay 15 AED", no payment-deadline countdown); confirming reveals contact + finalizes the job.
+  2. A PPJ provider with NO credit is selected.
+  - **Expected:** the normal "pay 15 AED within 10 minutes" prompt + countdown (unchanged from P7).
 
 - **CRIT-02 (P4b) — DONE, runtime-verified on production (June 26, 2026).** The `en_route`/`arrived` SLA auto-release was tested: minute cron returned `sla_releases: 1` and the released request reset to `open` with all stale state (`accepted_by`, `selected_quote_id`, `accepted_at`) cleared per D6. Kept here as a regression check to re-run after any future change to the SLA RPCs or the marketplace-cron route. NOTE: P10 may reveal an en_route-specific stuck case — re-verify there.
 
@@ -324,10 +339,4 @@ These are the grouping buckets the items below map to. They run **after** the se
 
 ---
 
-## Note on roadmap linkage
-
-The security batches (1–5) were an **unplanned track** that emerged from the four security audits — they are not part of the original `ROADMAP.md` phases. The roadmap and these tracks have **not yet been formally merged**. This is intentional for now: finish the security work first, then do a single consolidation pass (planned to be handed to Codex inside the project) that merges security batches, product backlog, and the original roadmap into one source of truth. Do not stop to restructure the roadmap mid-remediation.
-
----
-
-*Last updated: June 28, 2026 — security Batches 1–4 deployed/verified (migrations 039–043). Added P7 (PPJ post-selection fee-gate model), P8 (tiered dispatch is dead code — wire-up decision deferred), P9 (fair-price bounds temporarily widened, LAUNCH BLOCKER — formula to be redesigned two-leg with emirate destination, NOT restored to current values). P9 enriched and marked DONE for the widen step: migration `044_temp_widen_fair_price_bounds.sql` created (min_price_per_km=0.01, max_price_per_km=10000, base_fee unchanged; RPC `submit_quote_atomic` unchanged); confirmed formula `v_min_fair = base_fee + distance_km × min_price_per_km`, `v_max_fair = base_fee + distance_km × max_price_per_km`. Added P10 (premature SLA message on en_route / customer stuck — needs diagnosis), P11 (quote-status feedback messages to provider: submitted-and-waiting, customer-rejected — teaches fair pricing, ties to P5), and P12 (cancellation notice lingers on dashboard + has no request identifier). Env-var incident resolved (Stripe + cron keys corrected to test). This is a living file; add new testing findings in the same format as they appear.*
+*Last updated: June 28, 2026 — security Batches 1–4 deployed/verified (migrations 039–043). Added P7 (PPJ post-selection fee-gate model), P8 (tiered dispatch is dead code — wire-up decision deferred), P9 (fair-price bounds temporarily widened, LAUNCH BLOCKER — formula to be redesigned two-leg with emirate destination, NOT restored to current values). P9 enriched and marked DONE for the widen step: migration `044_temp_widen_fair_price_bounds.sql` created (min_price_per_km=0.01, max_price_per_km=10000, base_fee unchanged; RPC `submit_quote_atomic` unchanged); confirmed formula `v_min_fair = base_fee + distance_km × min_price_per_km`, `v_max_fair = base_fee + distance_km × max_price_per_km`. Added P10 (premature SLA message on en_route / customer stuck — needs diagnosis), P11 (quote-status feedback messages to provider: submitted-and-waiting, customer-rejected — teaches fair pricing, ties to P5), P12 (cancellation notice lingers on dashboard + has no request identifier), and P13 (PPJ payment prompt shows "pay 15 AED" + countdown even when the provider has a recovery credit — should offer credit-confirmation copy instead; logic already correct, UI/copy only). PPJ post-selection fee gate (migration 045) deployed and in end-to-end testing. Env-var incident resolved (Stripe + cron keys corrected to test). This is a living file; add new testing findings in the same format as they appear.*
