@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import NavbarServer from '@/components/layout/NavbarServer'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
-import { getPlanLabel, getProblemLabel } from '@/lib/utils'
+import { getPlanLabel, getProblemLabel, getPayPerJobFee } from '@/lib/utils'
 import { isTimestampWithinMinutes, distanceKm, getUaeLocation } from '@/lib/geo'
 import { getProviderAllowance } from '@/lib/provider-allowance'
 import { getProviderOnboardingState, providerDocumentLabel } from '@/lib/provider-onboarding'
@@ -22,6 +22,7 @@ import LocationActions from '@/components/provider/LocationActions'
 import ProviderRealtimeRefresh from '@/components/provider/ProviderRealtimeRefresh'
 import JobStateAdvanceButton from '@/components/forms/JobStateAdvanceButton'
 import SlaTimer from '@/components/provider/SlaTimer'
+import PpjPaymentPrompt from '@/components/provider/PpjPaymentPrompt'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
@@ -77,6 +78,12 @@ type DashboardRequestRow = {
     name: string | null
     phone: string | null
   } | null
+}
+
+type PendingPaymentRequestRow = {
+  id: string
+  problem_type: ProblemType
+  payment_window_started_at: string | null
 }
 
 type NearbyOpenRequestRow = DashboardRequestRow & {
@@ -250,6 +257,7 @@ export default async function ProviderDashboardPage({
   const admin = createAdminClient()
   const [
     activeRequestResult,
+    pendingPaymentRequestResult,
     providerLocationResult,
     recentJobsResult,
   ] = await Promise.all([
@@ -260,6 +268,19 @@ export default async function ProviderDashboardPage({
         .eq('accepted_by', user.id)
         .in('status', ['accepted', 'en_route', 'arrived', 'in_progress'])
         .maybeSingle<DashboardRequestRow>()
+      : Promise.resolve({ data: null, error: null }),
+    // PPJ: the customer selected this provider's quote; the fee must be paid before
+    // contact details are revealed and the job is assigned. accepted_by marks WHO
+    // must pay; the job is NOT assigned yet (accepted_at is null).
+    operationalReady
+      ? admin
+        .from('requests')
+        .select('id, problem_type, payment_window_started_at')
+        .eq('accepted_by', user.id)
+        .eq('status', 'selected_pending_payment')
+        .order('payment_window_started_at', { ascending: true })
+        .limit(1)
+        .maybeSingle<PendingPaymentRequestRow>()
       : Promise.resolve({ data: null, error: null }),
     operationalReady
       ? admin
@@ -288,6 +309,8 @@ export default async function ProviderDashboardPage({
       error: activeRequestError.message,
     })
   }
+
+  const pendingPaymentRequest = pendingPaymentRequestResult.data ?? null
 
   const { data: activeCustomer, error: activeCustomerError } = activeRequestData?.customer_id
     ? await admin
@@ -744,6 +767,15 @@ export default async function ProviderDashboardPage({
                     </div>
                   </CardBody>
                 </Card>
+              )}
+
+              {/* PPJ: price accepted — pay the fee to reveal details + start the job */}
+              {pendingPaymentRequest && !activeRequest && (
+                <PpjPaymentPrompt
+                  requestId={pendingPaymentRequest.id}
+                  feeAed={getPayPerJobFee(0)}
+                  paymentWindowStartedAt={pendingPaymentRequest.payment_window_started_at}
+                />
               )}
 
               {/* ACTIVE JOB */}

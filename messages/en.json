@@ -750,6 +750,10 @@
       "providerOnWay": "Provider on the way",
       "providerArrivedBadge": "Provider arrived",
       "providerAssigned": "Provider assigned",
+      "awaitingPaymentTitle": "Awaiting payment confirmation",
+      "awaitingPaymentDesc": "You selected this provider. Their details will appear once they confirm payment. If they don't confirm within 10 minutes you can choose another provider.",
+      "awaitingPaymentBadge": "Awaiting provider payment",
+      "ppjPaymentTimeoutNotice": "The provider didn't confirm payment. Please choose another provider.",
       "requestNumber": "Request #{id}",
       "locationNotRecorded": "Location not recorded",
       "assignedProvider": "Assigned provider",
@@ -880,6 +884,7 @@
       "completedService": "Completed service.",
       "rated": "Rated",
       "statusOpen": "Open",
+      "statusSelectedPendingPayment": "Awaiting payment",
       "statusAccepted": "Accepted",
       "statusEnRoute": "On The Way",
       "statusArrived": "Arrived",
@@ -906,6 +911,16 @@
     }
   },
   "provider": {
+    "ppjPaymentPrompt": {
+      "badge": "Your price was accepted",
+      "title": "Pay the fee to reveal customer details",
+      "description": "Your quote was selected. Pay the platform fee ({fee} AED) to reveal the customer's details and start the job.",
+      "payButton": "Pay {fee} AED",
+      "processing": "Processing…",
+      "timeRemaining": "Time remaining:",
+      "warningSoon": "Less than 5 minutes left — complete payment before the selection is cancelled.",
+      "genericError": "Payment could not be processed. Please try again."
+    },
     "pending": {
       "accountSuspended": "Account suspended",
       "applicationUnderReview": "Application under review",
@@ -1560,6 +1575,7 @@
       },
       "status": {
         "open": "Open",
+        "selectedPendingPayment": "Awaiting payment",
         "accepted": "Accepted",
         "enRoute": "En Route",
         "arrived": "Arrived",

@@ -1,12 +1,12 @@
 export type UserRole = 'customer' | 'provider' | 'admin'
 export type ProviderPlan = 'starter' | 'pro' | 'business' | 'pay_per_job'
 export type ProviderStatus = 'pending' | 'under_review' | 'active' | 'rejected' | 'suspended'
-export type RequestStatus = 'open' | 'quoted' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
+export type RequestStatus = 'open' | 'quoted' | 'selected_pending_payment' | 'accepted' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
 export type ProblemType = 'flat_tire' | 'battery' | 'tow' | 'other'
 export type ServiceType = 'tow' | 'battery' | 'flat_tire' | 'fuel' | 'lockout' | 'other'
 export type QuoteStatus = 'pending' | 'selected' | 'rejected' | 'expired'
 export type PriceChangeStatus = 'pending' | 'approved' | 'rejected'
-export type DispatchEventType = 'quote_submitted' | 'quote_selected' | 'sla_failure' | 'completion'
+export type DispatchEventType = 'quote_submitted' | 'quote_selected' | 'sla_failure' | 'completion' | 'ppj_payment_timeout'
 
 export interface User {
   id: string

@@ -17,6 +17,7 @@ type SelectQuoteResult = {
   provider_name: string | null
   provider_phone: string | null
   provider_rating: number | null
+  payment_required: boolean
 }
 
 export async function POST(req: NextRequest) {
@@ -90,10 +91,23 @@ export async function POST(req: NextRequest) {
     request_id: parsed.data.request_id,
     quote_id: parsed.data.quote_id,
     soft_launch: SOFT_LAUNCH_MODE,
+    payment_required: result.payment_required,
   })
+
+  // PPJ providers must pay the per-job fee before contact details are revealed.
+  // The selection is held (request -> 'selected_pending_payment'); the provider is
+  // prompted to pay, and the customer sees an "awaiting provider payment" state.
+  if (result.payment_required) {
+    return NextResponse.json({
+      success: true,
+      payment_required: true,
+      provider: null,
+    })
+  }
 
   return NextResponse.json({
     success: true,
+    payment_required: false,
     provider: {
       name: result.provider_name,
       phone: result.provider_phone,

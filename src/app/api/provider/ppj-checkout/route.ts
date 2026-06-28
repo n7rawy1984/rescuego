@@ -24,6 +24,7 @@ type RequestRow = {
   id: string
   status: string
   location: { coordinates?: number[] } | null
+  selected_quote_id: string | null
 }
 
 type GeoPoint = { coordinates?: number[] } | null
@@ -36,11 +37,12 @@ type PpjPaymentRow = {
   distance_meters: number
 }
 
-type AcceptRpcResult = {
+type FinalizeRpcResult = {
   success: boolean
   reason: string | null
-  jobs_this_month: number | null
-  ppj_recovery_credits: number | null
+  provider_name: string | null
+  provider_phone: string | null
+  provider_rating: number | null
 }
 
 export async function POST(req: NextRequest) {
@@ -111,15 +113,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
   }
 
+  // New PPJ model: the request must already be in 'selected_pending_payment' with
+  // THIS provider as the selected provider (the customer picked this provider's
+  // quote). The fee unlocks contact details + assignment via the webhook.
   const { data: request } = await admin
     .from('requests')
-    .select('id, status, location')
+    .select('id, status, location, selected_quote_id')
     .eq('id', parsed.data.request_id)
-    .eq('status', 'open')
+    .eq('status', 'selected_pending_payment')
+    .eq('accepted_by', user.id)
     .single<RequestRow>()
 
   if (!request) {
-    return NextResponse.json({ error: 'Request not found or no longer open' }, { status: 404 })
+    return NextResponse.json(
+      { error: 'Request is not awaiting your payment, or your selection has expired.' },
+      { status: 404 }
+    )
+  }
+
+  // Defense-in-depth: confirm the selected quote belongs to this provider.
+  if (request.selected_quote_id) {
+    const { data: selectedQuote } = await admin
+      .from('request_quotes')
+      .select('id, provider_id')
+      .eq('id', request.selected_quote_id)
+      .maybeSingle<{ id: string; provider_id: string }>()
+
+    if (!selectedQuote || selectedQuote.provider_id !== user.id) {
+      return NextResponse.json(
+        { error: 'You are not the selected provider for this request.' },
+        { status: 403 }
+      )
+    }
   }
 
   const { data: existing } = await admin
@@ -162,39 +187,56 @@ export async function POST(req: NextRequest) {
   const feeAed = getPayPerJobFee(distanceM)
 
   if ((provider.ppj_recovery_credits ?? 0) > 0) {
-    const { data: acceptedRows, error: acceptError } = await admin.rpc('accept_provider_request_atomic', {
+    // Recovery credit waives the fee: finalize the held selection immediately via the
+    // new-model RPC (selected_pending_payment -> accepted, reveals contact, starts SLA),
+    // then consume one credit. The finalize RPC verifies this provider is the selected one.
+    const { data: finalizedRows, error: finalizeError } = await admin.rpc('finalize_ppj_selection_atomic', {
       p_provider_id: user.id,
       p_request_id: parsed.data.request_id,
-      p_increment_jobs: true,
-      p_consume_ppj_credit: true,
     })
 
-    const accepted = (acceptedRows as AcceptRpcResult[] | null)?.[0] ?? null
+    const finalized = (finalizedRows as FinalizeRpcResult[] | null)?.[0] ?? null
 
-    if (acceptError || !accepted?.success) {
+    if (finalizeError || !finalized?.success) {
       logger.warn({
-        event: 'ppj_credit_accept_failed',
+        event: 'ppj_credit_finalize_failed',
         provider_id: user.id,
         request_id: parsed.data.request_id,
-        error: acceptError?.message ?? accepted?.reason ?? 'Request is no longer available',
+        error: finalizeError?.message ?? finalized?.reason ?? 'Request is no longer available',
       })
 
-      if (accepted?.reason === 'active_job_exists') {
-        return NextResponse.json({ error: 'Complete your active job before accepting another request' }, { status: 409 })
+      if (finalized?.reason === 'not_selected_provider') {
+        return NextResponse.json({ error: 'You are not the selected provider for this request.' }, { status: 403 })
       }
-
-      if (accepted?.reason === 'no_recovery_credit') {
-        return NextResponse.json({ error: 'Recovery credit could not be applied. Please try again.' }, { status: 409 })
+      if (finalized?.reason === 'request_not_pending_payment') {
+        return NextResponse.json({ error: 'Your selection has expired or was already finalized.' }, { status: 409 })
       }
 
       return NextResponse.json({ error: 'Request is no longer available' }, { status: 409 })
+    }
+
+    // Consume exactly one recovery credit (guarded so it never goes negative).
+    const { error: creditError } = await admin
+      .from('providers')
+      .update({ ppj_recovery_credits: Math.max(0, (provider.ppj_recovery_credits ?? 0) - 1) })
+      .eq('id', user.id)
+      .gt('ppj_recovery_credits', 0)
+
+    if (creditError) {
+      // The job is already assigned; a failed credit decrement is logged, not fatal.
+      logger.error({
+        event: 'ppj_recovery_credit_decrement_failed',
+        provider_id: user.id,
+        request_id: parsed.data.request_id,
+        error: creditError.message,
+      })
     }
 
     logger.info({
       event: 'ppj_recovery_credit_applied',
       provider_id: user.id,
       request_id: parsed.data.request_id,
-      credits_remaining: accepted.ppj_recovery_credits ?? Math.max(0, (provider.ppj_recovery_credits ?? 0) - 1),
+      credits_remaining: Math.max(0, (provider.ppj_recovery_credits ?? 0) - 1),
     })
 
     return NextResponse.json({

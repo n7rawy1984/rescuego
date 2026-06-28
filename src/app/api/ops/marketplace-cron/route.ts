@@ -22,13 +22,15 @@ async function handleMarketplaceCron(req: NextRequest) {
     expired_requests: 0,
     sla_warnings_sent: 0,
     sla_releases: 0,
+    ppj_payment_timeouts: 0,
     errors: [] as string[],
   }
 
-  const [expireQuotesResult, expireRequestsResult, slaResult] = await Promise.all([
+  const [expireQuotesResult, expireRequestsResult, slaResult, ppjResult] = await Promise.all([
     expireStaleQuotes(supabase),
     expireUnselectedRequests(supabase, now),
     enforceSla(supabase),
+    expirePpjPaymentWindows(supabase),
   ])
 
   results.expired_quotes = expireQuotesResult.count
@@ -40,6 +42,9 @@ async function handleMarketplaceCron(req: NextRequest) {
   results.sla_warnings_sent = slaResult.warnings
   results.sla_releases = slaResult.releases
   if (slaResult.error) results.errors.push(slaResult.error)
+
+  results.ppj_payment_timeouts = ppjResult.releases
+  if (ppjResult.error) results.errors.push(ppjResult.error)
 
   // P4-H4: a subtask reports `error` only when the WHOLE query/RPC-fetch failed or threw
   // (e.g. DB unreachable). Normal per-row outcomes from sla_check_and_release such as
@@ -203,6 +208,68 @@ async function enforceSla(
     // A thrown exception means the whole subtask failed (e.g. DB unreachable) -> critical.
     const msg = err instanceof Error ? err.message : 'unknown'
     return { warnings: 0, releases: 0, error: `sla_exception: ${msg}` }
+  }
+}
+
+// PPJ payment-window enforcement — SEPARATE from enforceSla (different timer).
+// A PPJ provider whose quote was selected has 10 minutes to pay the fee; the
+// authoritative window + release decision lives in expire_ppj_payment_selection_atomic
+// (migration 045). This route only narrows + orders candidates. A request in
+// 'selected_pending_payment' has accepted_at = NULL, so it is never an SLA candidate
+// (the two timers cannot interfere). The 5-minute warning is provider-UI-only.
+const PPJ_PAYMENT_CANDIDATE_LIMIT = 50
+
+async function expirePpjPaymentWindows(
+  supabase: ReturnType<typeof createAdminClient>
+) {
+  let releases = 0
+
+  try {
+    // Oldest payment-window first so the closest-to-timeout selections are handled first.
+    const { data: candidates, error: fetchError } = await supabase
+      .from('requests')
+      .select('id')
+      .eq('status', 'selected_pending_payment')
+      .order('payment_window_started_at', { ascending: true })
+      .limit(PPJ_PAYMENT_CANDIDATE_LIMIT)
+
+    if (fetchError) {
+      logger.error({ event: 'ppj_payment_window_fetch_failed', error: fetchError.message })
+      return { releases: 0, error: `ppj_payment_fetch: ${fetchError.message}` }
+    }
+
+    if (!candidates || candidates.length === 0) {
+      return { releases: 0, error: null }
+    }
+
+    for (const request of candidates) {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('expire_ppj_payment_selection_atomic', {
+        p_request_id: request.id,
+      })
+
+      if (rpcError) {
+        // Per-row failure: log and continue (does not fail the whole batch).
+        logger.error({ event: 'ppj_payment_window_rpc_error', request_id: request.id, error: rpcError.message })
+        continue
+      }
+
+      const rows = rpcResult as { success: boolean; reason: string; released_provider_id: string | null }[] | null
+      const result = rows?.[0]
+
+      if (result?.success) {
+        releases++
+        logger.warn({
+          event: 'ppj_payment_window_expired',
+          request_id: request.id,
+          provider_id: result.released_provider_id,
+        })
+      }
+    }
+
+    return { releases, error: null }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    return { releases: 0, error: `ppj_payment_exception: ${msg}` }
   }
 }
 

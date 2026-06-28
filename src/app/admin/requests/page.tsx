@@ -67,6 +67,7 @@ const REQUEST_FILTERS: { id: RequestFilter; labelKey: string }[] = [
 const STATUS_LABEL_KEYS: Record<RequestStatus, string> = {
   open: 'status.open',
   quoted: 'status.quoted',
+  selected_pending_payment: 'status.selectedPendingPayment',
   accepted: 'status.accepted',
   en_route: 'status.enRoute',
   arrived: 'status.arrived',

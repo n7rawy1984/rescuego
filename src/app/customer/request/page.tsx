@@ -33,7 +33,7 @@ type ActiveRequest = {
   problem_type: ProblemType
   location_address: string | null
   note: string | null
-  status: Extract<RequestStatus, 'open' | 'quoted' | 'accepted' | 'en_route' | 'arrived' | 'in_progress'>
+  status: Extract<RequestStatus, 'open' | 'quoted' | 'selected_pending_payment' | 'accepted' | 'en_route' | 'arrived' | 'in_progress'>
   accepted_by: string | null
   provider_name?: string | null
   provider_phone?: string | null
@@ -41,6 +41,7 @@ type ActiveRequest = {
   price_change_requested: number | null
   price_change_status: string | null
   selected_quote_id: string | null
+  last_release_reason?: string | null
   created_at: string
 }
 
@@ -567,25 +568,34 @@ export default function RequestPage() {
   if (visibleRequest) {
     const isOpen = visibleRequest.status === 'open'
     const isQuoted = visibleRequest.status === 'quoted'
-    const showCancellationAbuseWarning = !isOpen && !isQuoted && lateCancellations24h >= 2
+    const isPendingPayment = visibleRequest.status === 'selected_pending_payment'
+    // PPJ payment-timeout notice: the request returned to the pool because the
+    // selected provider did not confirm payment in time. Shown above the quote list
+    // so the customer is told WHY their selection was cancelled (not a silent reset).
+    const showPpjTimeoutNotice = isQuoted && visibleRequest.last_release_reason === 'ppj_payment_timeout'
+    const showCancellationAbuseWarning = !isOpen && !isQuoted && !isPendingPayment && lateCancellations24h >= 2
     const title = isOpen
       ? t('requestSent')
       : isQuoted
         ? t('quotesReceived')
-        : visibleRequest.status === 'accepted'
-          ? t('providerAcceptedTitle')
-          : t('serviceInProgress')
+        : isPendingPayment
+          ? t('awaitingPaymentTitle')
+          : visibleRequest.status === 'accepted'
+            ? t('providerAcceptedTitle')
+            : t('serviceInProgress')
     const description = isOpen
       ? t('requestLive')
       : isQuoted
         ? t('selectBestQuote')
-        : visibleRequest.status === 'accepted'
-          ? t('providerAcceptedDesc')
-          : visibleRequest.status === 'en_route'
-            ? t('providerEnRouteDesc')
-            : visibleRequest.status === 'arrived'
-              ? t('providerArrivedDesc')
-              : t('inProgressDesc')
+        : isPendingPayment
+          ? t('awaitingPaymentDesc')
+          : visibleRequest.status === 'accepted'
+            ? t('providerAcceptedDesc')
+            : visibleRequest.status === 'en_route'
+              ? t('providerEnRouteDesc')
+              : visibleRequest.status === 'arrived'
+                ? t('providerArrivedDesc')
+                : t('inProgressDesc')
 
     return (
       <>
@@ -595,7 +605,7 @@ export default function RequestPage() {
             <div className="overflow-hidden rounded-3xl border border-[#DDE7EE] bg-white shadow-xl shadow-slate-200/60">
               <div className="border-b border-slate-100 bg-white p-5 text-center sm:p-7">
                 <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E1F5EE] text-[#0F6E56]">
-                  {(isOpen || isQuoted) ? (
+                  {(isOpen || isQuoted || isPendingPayment) ? (
                     <Clock3 className="h-7 w-7 animate-pulse" aria-hidden="true" />
                   ) : (
                     <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
@@ -605,6 +615,7 @@ export default function RequestPage() {
                   <span className="h-2 w-2 rounded-full bg-[#1D9E75]" aria-hidden="true" />
                   {isOpen ? t('searchingProvider')
                     : isQuoted ? t('quotesAvailable')
+                    : isPendingPayment ? t('awaitingPaymentBadge')
                     : visibleRequest.status === 'en_route' ? t('providerOnWay')
                     : visibleRequest.status === 'arrived' ? t('providerArrivedBadge')
                     : t('providerAssigned')}
@@ -627,11 +638,24 @@ export default function RequestPage() {
                 </div>
               </div>
 
+              {showPpjTimeoutNotice && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-start" role="alert">
+                  <p className="text-sm font-semibold text-amber-900">{t('ppjPaymentTimeoutNotice')}</p>
+                </div>
+              )}
+
+              {isPendingPayment && (
+                <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-start">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[#0F6E56]">{t('awaitingPaymentBadge')}</div>
+                  <p className="mt-1 text-sm text-slate-700">{t('awaitingPaymentDesc')}</p>
+                </div>
+              )}
+
               {isQuoted && (
                 <CustomerQuoteList requestId={visibleRequest.id} />
               )}
 
-              {!isOpen && !isQuoted && visibleRequest.price_change_status === 'pending' && visibleRequest.price_change_requested != null && visibleRequest.selected_quote_id != null && (
+              {!isOpen && !isQuoted && !isPendingPayment && visibleRequest.price_change_status === 'pending' && visibleRequest.price_change_requested != null && visibleRequest.selected_quote_id != null && (
                 <PriceChangeNotification
                   requestId={visibleRequest.id}
                   currentPrice={visibleRequest.final_price ?? 0}
@@ -639,7 +663,7 @@ export default function RequestPage() {
                 />
               )}
 
-              {!isOpen && !isQuoted && (
+              {!isOpen && !isQuoted && !isPendingPayment && (
                 <div className="rounded-2xl border border-[#9FE1CB] bg-[#E1F5EE] p-4 text-start">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>

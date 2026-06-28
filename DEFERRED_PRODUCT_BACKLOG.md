@@ -273,7 +273,45 @@ These are the grouping buckets the items below map to. They run **after** the se
   1. Provider advances a job to en_route and waits.
   - **Expected:** no "time exceeded" message before the 2h en_route threshold; once a real threshold is breached, the cron auto-releases the request back to the pool (customer no longer stuck), per CRIT-02 / D6.
 
+### P11 — Quote-status feedback messages to the provider (submitted / rejected) to teach fair pricing
+- **Type:** UX/Copy
+- **Priority:** Medium
+- **Severity:** Commercial (better pricing behavior → more accepted quotes → more completed jobs)
+- **Effort:** S
+- **Target batch:** UX & State Machine (closely related to P5)
+- **Target release:** Soft Launch
+- **Status:** OPEN
+- **Detail:** Give the provider clear feedback through the quote lifecycle so they learn to submit fair, competitive prices:
+  1. **On quote submission:** when the provider submits a price, show a message confirming their price has reached the customer and is awaiting the customer's approval (e.g. "تم إرسال سعرك للعميل وهو في انتظار الموافقة").
+  2. **On customer rejection:** if the customer does not accept the provider's quote (selects someone else / the quote is rejected or expires), show a message telling the provider their price was not accepted by the customer and inviting them to submit a more suitable/competitive price (e.g. "لم يوافق العميل على سعرك — حاول تقديم سعر مناسب ليوافق عليه العميل").
+- **Rationale (owner):** these messages train providers to price fairly and competitively over time, which improves the marketplace (more quotes accepted, fewer stranded customers). All copy must be in simple, clear Arabic (ties directly to P5, which covers the fair-price *rejection* wording — keep both consistent).
+- **Relationship to P5:** P5 is specifically about the fair-price *bounds* rejection message (price out of allowed range, simple Arabic, no raw codes). P11 is broader — it covers the *customer*-driven quote outcomes (submitted-and-waiting, customer-rejected). Implement them together as one Arabic-copy pass over the quote lifecycle so messaging is consistent.
+- **QA scenario:**
+  1. Provider submits a quote on an open request.
+  - **Expected:** a clear Arabic message that the price was sent to the customer and is awaiting approval.
+  2. The customer selects a different provider (or the quote is rejected/expires).
+  - **Expected:** a clear Arabic message that the customer did not accept the price, encouraging a more suitable price next time. No raw codes, no English.
+
 ## Cross-cutting verification reminders (post-security)
+
+### P12 — Cancellation notice lingers + has no request identifier
+- **Type:** UX/Copy
+- **Priority:** Medium
+- **Severity:** UX
+- **Effort:** S
+- **Target batch:** UX & State Machine
+- **Target release:** Soft Launch
+- **Status:** OPEN
+- **Detail:** Observed on the provider dashboard after a customer cancelled a job. Two issues on the same notice card ("ألغى العميل هذا الطلب… تم إلغاء Battery Issue بواسطة العميل، دفعتك محمية، وأي رصيد استرداد مؤهل يُعالج تلقائياً"):
+  1. **The notice persists every time:** it keeps showing on the dashboard on every visit/refresh even though the provider has already seen it AND already received the recovery credit (the credit is clearly shown in their account, and their record already marks the job as customer-cancelled). A one-time cancellation notice should be dismissible (a "تم/إغلاق" action) or auto-clear after acknowledgement — it should not re-appear indefinitely.
+  2. **No request identifier:** the message says "هذا الطلب" ("this request") with NO request number or identifier. If the provider has more than one request, they can't tell which one is meant. Every notice must carry a clear reference — a request ID/number, or at least service type + time (e.g. "Battery Issue — 12:06") — so the provider knows exactly which request the message refers to.
+- **QA scenario:**
+  1. A customer cancels a provider's job; provider views the dashboard.
+  - **Expected:** the cancellation notice shows once, is dismissible (or clears after acknowledgement), and does not re-appear on every refresh once acknowledged.
+  2. Inspect the notice text.
+  - **Expected:** it identifies the specific request (ID/number, or service type + time), not a generic "this request."
+
+
 
 - **CRIT-02 (P4b) — DONE, runtime-verified on production (June 26, 2026).** The `en_route`/`arrived` SLA auto-release was tested: minute cron returned `sla_releases: 1` and the released request reset to `open` with all stale state (`accepted_by`, `selected_quote_id`, `accepted_at`) cleared per D6. Kept here as a regression check to re-run after any future change to the SLA RPCs or the marketplace-cron route. NOTE: P10 may reveal an en_route-specific stuck case — re-verify there.
 
@@ -292,4 +330,4 @@ The security batches (1–5) were an **unplanned track** that emerged from the f
 
 ---
 
-*Last updated: June 27, 2026 — security Batches 1–4 deployed/verified (migrations 039–043). Added P7 (PPJ post-selection fee-gate model), P8 (tiered dispatch is dead code — wire-up decision deferred), P9 (fair-price bounds temporarily widened, LAUNCH BLOCKER — formula to be redesigned two-leg with emirate destination, NOT restored to current values). P9 enriched and marked DONE for the widen step: migration `044_temp_widen_fair_price_bounds.sql` created (min_price_per_km=0.01, max_price_per_km=10000, base_fee unchanged; RPC `submit_quote_atomic` unchanged); confirmed formula `v_min_fair = base_fee + distance_km × min_price_per_km`, `v_max_fair = base_fee + distance_km × max_price_per_km`. Env-var incident resolved (Stripe + cron keys corrected to test). This is a living file; add new testing findings in the same format as they appear.*
+*Last updated: June 28, 2026 — security Batches 1–4 deployed/verified (migrations 039–043). Added P7 (PPJ post-selection fee-gate model), P8 (tiered dispatch is dead code — wire-up decision deferred), P9 (fair-price bounds temporarily widened, LAUNCH BLOCKER — formula to be redesigned two-leg with emirate destination, NOT restored to current values). P9 enriched and marked DONE for the widen step: migration `044_temp_widen_fair_price_bounds.sql` created (min_price_per_km=0.01, max_price_per_km=10000, base_fee unchanged; RPC `submit_quote_atomic` unchanged); confirmed formula `v_min_fair = base_fee + distance_km × min_price_per_km`, `v_max_fair = base_fee + distance_km × max_price_per_km`. Added P10 (premature SLA message on en_route / customer stuck — needs diagnosis), P11 (quote-status feedback messages to provider: submitted-and-waiting, customer-rejected — teaches fair pricing, ties to P5), and P12 (cancellation notice lingers on dashboard + has no request identifier). Env-var incident resolved (Stripe + cron keys corrected to test). This is a living file; add new testing findings in the same format as they appear.*

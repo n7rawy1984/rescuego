@@ -38,6 +38,14 @@ type AcceptRpcResult = {
   ppj_recovery_credits: number | null
 }
 
+type FinalizePpjResult = {
+  success: boolean
+  reason: string | null
+  provider_name: string | null
+  provider_phone: string | null
+  provider_rating: number | null
+}
+
 type PpjProtectionResult = {
   success: boolean
   reason: string | null
@@ -322,6 +330,28 @@ async function finalizeAcceptedRequest(
   return Boolean(result?.success)
 }
 
+// New PPJ model: the fee is paid AFTER the customer selects this provider's quote.
+// On payment the request transitions selected_pending_payment -> accepted (assignment),
+// accepted_at is set (SLA starts now), held competitors are rejected, and contact
+// details are revealed. Returns true if the request was finalized to this provider.
+async function finalizePpjSelection(
+  supabase: SupabaseClient,
+  providerId: string,
+  requestId: string
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('finalize_ppj_selection_atomic', {
+    p_provider_id: providerId,
+    p_request_id: requestId,
+  })
+
+  if (error) {
+    throw new Error(`Failed to finalize PPJ selection atomically: ${error.message}`)
+  }
+
+  const result = (data as FinalizePpjResult[] | null)?.[0] ?? null
+  return Boolean(result?.success)
+}
+
 async function protectCancelledPaidPpjRequest(
   supabase: SupabaseClient,
   providerId: string,
@@ -381,7 +411,7 @@ async function processPaymentIntentSucceeded(
       .eq('stripe_payment_intent_id', paymentIntent.id)
     throwIfError(paymentError, 'Failed to mark PPJ payment as paid')
 
-    const accepted = await finalizeAcceptedRequest(supabase, provider_id, request_id)
+    const accepted = await finalizePpjSelection(supabase, provider_id, request_id)
 
     if (accepted) {
       logger.info({

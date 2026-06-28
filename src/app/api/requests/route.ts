@@ -78,9 +78,9 @@ export async function GET() {
   const admin = createAdminClient()
   const activeRequestPromise = supabase
     .from('requests')
-    .select('id, problem_type, location_address, note, status, accepted_by, final_price, created_at, price_change_requested, price_change_status, selected_quote_id, quoted_at')
+    .select('id, problem_type, location_address, note, status, accepted_by, final_price, created_at, price_change_requested, price_change_status, selected_quote_id, quoted_at, last_release_reason')
     .eq('customer_id', user.id)
-    .in('status', ['open', 'quoted', 'accepted', 'en_route', 'arrived', 'in_progress'])
+    .in('status', ['open', 'quoted', 'selected_pending_payment', 'accepted', 'en_route', 'arrived', 'in_progress'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -201,7 +201,10 @@ export async function GET() {
     provider_phone?: string | null
   }) | null = activeRequest ?? null
 
-  if (activeRequest?.accepted_by) {
+  // Reveal the assigned provider's contact ONLY once the job is actually assigned.
+  // For a PPJ 'selected_pending_payment' request, accepted_by marks WHO must pay but the
+  // job is NOT assigned yet — contact details must stay hidden until the fee is paid.
+  if (activeRequest?.accepted_by && activeRequest.status !== 'selected_pending_payment') {
     const { data: assignedProvider, error: assignedProviderError } = await admin
       .from('providers')
       .select('users(name, phone)')

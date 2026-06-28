@@ -2,6 +2,36 @@
 
 ---
 
+## Session: June 28, 2026 — PPJ re-enabled (NEW MODEL): post-selection fee gate (migration 045 + code)
+
+**Goal (P7):** Re-enable Pay Per Job under a new model — PPJ providers quote like everyone; the per-job fee is charged AFTER the customer selects their quote, before contact details are revealed and the job is assigned. Subscribers are unaffected (immediate reveal + assign).
+
+**Migration `045_ppj_post_selection_fee_gate.sql` (NOT yet applied — paste into Supabase SQL editor):**
+- Adds request status `selected_pending_payment`; columns `requests.payment_window_started_at` and `requests.last_release_reason`; widens `provider_dispatch_log.event_type` to allow `ppj_payment_timeout`; partial index `idx_requests_payment_window_pending`.
+- `select_quote_atomic` plan-branched (return shape gains `payment_required`): subscriber path byte-for-byte unchanged; PPJ path → `selected_pending_payment`, holds competitors as `pending`, withholds contact, `accepted_at` stays NULL.
+- New `finalize_ppj_selection_atomic` — webhook on fee payment: `selected_pending_payment → accepted`, sets `accepted_at = now()` (SLA starts ONLY here), rejects held competitors, reveals contact, verifies payer is the selected provider.
+- New `expire_ppj_payment_selection_atomic` — cron, 10-min: releases to `quoted`/`open`, sets `last_release_reason = 'ppj_payment_timeout'`, marks unpaid `ppj_payments` row `failed`, no SLA penalty, no jobs change.
+
+**Two timers — proven separate:** the 10-min payment window keys off `payment_window_started_at`; the SLA clock keys off `accepted_at` (set only at payment). `sla_check_and_release` only acts on `accepted/en_route/arrived`, so `selected_pending_payment` is structurally immune → an unpaid-but-selected PPJ provider can never get an SLA penalty.
+
+**Code:**
+- `customer/quote/select/route.ts` — returns `payment_required` (no contact for PPJ).
+- `provider/ppj-checkout/route.ts` — accepts `selected_pending_payment`; verifies the caller is the selected provider; recovery-credit path now finalizes via the new RPC.
+- `api/requests/route.ts` GET — withholds provider contact while `selected_pending_payment` (no pre-payment leak); returns `last_release_reason`.
+- `stripe/webhook/route.ts` — PPJ branch calls `finalize_ppj_selection_atomic` (overage branch untouched).
+- `ops/marketplace-cron/route.ts` — separate `expirePpjPaymentWindows()` pass.
+- New `components/provider/PpjPaymentPrompt.tsx` — "pay 15 AED to reveal details" + 10-min countdown + 5-min warning (UI-only).
+- `provider/dashboard/page.tsx` — query + render the pending-payment prompt.
+- `customer/request/page.tsx` — "awaiting payment" state + Arabic timeout notice.
+- `types/database.ts` — `RequestStatus` + `DispatchEventType` extended.
+- `messages/ar.json` + `messages/en.json` — new keys (Arabic-first).
+
+**Safety:** subscriber selection path unchanged; H1 (no KYC docs returned) preserved; C5 fair-price validation untouched; CRIT-02 SLA untouched; 403 PPJ guard kept.
+
+**Verified:** `npx tsc --noEmit` = 0, `npm run lint` = 0, `npm run build` = 0. JSON files parse.
+
+---
+
 ## Session: June 27, 2026 — Migration 044: temporarily WIDEN fair-price bounds for testing
 
 **Task:** Allow any reasonable test quote to pass during testing WITHOUT disabling the fair-price validation, then correct stale docs and enrich the deferred backlog.

@@ -47,6 +47,8 @@ Providers pay to access the platform through one of two monetisation models:
 | Provider 10 km or more from request | 70 AED |
 
 > **PPJ payment enforcement (fixed June 27, 2026):** PPJ providers are charged the acceptance fee only through `/api/provider/ppj-checkout` (PaymentIntent → Stripe Elements → webhook `payment_intent.succeeded` → `finalizeAcceptedRequest`). The free `/api/provider/requests/accept` route now hard-rejects `plan === 'pay_per_job'` with `403 { code: 'PPJ_PAYMENT_REQUIRED' }` (server-side defense-in-depth — the atomic RPC does not gate PPJ payment, so the route must). Previously this route had no PPJ guard and could assign a PPJ job for free. To show the 15 AED promo fee instead of the 30/70 distance-based default, set `NEXT_PUBLIC_LAUNCH_PROMO=true` + `NEXT_PUBLIC_PPJ_PROMO_FEE_AED=15` (env only).
+>
+> **PPJ new model (June 28, 2026 — migration 045):** PPJ is now re-enabled as a post-selection fee gate. PPJ providers submit a quote like everyone else. When the customer selects a PPJ quote, the request enters `selected_pending_payment` (contact withheld, competitors held as `pending`, `accepted_at` stays NULL, no SLA clock). The provider pays the 15 AED fee via the existing `/api/provider/ppj-checkout` → ppj-pay flow; the webhook then calls `finalize_ppj_selection_atomic` to assign the job, set `accepted_at` (SLA starts here), and reveal contact. If unpaid within 10 minutes, marketplace-cron calls `expire_ppj_payment_selection_atomic` to release the selection back to `quoted`/`open` and set `requests.last_release_reason = 'ppj_payment_timeout'` (the customer is told why). Subscribers are unaffected (immediate reveal + assign). The legacy 403 guard above is KEPT.
 
 **Additional revenue streams (defined but not yet active):**
 - Platform commission on job completion (currently hardcoded to 0% — intentional soft-launch decision, see Section 6 M5)
@@ -368,7 +370,9 @@ All critical state-mutating operations go through RPCs that are `SECURITY DEFINE
 | RPC | Purpose |
 |---|---|
 | `accept_provider_request_atomic` | Legacy first-accept with overage guard and active-job check |
-| `select_quote_atomic` | V2 quote selection — accepts request, rejects competing quotes, reveals provider details |
+| `select_quote_atomic` | V2 quote selection — plan-branched (migration 045). Subscriber: assigns request, rejects competing quotes, reveals provider contact (unchanged). PPJ (`pay_per_job`): sets `selected_pending_payment`, holds competitors as `pending`, withholds contact, leaves `accepted_at` NULL, returns `payment_required = TRUE`. H1: never returns KYC documents. |
+| `finalize_ppj_selection_atomic` | PPJ only (migration 045) — called by the Stripe webhook on fee payment: `selected_pending_payment → accepted`, sets `accepted_at = now()` (SLA starts here), rejects held competitors, reveals contact. Verifies payer is the selected provider. |
+| `expire_ppj_payment_selection_atomic` | PPJ only (migration 045) — called by marketplace-cron after the 10-min window: releases the selection back to `quoted`/`open`, sets `requests.last_release_reason = 'ppj_payment_timeout'`, marks the unpaid `ppj_payments` row `failed`. No SLA penalty (request was never `accepted`). |
 | `submit_quote_atomic` | V2 quote submission (fair price validation disabled by 032, re-enabled by 039, temporarily widened by 044 for testing) |
 | `complete_provider_job_atomic` | Job completion with price derivation logic |
 | `cancel_request_and_compensate_atomic` | Customer cancellation with PPJ credit restore |
