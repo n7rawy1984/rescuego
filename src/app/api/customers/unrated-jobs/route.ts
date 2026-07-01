@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 
 type CompletedJobRow = {
   id: string
@@ -22,6 +23,14 @@ export async function GET() {
 
   if (profile?.role !== 'customer') {
     return NextResponse.json({ error: 'Only customer accounts can view pending ratings' }, { status: 403 })
+  }
+
+  const rateLimit = await checkRateLimitAsync(`customer-unrated-jobs:${user.id}`, 30, 60 * 1000, 'customer_unrated_jobs', 'soft')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
   }
 
   const admin = createAdminClient()

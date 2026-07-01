@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
+import { checkRateLimitAsync } from '@/lib/rate-limit'
 
 const releaseJobSchema = z.object({
   request_id: z.string().uuid(),
@@ -36,6 +37,14 @@ export async function POST(req: NextRequest) {
 
   if (profile?.role !== 'provider') {
     return NextResponse.json({ error: 'Only providers can release active jobs' }, { status: 403 })
+  }
+
+  const rateLimit = await checkRateLimitAsync(`provider-release-job:${user.id}`, 10, 60 * 1000, 'provider_release_job', 'soft')
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
   }
 
   const admin = createAdminClient()
