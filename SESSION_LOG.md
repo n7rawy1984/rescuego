@@ -2,6 +2,79 @@
 
 ---
 
+## Session: July 1, 2026 — Housekeeping: package-lock, .env.example, docs corrections, rate limits, i18n
+
+**Goal:** Apply 8 targeted housekeeping tasks covering dependency hygiene, environment documentation, security findings closure, JSON-LD correctness, i18n completeness, rate limiting, and documentation accuracy. Verify-first policy applied to every task.
+
+**Task 1 — package-lock desync (SKIPPED — already correct):**
+Ran `npm ci`. Completed cleanly: "added 504 packages, audited 505 packages." No missing dependency errors. No change made.
+
+**Task 2 — .env.example (CREATED):**
+Verified `.env.example` existed on disk but was blocked by `.gitignore` line 34 (`.env*` rule) — `git check-ignore -v .env.example` confirmed it was untrackable. Added `!.env.example` exception at `.gitignore` line 35. Created `.env.example` (78 lines, 9 variable groups, placeholder values only) sourced from `SETUP.md §3`. Groups: Supabase, Stripe, PPJ fees, Feature flags, Google Maps, Application URLs, Support email, Ops/Cron secret, Upstash Redis, Sentry. Confirmed trackable post-fix via `git status`. Committed `a0e8524`.
+- `.gitignore` line 35: added `!.env.example`
+- `.env.example`: new file, 78 lines
+
+**Task 3 — Close LB-5 (CLOSED in docs):**
+Verified `029_rpc_add_en_route_arrived_statuses.sql` line 231: `AND status IN ('accepted', 'en_route', 'arrived', 'in_progress')` — the active-job guard covers all four active states. Grepped migrations 030–045 for any redefinition of `accept_provider_request_atomic`: zero results. Fix is confirmed present in code since migration 029. LB-5 was incorrectly left open in docs.
+Updated `PROJECT_STATUS.md`:
+- §5 blockers table: removed LB-5 row (was between LB-4 and LB-6).
+- §6 LB-5 section: replaced OPEN description with CLOSED — fixed in migration 029 (supersedes 024 line 56); verified in source.
+- §7 H6 section: updated from OPEN to CLOSED with same evidence.
+Committed `b3293e0`.
+
+**Task 4 — Fix logo reference in JSON-LD (FIXED):**
+Verified `public/logo.png` absent; `public/logo.svg` present. Grepped all `*.tsx`/`*.ts` files in `src/` for `logo.png`: two hits.
+- `src/app/layout.tsx` line 74: changed `/logo.png` → `/logo.svg` (JSON-LD Organization schema)
+- `src/app/about/page.tsx` line 19: changed `/logo.png` → `/logo.svg` (JSON-LD Organization schema)
+No other references to `logo.png` found anywhere in `src/` or `public/`. Committed `70efc50`. Partial closure of LB-9.
+
+**Task 5 — Add missing PPJ keys to en.json (FIXED):**
+Compared `messages/ar.json` and `messages/en.json` under `admin.requests.lifecycle` using Python JSON parse. Found 4 keys present in `ar.json` missing from `en.json`:
+- `awaitingPaymentTitle` — Arabic: "بانتظار تأكيد الدفع" → English added: "Awaiting Payment Confirmation"
+- `awaitingPaymentDesc` — Arabic: multi-sentence provider-selection awaiting-payment description → English: "A provider has been selected. Their details will be shown after they confirm payment. If they do not confirm within 10 minutes, you can select another provider."
+- `awaitingPaymentBadge` — Arabic: "بانتظار دفع مقدم الخدمة" → English added: "Awaiting Provider Payment"
+- `ppjPaymentTimeoutNotice` — Arabic: "لم يؤكد مقدم الخدمة الدفع، يرجى اختيار مقدم خدمة آخر." → English added: "The provider did not confirm payment. Please select another provider."
+Inserted after `messages/en.json` line 1601 (`"unassigned": "Unassigned"`). JSON validated with Python `json.load` — no syntax errors. Committed `5945fb4`.
+- `messages/en.json` lines 1602–1605: 4 new keys added
+
+**Task 6 — Add rate limiting to two routes (FIXED):**
+Verified neither route called `checkRateLimitAsync` before change.
+- `src/app/api/provider/jobs/release/route.ts`:
+  - Line 6: added `import { checkRateLimitAsync } from '@/lib/rate-limit'`
+  - Lines 42–48: rate limit call after role check (line 38–40), before `createAdminClient()` (line 50). Key `provider-release-job:${user.id}`, 10 req / 60 s, mode `'soft'`. Returns 429 + `Retry-After` on breach.
+- `src/app/api/customers/unrated-jobs/route.ts`:
+  - Line 4: added `import { checkRateLimitAsync } from '@/lib/rate-limit'`
+  - Lines 28–34: rate limit call after role check (line 24–26), before `createAdminClient()` (line 36). Key `customer-unrated-jobs:${user.id}`, 30 req / 60 s, mode `'soft'`. Returns 429 + `Retry-After` on breach.
+`npx tsc --noEmit` exit 0. `npm run lint` exit 0. Committed `3ba702a`.
+
+**Task 7 — ARCHITECTURE.md ppj_payments columns + missing RPC (FIXED):**
+(a) Read `supabase/migrations/005_ppj_payments.sql`. Actual columns: `id`, `provider_id`, `request_id`, `fee_aed` INTEGER NOT NULL, `distance_meters` INTEGER NOT NULL DEFAULT 0, `stripe_payment_intent_id`, `status` CHECK ('pending','paid','failed') DEFAULT 'pending', `promo_applied` BOOLEAN NOT NULL DEFAULT FALSE, `created_at`. Docs had `amount_aed` (wrong name), `accept_failed` (non-existent column), and omitted `fee_aed`, `distance_meters`, `promo_applied`. Updated `ARCHITECTURE.md` §2 `ppj_payments` row to match actual schema (migration 005 lines 3–12).
+(b) Grepped all migrations for `restore_ppj_credit_for_cancelled_paid_request`: found in `012_ppj_cancelled_payment_protection.sql`. Signature: `(p_provider_id UUID, p_request_id UUID, p_payment_intent_id TEXT DEFAULT NULL)`. Purpose: restores one `ppj_recovery_credits` credit idempotently when a customer cancels after a PPJ provider has paid. Absent from the RPC catalog. Added to `ARCHITECTURE.md` §3 after the `cancel_request_and_compensate_atomic` row.
+Committed `ea68e67`.
+
+**Task 8 — Stray file (SKIPPED — not found):**
+Searched entire repo outside `node_modules` for any filename containing `#U`. `Get-ChildItem -Recurse` with `Where-Object { $_.Name -match "#U" }` returned zero results. `git status --short | Select-String "#U"` also returned nothing. No file to delete.
+
+**Final build:** `npm run build` — zero errors, zero warnings. All routes compiled. Committed documentation changes (archive + Phase 4B) separately in prior session; these 7 commits are all housekeeping.
+
+**Verification results:**
+- `npx tsc --noEmit` exit 0 (no type errors)
+- `npm run lint` exit 0 (no lint errors)
+- `npm run build` succeeded — all routes compile (exit 0)
+- logo.png: zero remaining references in `src/` or `public/`
+- Atomic RPC files (`040`, `045`, `webhook/route.ts`, `accept/route.ts`): untouched — `git diff HEAD` returns 0 bytes
+- Rate limit pattern: both routes confirmed — call after `getUser()`/role check, before DB; 429 + Retry-After on breach; correct key format; mode `'soft'`
+
+**Commits this session:**
+- `a0e8524` docs: add .env.example with all required environment variables
+- `b3293e0` docs: close LB-5 — accept RPC en_route/arrived already fixed in migration 029
+- `70efc50` fix: correct JSON-LD logo reference from .png to .svg (LB-9 partial)
+- `5945fb4` fix: add missing PPJ lifecycle i18n keys to en.json
+- `3ba702a` fix: add rate limiting to release and unrated-jobs routes
+- `ea68e67` docs: fix ppj_payments column list and add restore_ppj_credit RPC to ARCHITECTURE catalog
+
+---
+
 ## Session: June 28, 2026 — PPJ re-enabled (NEW MODEL): post-selection fee gate (migration 045 + code)
 
 **Goal (P7):** Re-enable Pay Per Job under a new model — PPJ providers quote like everyone; the per-job fee is charged AFTER the customer selects their quote, before contact details are revealed and the job is assigned. Subscribers are unaffected (immediate reveal + assign).
