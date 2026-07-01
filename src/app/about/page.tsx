@@ -16,7 +16,7 @@ const organizationSchema = {
   '@id': 'https://rescuego.ae/#organization',
   name: 'RescueGo',
   url: 'https://rescuego.ae',
-  logo: 'https://rescuego.ae/logo.png',
+  logo: 'https://rescuego.ae/logo.svg',
   description: "UAE's first open marketplace connecting drivers to vetted roadside recovery providers across all emirates.",
   foundingDate: '2024',
   areaServed: 'AE',

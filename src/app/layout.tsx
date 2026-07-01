@@ -71,7 +71,7 @@ const structuredData = {
   name: 'RescueGo',
   description: "UAE's roadside recovery marketplace connecting drivers to trusted recovery providers",
   url: 'https://rescuego.ae',
-  logo: 'https://rescuego.ae/logo.png',
+  logo: 'https://rescuego.ae/logo.svg',
   telephone: '+971-50-000-0000',
   areaServed: ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'UAE'],
   serviceType: 'Roadside Assistance',
