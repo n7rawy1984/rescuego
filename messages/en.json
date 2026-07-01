@@ -1599,7 +1599,11 @@
         "jobInProgress": "Job in progress",
         "waitingForProvider": "Waiting for provider",
         "providerAssigned": "Provider assigned",
-        "unassigned": "Unassigned"
+        "unassigned": "Unassigned",
+        "awaitingPaymentTitle": "Awaiting Payment Confirmation",
+        "awaitingPaymentDesc": "A provider has been selected. Their details will be shown after they confirm payment. If they do not confirm within 10 minutes, you can select another provider.",
+        "awaitingPaymentBadge": "Awaiting Provider Payment",
+        "ppjPaymentTimeoutNotice": "The provider did not confirm payment. Please select another provider."
       },
       "compensation": "Compensation: {type}",
       "priceAmount": "AED {amount}",
