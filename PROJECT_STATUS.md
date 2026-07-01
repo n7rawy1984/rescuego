@@ -140,7 +140,6 @@ See §6 for detailed descriptions of each blocker.
 | LB-2 | Cloud migration verification (migrations 039–045 applied to production?) | Critical | §4 Runtime Verification |
 | LB-3 | C2/C3 runtime verification (immutable-column triggers active in cloud?) | Critical | §7 C2, C3 |
 | LB-4 | Stripe go-live switch (currently TEST mode) | Critical | §11 |
-| LB-5 | H6 — `accept_provider_request_atomic` active-job check misses `en_route`/`arrived` | High | §7 H6 |
 | LB-6 | H2 — Legacy accept route bypasses V2 marketplace for subscription providers | High | §7 H2 |
 | LB-7 | H3 — No overage gate in `select_quote_atomic` | High | §7 H3 |
 | LB-8 | P4-C1 — Thundering herd: provider Realtime broadcasts to all online providers | High | §13 |
@@ -225,15 +224,11 @@ All Stripe operations use test keys. No real money is processed. The `STRIPE_SEC
 
 ---
 
-### LB-5 — H6: `accept_provider_request_atomic` Active-Job Check (HIGH)
+### LB-5 — H6: `accept_provider_request_atomic` Active-Job Check — CLOSED
 
-**Status:** OPEN — Confirmed in `024_accept_rpc_overage_guard.sql` line 56.
+**Status: CLOSED — fixed in migration 029 (supersedes migration 024 line 56). Verified in source.**
 
-The RPC's active-job guard queries `status IN ('accepted', 'in_progress')`. It does NOT include `en_route` or `arrived`. A provider who has advanced their job to `en_route` or `arrived` could theoretically call the legacy accept route for a second request and pass the active-job guard in the RPC.
-
-**Mitigation in place:** The accept route pre-flight check (line 77 of `accept/route.ts`) queries `status IN ('accepted', 'en_route', 'arrived', 'in_progress')` — it correctly includes all active states. However, the pre-flight is advisory only; the authoritative guard is inside the RPC under the `FOR UPDATE` lock.
-
-**Required:** Add `'en_route'` and `'arrived'` to the `status IN (...)` clause in `accept_provider_request_atomic` (migration 046).
+Migration `029_rpc_add_en_route_arrived_statuses.sql` line 231 contains `AND status IN ('accepted', 'en_route', 'arrived', 'in_progress')` in the active-job guard — all four active states are covered. No migration in range 030–045 redefines this function. The route-level pre-flight and the RPC are now consistent. Not a launch blocker.
 
 ---
 
@@ -375,11 +370,11 @@ Migration 041 `admin_update_provider_status_atomic` wraps provider status update
 
 ---
 
-### H6 — `accept_provider_request_atomic` Misses `en_route`/`arrived` (OPEN LAUNCH BLOCKER)
+### H6 — `accept_provider_request_atomic` Misses `en_route`/`arrived` — CLOSED
 
-**Status: OPEN.** See LB-5 for full description.
+**Status: CLOSED — fixed in migration 029 (supersedes 024 line 56). Verified in source.**
 
-`024_accept_rpc_overage_guard.sql` line 56: `status IN ('accepted', 'in_progress')` — `en_route` and `arrived` not included. The route-level pre-flight correctly includes all four states, but the RPC is the authoritative guard.
+`029_rpc_add_en_route_arrived_statuses.sql` line 231: `AND status IN ('accepted', 'en_route', 'arrived', 'in_progress')` — all active states included. No migration 030–045 redefines this RPC. LB-5 removed from blockers table.
 
 ---
 
