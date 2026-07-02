@@ -2,6 +2,36 @@
 
 ---
 
+## Session: July 2, 2026 — Migration 048: provider-row FOR UPDATE correction (047 immutable)
+
+**Context:** Migration 047 was applied manually to Supabase BEFORE the provider-row `FOR UPDATE` fix was committed locally (in a prior local-only edit). Migration 047 is therefore immutable and must match the applied version exactly. The lock correction moves to a new corrective migration 048.
+
+### What was verified
+
+- Read migration 047 in full. It contained a local-only `FOR UPDATE` edit (comment block + `FOR UPDATE`) on the provider row SELECT — the edit that must NOT be in 047 because 047 was already applied without it.
+- Confirmed the applied version of 047 = git commit `062e233` (the original commit); the local `FOR UPDATE` edit was commit `c959312`.
+- Reverted only that edit in 047. `git diff 062e233 -- 047...sql` returns empty (exit 0) — 047 now matches the applied version byte-for-byte.
+- Diffed 047 vs 048 `select_quote_atomic`: the only differences are removal of `WHERE id = v_provider_id;` and addition of `WHERE id = v_provider_id` + `FOR UPDATE;` (plus one explanatory comment line). PPJ branch, subscriber branch (except the lock), signature, RETURNS TABLE, and grants are identical.
+
+### Why 048 was needed
+
+Migration 047 (applied) has no provider-row lock in the subscriber overage path. Without it, two concurrent `select_quote_atomic` calls selecting the same at-limit provider (via two different requests) could both read `jobs_this_month` below the limit, both pass the overage gate, and both increment — bypassing the monthly limit (TOCTOU). The `requests FOR UPDATE` does not protect the provider row across different requests. Since 047 is immutable, the fix is delivered as migration 048.
+
+### What changed
+
+- `supabase/migrations/047_...sql`: reverted the local FOR UPDATE edit; now identical to the applied version.
+- `supabase/migrations/048_fix_provider_lock_select_quote_atomic.sql`: new. `DROP FUNCTION IF EXISTS public.select_quote_atomic(UUID, UUID, UUID)` + full recreate of the function with the single functional change (provider row `FOR UPDATE`) + re-applied `REVOKE ALL FROM anon, authenticated` and `GRANT EXECUTE TO service_role`.
+- `PROJECT_STATUS.md`: §1 snapshot, §3 migration baseline, §5 LB-7, §7 H3, §8 updated — 047 applied, 048 required and NOT YET APPLIED, LB-7 CODE COMPLETE pending 048 cloud application.
+
+### Verification
+
+- `npx tsc --noEmit`: exit 0.
+- `npm run lint`: exit 0.
+
+**Migration 048 is FILE ONLY and must still be applied to Supabase SQL Editor.** LB-7 is not fully closed in cloud until 048 is applied.
+
+---
+
 ## Session: July 2, 2026 — FOR UPDATE provider lock in select_quote_atomic (migration 047 correction)
 
 **Goal:** Verify whether the provider row is locked (`FOR UPDATE`) in the subscriber overage path of `select_quote_atomic`, and correct migration 047 if the lock is missing.

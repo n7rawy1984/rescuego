@@ -15,14 +15,14 @@ Setup and environment variable definitions belong to [SETUP.md].
 
 | Fact | Current State |
 |---|---|
-| Migration baseline | 046 applied (`046_revoke_anon_execute_and_fix_search_path.sql`); 047 written, NOT YET APPLIED |
-| Next migration number | 048 |
+| Migration baseline | 047 applied (`047_overage_gate_v2_and_sla_reset_atomic.sql`); 048 written, NOT YET APPLIED |
+| Next migration number | 049 |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
 | Cloud migration verification | VERIFIED — all migrations 001–045 confirmed applied (July 1, 2026); 046 not yet applied to cloud |
 | Launch readiness | NOT READY — multiple blockers active (see §6) |
-| Last documented work session | July 2, 2026 (LB-6 + LB-7 + LB-10 code complete; migration 047 written) |
+| Last documented work session | July 2, 2026 (migration 048 written: provider-row FOR UPDATE correction for select_quote_atomic) |
 
 ---
 
@@ -84,10 +84,10 @@ Cloud Supabase project has all 45 migrations applied in order (001–045). Verif
 
 | Fact | Value |
 |---|---|
-| Total migrations | 47 (046 applied to repo; 047 written, not yet applied to cloud) |
-| Latest applied (repo) | `047_overage_gate_v2_and_sla_reset_atomic.sql` (not yet applied to cloud Supabase) |
-| Next migration number | 048 |
-| Cloud state | VERIFIED through 045 (July 1, 2026); 046 + 047 pending SQL Editor apply |
+| Total migrations | 48 (047 applied to cloud; 048 written, not yet applied) |
+| Latest applied (cloud) | `047_overage_gate_v2_and_sla_reset_atomic.sql` (applied manually before the provider-row lock correction) |
+| Next migration number | 049 |
+| Cloud state | VERIFIED through 045 (July 1, 2026); 046 pending; 047 applied manually; 048 (FOR UPDATE correction) NOT YET APPLIED |
 
 **Migrations 039–045 are the security and marketplace remediation batch.** All 45 migrations have been applied to the production Supabase project (verified July 1, 2026).
 
@@ -141,7 +141,7 @@ See §6 for detailed descriptions of each blocker.
 | LB-3 | C2/C3 runtime verification (immutable-column triggers active in cloud?) — CLOSED July 1, 2026 | Critical | §6 LB-3 |
 | LB-4 | Stripe go-live switch (currently TEST mode) | Critical | §11 |
 | LB-6 | H2 — Legacy accept route bypasses V2 marketplace for subscription providers — CODE COMPLETE July 2, 2026 | High | §7 H2 |
-| LB-7 | H3 — No overage gate in `select_quote_atomic` — CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026 | High | §7 H3 |
+| LB-7 | H3 — No overage gate in `select_quote_atomic` — CODE COMPLETE; migration 047 applied, provider-row FOR UPDATE correction in migration 048 NOT YET APPLIED July 2, 2026 | High | §7 H3 |
 | LB-8 | P4-C1 — Thundering herd: provider Realtime broadcasts to all online providers | High | §13 |
 | LB-9 | OG image / logo file extension gaps | Medium | §2 Deployment |
 | LB-10 | P4-H3 — Weekly SLA reset is non-atomic — CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026 | Medium | §13 |
@@ -225,7 +225,7 @@ Migration `029_rpc_add_en_route_arrived_statuses.sql` line 231 contains `AND sta
 
 ### LB-7 — H3: No Overage Gate in `select_quote_atomic` (HIGH)
 
-**Status: CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026.** Overage gate added to subscriber branch of `select_quote_atomic` in migration 047. Returns `overage_required` reason when provider is at plan limit and `overage_cleared` is false. PPJ branch unchanged.
+**Status: CODE COMPLETE. Migration 047 APPLIED to cloud; provider-row FOR UPDATE correction in migration 048 NOT YET APPLIED (July 2, 2026).** Overage gate added to subscriber branch of `select_quote_atomic` in migration 047 (applied). Returns `overage_required` when the provider is at the plan limit and `overage_cleared` is false. Migration 047 was applied before the provider-row lock was added, so migration 048 recreates the function with `FOR UPDATE` on the provider row to prevent a TOCTOU race on `jobs_this_month`. LB-7 is not fully closed in cloud until migration 048 is applied.
 
 When a customer selects a subscription provider's quote via `select_quote_atomic`, the RPC does not check whether the provider has reached their monthly job limit. The overage guard exists in the legacy accept flow only. A customer can select a starter/pro provider who is at their limit; the request becomes `accepted` immediately and `jobs_this_month` is NOT incremented (no corresponding overage payment is collected).
 
@@ -321,7 +321,7 @@ Migration 040 removes `provider_documents` from the `select_quote_atomic` `RETUR
 
 ### H3 — V2 Overage Not Collected at Selection (OPEN LAUNCH BLOCKER)
 
-**Status: CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026.** See LB-7 for full description. Overage gate added to subscriber branch of select_quote_atomic.
+**Status: CODE COMPLETE. Migration 047 APPLIED; migration 048 (provider-row FOR UPDATE) NOT YET APPLIED July 2, 2026.** See LB-7 for full description. Overage gate added to subscriber branch of select_quote_atomic in migration 047; provider-row lock correction in migration 048.
 
 `select_quote_atomic` subscriber branch now checks jobs_this_month >= plan_limit before accepting. Returns overage_required if limit reached and overage_cleared is false. PPJ branch byte-for-byte unchanged from migration 045.
 
@@ -414,7 +414,7 @@ For marketplace design and flow, see [ARCHITECTURE.md §4].
 | Quote selection — PPJ path | Operational via migration 045 — `selected_pending_payment` flow active, under end-to-end testing |
 | Legacy accept route (`/api/provider/requests/accept`) | BLOCKED — all plans return 403 (PPJ: PPJ_PAYMENT_REQUIRED, subscribers: V2_QUOTE_REQUIRED) — LB-6 CODE COMPLETE July 2, 2026 |
 | Overage gate on legacy accept | Operational — route pre-flight + RPC atomic guard both in place |
-| Overage gate on V2 selection | CODE COMPLETE in migration 047 — NOT YET APPLIED — LB-7 July 2, 2026 |
+| Overage gate on V2 selection | CODE COMPLETE — migration 047 APPLIED; provider-row FOR UPDATE correction in migration 048 NOT YET APPLIED — LB-7 July 2, 2026 |
 | Request quotes RLS | Provider UUID exposure on expired/rejected quotes — LOW-02 open |
 | Realtime quote updates | Operational — `request_quotes` in Realtime publication |
 | Anonymous provider IDs in quote list | Operational — first 4 chars of UUID uppercase |
