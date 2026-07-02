@@ -2,6 +2,70 @@
 
 ---
 
+## Session: July 2, 2026 — Supabase Security Advisor: anon EXECUTE + search_path (migration 046)
+
+**Goal:** Address 44 Supabase Security Advisor warnings. Grepped all 001–045 migrations to determine which functions already had REVOKE FROM anon or SET search_path in prior migrations, then wrote migration 046 for the remaining gaps only.
+
+### Task 1 — Per-function verification findings
+
+**Category B — anon EXECUTE:**
+
+| Function | Already revoked? | Where |
+|---|---|---|
+| `admin_update_provider_status_atomic` | YES | migration 041 — REVOKE ALL FROM anon, authenticated |
+| `select_quote_atomic` | YES | migrations 040 + 045 |
+| `finalize_ppj_selection_atomic` | YES | migration 045 |
+| `request_price_change_atomic` | YES | migration 040 |
+| `respond_price_change_atomic` | YES | migration 040 |
+| `expire_stale_open_requests` | NO | needs REVOKE — included in 046 |
+| `expire_ppj_payment_selection_atomic` | YES | migration 045 |
+| `get_nearby_open_requests` | YES | migration 039 — REVOKE ALL FROM PUBLIC |
+| `get_nearby_providers` | NO | needs REVOKE — included in 046 |
+| `release_target_status` | YES | migration 040 |
+| `reset_monthly_job_counters` | YES | migration 022 — REVOKE ALL FROM PUBLIC/anon/authenticated |
+
+**Category C — SET search_path:**
+
+| Function | Already fixed? | Where |
+|---|---|---|
+| `get_nearby_providers` | NO | needs fix — included in 046 |
+| `update_provider_rating` | NO | needs fix — included in 046 |
+| `reset_monthly_job_counters` | NO | needs fix — included in 046 |
+| `check_provider_suspension` | NO | needs fix — included in 046 |
+| `expire_stale_open_requests` | YES | migration 007 line 18 |
+| `get_nearby_open_requests` | YES | migration 039 line 360 |
+
+### What migration 046 contains
+
+**File:** `supabase/migrations/046_revoke_anon_execute_and_fix_search_path.sql` (191 lines)
+
+- **Section 1 (lines 56–63):** REVOKE EXECUTE FROM anon for 2 functions:
+  - `expire_stale_open_requests(TIMESTAMPTZ)` — signature from migration 007 line 14
+  - `get_nearby_providers(DOUBLE PRECISION, DOUBLE PRECISION, INTEGER, TIMESTAMPTZ)` — signature from migration 002 lines 1–5
+
+- **Section 2 (lines 66–188):** CREATE OR REPLACE for 4 functions with SET search_path = public added:
+  - `get_nearby_providers` (lines 76–120) — body identical to migration 002 lines 16–45
+  - `reset_monthly_job_counters` (lines 127–139) — body identical to migration 002 lines 51–53; re-applies REVOKE ALL / GRANT to service_role to preserve migration 022 privileges after CREATE OR REPLACE
+  - `update_provider_rating` (lines 150–172) — body identical to migration 001 lines 155–182
+  - `check_provider_suspension` (lines 177–188) — body identical to migration 001 lines 189–197
+
+**Not touched (confirmed absent from migration 046):** `enforce_users_immutable_columns`, `enforce_providers_immutable_columns`, `is_admin`, `st_estimatedextent`, `payout_log` policies, `stripe_events` policies.
+
+### Verification
+- REVOKE count: 2 — matches the 2 functions confirmed needing it.
+- `SET search_path = public` confirmed in all 4 recreated function bodies (lines 92, 135, 172, 188).
+- False-positive functions confirmed absent via grep (zero results).
+- `npx tsc --noEmit` exit 0.
+- `npm run lint` exit 0.
+
+### Files changed
+- `supabase/migrations/046_revoke_anon_execute_and_fix_search_path.sql` — new migration (191 lines)
+- `PROJECT_STATUS.md` §13 — new finding entry added: "Supabase Advisor — anon EXECUTE and function_search_path_mutable (Migration 046)"
+
+**NOTE: Migration 046 has NOT YET been applied to the cloud Supabase project.** Must be applied via SQL Editor. After applying, rerun Supabase Security Advisor and confirm warning count drops by at least 6.
+
+---
+
 ## Session: July 1, 2026 — Cloud migration verification (LB-2 + LB-3 closed)
 
 **Goal:** Verify all 45 migrations are applied to the production Supabase project and confirm the C2/C3 security triggers are present in cloud, closing LB-2 and LB-3.

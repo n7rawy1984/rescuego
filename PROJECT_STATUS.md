@@ -558,6 +558,21 @@ These are known architectural or scale risks that are open and have no current f
 
 ---
 
+### Supabase Advisor — anon EXECUTE and function_search_path_mutable (Migration 046)
+
+**Status: CODE COMPLETE — needs runtime verification after SQL Editor apply.**
+
+Migration `046_revoke_anon_execute_and_fix_search_path.sql` addresses 44 Supabase Security Advisor warnings:
+
+- **REVOKE EXECUTE FROM anon** (Category B — 2 remaining functions not yet covered by prior migrations): `expire_stale_open_requests(TIMESTAMPTZ)` and `get_nearby_providers(DOUBLE PRECISION, DOUBLE PRECISION, INTEGER, TIMESTAMPTZ)`. All other Category B functions were already revoked in migrations 040, 041, and 045.
+- **SET search_path = public** (Category C — 4 functions): `get_nearby_providers`, `reset_monthly_job_counters`, `update_provider_rating`, `check_provider_suspension`. Functions recreated via `CREATE OR REPLACE` with exact original bodies; only `SET search_path = public` added.
+
+False positives (not touched): `st_estimatedextent` variants, `extension_in_public`, `enforce_users_immutable_columns`, `enforce_providers_immutable_columns`, `is_admin`, `rls_policy_always_true` on `payout_log`/`stripe_events`.
+
+**Runtime verification:** After applying migration 046 in SQL Editor, rerun Supabase Security Advisor and confirm warning count drops by at least 6 (2 anon-execute + 4 search_path warnings).
+
+---
+
 ### P4-H3 — Weekly SLA Reset Non-Atomic
 
 **Status: OPEN.**
