@@ -71,8 +71,15 @@ BEGIN
 
   v_provider_id := v_quote.provider_id;
 
+  -- Lock the provider row (FOR UPDATE) so the overage gate read of
+  -- jobs_this_month and the subsequent jobs_this_month + 1 UPDATE are atomic.
+  -- Without this lock, two concurrent select_quote_atomic calls for the same
+  -- at-limit provider could both pass the overage gate and both increment,
+  -- bypassing the monthly limit (TOCTOU). The requests FOR UPDATE above does
+  -- not protect the provider row across two different requests.
   SELECT * INTO v_provider FROM providers
-  WHERE id = v_provider_id;
+  WHERE id = v_provider_id
+  FOR UPDATE;
 
   -- PPJ BRANCH: unchanged from migration 045.
   IF v_provider.plan = 'pay_per_job' THEN

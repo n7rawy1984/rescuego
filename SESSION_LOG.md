@@ -2,6 +2,34 @@
 
 ---
 
+## Session: July 2, 2026 — FOR UPDATE provider lock in select_quote_atomic (migration 047 correction)
+
+**Goal:** Verify whether the provider row is locked (`FOR UPDATE`) in the subscriber overage path of `select_quote_atomic`, and correct migration 047 if the lock is missing.
+
+### What was verified
+
+- **Repo file `supabase/migrations/047_overage_gate_v2_and_sla_reset_atomic.sql`:** the providers SELECT after `v_provider_id` is set (originally lines 74–75) read `SELECT * INTO v_provider FROM providers WHERE id = v_provider_id;` — **NO `FOR UPDATE`**. The `requests` SELECT (line 42) already had `FOR UPDATE`; the providers SELECT did not.
+- **Live database `pg_proc` query — COULD NOT BE RUN.** No `psql` binary, no `supabase` CLI, no local `supabase/config.toml`, and no direct Postgres connection string (`DATABASE_URL` / `SUPABASE_DB_URL` / `POSTGRES_URL` all unset; `.env.local` contains only `NEXT_PUBLIC_SUPABASE_URL`, which is the REST endpoint and cannot execute `SELECT prosrc FROM pg_proc`). The user constraint "do not apply anything to Supabase SQL Editor" also rules out the SQL Editor. Live function body could not be inspected from this environment.
+- **Migration 047 is NOT YET APPLIED to cloud** (per prior July 2 entry). The live `select_quote_atomic` is therefore still the migration 045 body, which has no LB-7 subscriber overage branch at all — so the live function cannot yet contain this lock regardless.
+
+### What was found
+
+The repo migration 047 lacked `FOR UPDATE` on the provider row read in the subscriber path. This is a TOCTOU risk: without locking the provider row, two concurrent `select_quote_atomic` calls selecting the same at-limit provider (via two different requests) could both read `jobs_this_month` below the limit, both pass the overage gate, and both increment `jobs_this_month` — bypassing the monthly limit. The `requests FOR UPDATE` does not protect the provider row across different requests.
+
+### What was changed
+
+- `supabase/migrations/047_overage_gate_v2_and_sla_reset_atomic.sql`: added `FOR UPDATE` to the providers SELECT (now lines 80–82) plus an explanatory comment describing the TOCTOU race the lock prevents. PPJ branch and all other logic unchanged.
+
+### Verification
+
+- `npx tsc --noEmit`: exit 0.
+- `npm run lint`: exit 0.
+- (SQL migration content is not exercised by tsc/lint; these confirm no TypeScript/lint regression from the repo state.)
+
+**Migration 047 still NOT YET APPLIED to cloud Supabase.** Apply migrations 046 + 047 in order via SQL Editor before the next production deploy. The `FOR UPDATE` correction is now part of the migration that will be applied.
+
+---
+
 ## Session: July 2, 2026 — LB-6 + LB-7 + LB-10
 
 **Goal:** Close three launch blockers: LB-6 (legacy accept route bypasses V2 for subscribers), LB-7 (no overage gate in select_quote_atomic), LB-10 (weekly SLA reset non-atomic).
