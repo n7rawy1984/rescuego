@@ -15,14 +15,14 @@ Setup and environment variable definitions belong to [SETUP.md].
 
 | Fact | Current State |
 |---|---|
-| Migration baseline | 045 applied (`045_ppj_post_selection_fee_gate.sql`) |
-| Next migration number | 046 |
+| Migration baseline | 046 applied (`046_revoke_anon_execute_and_fix_search_path.sql`); 047 written, NOT YET APPLIED |
+| Next migration number | 048 |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
-| Cloud migration verification | VERIFIED — all migrations 001–045 confirmed applied (July 1, 2026) |
+| Cloud migration verification | VERIFIED — all migrations 001–045 confirmed applied (July 1, 2026); 046 not yet applied to cloud |
 | Launch readiness | NOT READY — multiple blockers active (see §6) |
-| Last documented work session | June 28, 2026 (migration 045 deployed, PPJ end-to-end testing begun) |
+| Last documented work session | July 2, 2026 (LB-6 + LB-7 + LB-10 code complete; migration 047 written) |
 
 ---
 
@@ -84,10 +84,10 @@ Cloud Supabase project has all 45 migrations applied in order (001–045). Verif
 
 | Fact | Value |
 |---|---|
-| Total migrations | 45 |
-| Latest applied (repo) | `045_ppj_post_selection_fee_gate.sql` |
-| Next migration number | 046 |
-| Cloud state | VERIFIED — all migrations 001–045 confirmed applied (July 1, 2026) |
+| Total migrations | 47 (046 applied to repo; 047 written, not yet applied to cloud) |
+| Latest applied (repo) | `047_overage_gate_v2_and_sla_reset_atomic.sql` (not yet applied to cloud Supabase) |
+| Next migration number | 048 |
+| Cloud state | VERIFIED through 045 (July 1, 2026); 046 + 047 pending SQL Editor apply |
 
 **Migrations 039–045 are the security and marketplace remediation batch.** All 45 migrations have been applied to the production Supabase project (verified July 1, 2026).
 
@@ -140,11 +140,11 @@ See §6 for detailed descriptions of each blocker.
 | LB-2 | Cloud migration verification (migrations 039–045 applied to production?) — CLOSED July 1, 2026 | Critical | §6 LB-2 |
 | LB-3 | C2/C3 runtime verification (immutable-column triggers active in cloud?) — CLOSED July 1, 2026 | Critical | §6 LB-3 |
 | LB-4 | Stripe go-live switch (currently TEST mode) | Critical | §11 |
-| LB-6 | H2 — Legacy accept route bypasses V2 marketplace for subscription providers | High | §7 H2 |
-| LB-7 | H3 — No overage gate in `select_quote_atomic` | High | §7 H3 |
+| LB-6 | H2 — Legacy accept route bypasses V2 marketplace for subscription providers — CODE COMPLETE July 2, 2026 | High | §7 H2 |
+| LB-7 | H3 — No overage gate in `select_quote_atomic` — CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026 | High | §7 H3 |
 | LB-8 | P4-C1 — Thundering herd: provider Realtime broadcasts to all online providers | High | §13 |
 | LB-9 | OG image / logo file extension gaps | Medium | §2 Deployment |
-| LB-10 | P4-H3 — Weekly SLA reset is non-atomic (visibility_reduced and counter_reset in two UPDATE statements) | Medium | §13 |
+| LB-10 | P4-H3 — Weekly SLA reset is non-atomic — CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026 | Medium | §13 |
 | LB-11 | `NEXT_PUBLIC_SITE_URL` not set in Vercel (password reset emails degrade) | Medium | §11 |
 
 ### Not blockers (deferred by owner decision)
@@ -213,7 +213,7 @@ Migration `029_rpc_add_en_route_arrived_statuses.sql` line 231 contains `AND sta
 
 ### LB-6 — H2: Legacy Accept Bypasses V2 (HIGH)
 
-**Status:** OPEN — Confirmed in `accept/route.ts`.
+**Status: CODE COMPLETE July 2, 2026.** `accept/route.ts` now returns 403 `V2_QUOTE_REQUIRED` for all subscription plans. PPJ guard still first, V2 guard second (unconditional). No DB writes possible via this route for any plan.
 
 `POST /api/provider/requests/accept` allows subscription providers to accept `open` status requests directly, bypassing the marketplace V2 quote flow entirely. PPJ providers are correctly blocked (403 `PPJ_PAYMENT_REQUIRED`). Subscription providers are not blocked.
 
@@ -225,7 +225,7 @@ Migration `029_rpc_add_en_route_arrived_statuses.sql` line 231 contains `AND sta
 
 ### LB-7 — H3: No Overage Gate in `select_quote_atomic` (HIGH)
 
-**Status:** OPEN — No evidence of overage check in `select_quote_atomic`.
+**Status: CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026.** Overage gate added to subscriber branch of `select_quote_atomic` in migration 047. Returns `overage_required` reason when provider is at plan limit and `overage_cleared` is false. PPJ branch unchanged.
 
 When a customer selects a subscription provider's quote via `select_quote_atomic`, the RPC does not check whether the provider has reached their monthly job limit. The overage guard exists in the legacy accept flow only. A customer can select a starter/pro provider who is at their limit; the request becomes `accepted` immediately and `jobs_this_month` is NOT incremented (no corresponding overage payment is collected).
 
@@ -313,17 +313,17 @@ Migration 040 removes `provider_documents` from the `select_quote_atomic` `RETUR
 
 ### H2 — Legacy Accept Bypasses V2 Marketplace (OPEN LAUNCH BLOCKER)
 
-**Status: OPEN.** See LB-6 for full description.
+**Status: CODE COMPLETE July 2, 2026.** See LB-6 for full description. Route now blocks all plans: PPJ via PPJ_PAYMENT_REQUIRED, subscribers via V2_QUOTE_REQUIRED.
 
-`POST /api/provider/requests/accept` allows subscription providers to accept `open` requests without going through the quote flow. PPJ is blocked. Subscription providers are not blocked.
+`POST /api/provider/requests/accept` now returns 403 for all plans. Subscription providers are blocked by the new V2_QUOTE_REQUIRED guard. PPJ providers blocked by existing PPJ_PAYMENT_REQUIRED guard.
 
 ---
 
 ### H3 — V2 Overage Not Collected at Selection (OPEN LAUNCH BLOCKER)
 
-**Status: OPEN.** See LB-7 for full description.
+**Status: CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026.** See LB-7 for full description. Overage gate added to subscriber branch of select_quote_atomic.
 
-`select_quote_atomic` has no overage check for at-limit subscription providers.
+`select_quote_atomic` subscriber branch now checks jobs_this_month >= plan_limit before accepting. Returns overage_required if limit reached and overage_cleared is false. PPJ branch byte-for-byte unchanged from migration 045.
 
 ---
 
@@ -412,9 +412,9 @@ For marketplace design and flow, see [ARCHITECTURE.md §4].
 | Quote submission (`submit_quote_atomic`) | Operational — fair price validation active but bounds widened (C5/LB-1) |
 | Quote selection — subscriber path | Operational — immediate accept, SLA starts, contact revealed |
 | Quote selection — PPJ path | Operational via migration 045 — `selected_pending_payment` flow active, under end-to-end testing |
-| Legacy accept route (`/api/provider/requests/accept`) | Operational for subscription providers — PPJ correctly blocked — H2 open (LB-6) |
+| Legacy accept route (`/api/provider/requests/accept`) | BLOCKED — all plans return 403 (PPJ: PPJ_PAYMENT_REQUIRED, subscribers: V2_QUOTE_REQUIRED) — LB-6 CODE COMPLETE July 2, 2026 |
 | Overage gate on legacy accept | Operational — route pre-flight + RPC atomic guard both in place |
-| Overage gate on V2 selection | MISSING — H3 open (LB-7) |
+| Overage gate on V2 selection | CODE COMPLETE in migration 047 — NOT YET APPLIED — LB-7 July 2, 2026 |
 | Request quotes RLS | Provider UUID exposure on expired/rejected quotes — LOW-02 open |
 | Realtime quote updates | Operational — `request_quotes` in Realtime publication |
 | Anonymous provider IDs in quote list | Operational — first 4 chars of UUID uppercase |
@@ -575,16 +575,7 @@ False positives (not touched): `st_estimatedextent` variants, `extension_in_publ
 
 ### P4-H3 — Weekly SLA Reset Non-Atomic
 
-**Status: OPEN.**
-
-`weekly-sla-reset/route.ts` performs two separate UPDATE statements: first `UPDATE SET visibility_reduced = true WHERE id IN (...)`, then `UPDATE SET sla_failure_count = 0 WHERE sla_failure_count > 0`. These are not wrapped in a transaction. If the route times out or Vercel terminates the invocation between the two UPDATE statements, some providers could have their `sla_failure_count` reset without their `visibility_reduced` flag being set (or vice versa).
-
-**Additionally:** The initial fetch `SELECT id, sla_failure_count FROM providers WHERE sla_failure_count > 0` has no LIMIT. At scale with many failing providers this could load a large dataset into memory.
-
-**Impact:** Inconsistent provider visibility state after partial execution. Low probability per-invocation but grows over time.
-
-**Required:** Wrap both updates in a single transaction, or use a `SECURITY DEFINER` RPC. Add LIMIT + pagination to the fetch.
-
+**Status: CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026.** `weekly-sla-reset/route.ts` now calls `weekly_sla_reset_atomic()` RPC (migration 047). Both UPDATE statements execute atomically inside the RPC. LIMIT 500 prevents unbounded fetch. No direct UPDATE statements remain in the route.
 ---
 
 ### P4-M4 — Rate Limiter Per-Instance Memory

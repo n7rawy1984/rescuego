@@ -2,6 +2,72 @@
 
 ---
 
+## Session: July 2, 2026 — LB-6 + LB-7 + LB-10
+
+**Goal:** Close three launch blockers: LB-6 (legacy accept route bypasses V2 for subscribers), LB-7 (no overage gate in select_quote_atomic), LB-10 (weekly SLA reset non-atomic).
+
+### Change 1 — LB-6: accept/route.ts V2 guard
+
+**Pre-change verification:**
+- PPJ guard block ends at line 110 (`}`), blank line 111, `if (!providerLocation)` at line 112.
+- PPJ guard returns 403 `PPJ_PAYMENT_REQUIRED` for `plan === 'pay_per_job'`.
+- No prior V2 guard existed.
+
+**Applied:** Inserted unconditional V2 guard block after PPJ guard. Subscription providers (starter/pro/business) now receive 403 `V2_QUOTE_REQUIRED`. Legacy accept path (providerLocation check, activeJob check, overage guard, `accept_provider_request_atomic` RPC) removed since it is now unreachable for all plans.
+
+**TypeScript fix:** `provider.plan !== 'pay_per_job'` at line 112 caused TS2367 (types have no overlap after PPJ guard narrowing). Guard made unconditional; unused imports and variables cleaned up. Final: tsc exit 0, lint exit 0 (no warnings).
+
+**Final file:** `accept/route.ts` — 115 lines. PPJ guard lines 76–90, V2 guard lines 92–108. All pre-flight checks preserved (role, 404, status). Legacy code removed, preserved in git history.
+
+### Change 2 — LB-7 + LB-10: migration 047
+
+**Pre-change verification:**
+- Migration 045 subscriber branch: `UPDATE requests SET status = 'accepted'` starts at line 209. No overage/plan_limit check precedes `jobs_this_month` UPDATE at line 232. Confirmed.
+- `weekly-sla-reset/route.ts`: first UPDATE (`visibility_reduced = true`) at line 44, second UPDATE (`sla_failure_count = 0`) at line 57. Not in a transaction. Confirmed.
+- Grep `weekly_sla_reset_atomic` across migrations 001–046: zero results. Confirmed new function.
+
+**Applied:** Created `supabase/migrations/047_overage_gate_v2_and_sla_reset_atomic.sql`.
+
+- **LB-7 (select_quote_atomic):** DROP + CREATE OR REPLACE with overage gate in subscriber branch. `v_plan_limit`: starter=15, pro=35, business=-1 (unlimited). Gate fires when `jobs_this_month >= v_plan_limit AND NOT overage_cleared`. Returns `overage_required`. PPJ branch byte-for-byte identical to migration 045 (lines 80–103 of migration 047).
+- **LB-10 (weekly_sla_reset_atomic):** New `SECURITY DEFINER` RPC. LIMIT 500 prevents unbounded fetch. `visibility_reduced = TRUE` and `sla_failure_count = 0` execute atomically in one transaction. Returns `(providers_reset INT, visibility_reduced_count INT)`.
+- Both functions: `REVOKE ALL FROM anon, authenticated` + `GRANT TO service_role`.
+
+**Migration 047 NOT YET APPLIED to cloud Supabase SQL Editor.** Apply after code review.
+
+### Change 3 — LB-10: weekly-sla-reset/route.ts
+
+**Pre-change verification:**
+- Line 44: `update({ visibility_reduced: true })` — first non-atomic UPDATE. Confirmed.
+- Line 57: `update({ sla_failure_count: 0 })` — second non-atomic UPDATE. Confirmed.
+- No RPC call existed in file. Confirmed.
+
+**Applied:** Replaced entire try block content with single `supabase.rpc('weekly_sla_reset_atomic')` call. Route structure, auth (`authorizeOpsRequest`), exports (`GET`, `POST`), and response shape (`{ success: true, providers_reset, visibility_reduced_count, errors }`) unchanged. `results` object still declared with `errors` array (preserved for shape compatibility). No direct UPDATE statements remain.
+
+**Post-change verification:** File is 62 lines. No UPDATE statements. Auth and exports byte-for-byte unchanged.
+
+### Change 4 — tsc + lint
+
+- `npx tsc --noEmit`: exit 0, no errors.
+- `npm run lint`: exit 0, no warnings.
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `src/app/api/provider/requests/accept/route.ts` | LB-6: V2 guard added, legacy accept path removed, unused imports cleaned |
+| `supabase/migrations/047_overage_gate_v2_and_sla_reset_atomic.sql` | New — LB-7 overage gate + LB-10 atomic SLA reset RPC |
+| `src/app/api/ops/weekly-sla-reset/route.ts` | LB-10: replaced two non-atomic UPDATEs with weekly_sla_reset_atomic() RPC call |
+| `PROJECT_STATUS.md` | §1, §3, §5, §6 LB-6/LB-7, §7 H2/H3, §8, §13 P4-H3 updated |
+
+### Note on migration 047
+
+Migration 047 is **code complete and committed** but has **not been applied to cloud Supabase**. Until applied:
+- LB-7 overage gate is inactive in production (select_quote_atomic still uses migration 045 body).
+- LB-10 atomic SLA reset is inactive (route falls back to error until RPC exists in Supabase).
+- Apply via Supabase SQL Editor before next production deploy.
+
+---
+
 ## Session: July 2, 2026 — Supabase Security Advisor: anon EXECUTE + search_path (migration 046)
 
 **Goal:** Address 44 Supabase Security Advisor warnings. Grepped all 001–045 migrations to determine which functions already had REVOKE FROM anon or SET search_path in prior migrations, then wrote migration 046 for the remaining gaps only.
