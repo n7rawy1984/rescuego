@@ -2,6 +2,51 @@
 
 ---
 
+## Session: July 3, 2026 — Stuck PPJ selection: cancel path + duplicate-request guard (migration 049)
+
+**Context:** Owner reported that after migrations 047/048, a customer request "disappeared": only the selected PPJ provider could see it, it vanished from subscriber dashboards, and a new request the customer tried to create left no trace (newest visible request in `/customer/history` remained June 29).
+
+### Root cause analysis
+
+Not a data-corruption issue and not caused by migrations 047/048. Verified by reading the full fetch/display chain (`get_nearby_open_requests` in migration 039, provider dashboard fetch in `src/app/provider/dashboard/page.tsx`, `ProviderRequestList.tsx`, `customer/history/page.tsx`) — none of it branches by plan. Actual sequence:
+
+1. Customer request reached `quoted`; customer selected a PPJ quote; `select_quote_atomic` set `status = 'selected_pending_payment'` and `accepted_by = <PPJ provider>`.
+2. While held, `get_nearby_open_requests` (filters `status IN ('open','quoted') AND accepted_by IS NULL`) hides it from all other providers — this is why only the PPJ provider saw it (intended hold behavior, not a bug).
+3. The PPJ provider never paid; the marketplace cron (every minute, `vercel.json`) released it back to `quoted` via `expire_ppj_payment_selection_atomic`.
+4. The request stayed ACTIVE (`quoted`), so the duplicate-request guard in `POST /api/requests` rejected the new request with 409 — the "new" request was never created. `/customer/history` shows the old request at its original June 29 date; the active request surface is `/customer/request`.
+
+Two real defects were exposed:
+
+- **Guard mismatch:** `GET /api/requests` treated `selected_pending_payment` as active but the `POST` duplicate guard did not — a customer could create a second request during the PPJ payment window.
+- **Lock-out risk:** once POST also blocks during `selected_pending_payment`, the customer must be able to cancel that request — but `cancel_request_and_compensate_atomic` (migration 034) did not include `selected_pending_payment` in its cancellable-status list, so the customer would be stuck until the cron released it.
+
+### Files changed
+
+- `src/app/api/requests/route.ts` — POST duplicate guard status list now includes `'selected_pending_payment'` (matches GET) + explanatory comment.
+- `supabase/migrations/049_allow_cancel_selected_pending_payment.sql` — new. Recreates `cancel_request_and_compensate_atomic` identical to migration 034 with ONE functional change: `'selected_pending_payment'` added to the cancellable `status IN (...)` filter. REVOKE/GRANT re-applied (service_role only).
+- `PROJECT_STATUS.md` — 1/3/9 updated: migration 049 CODE COMPLETE — NOT YET APPLIED; next migration number 050.
+
+### Why migration 049 was required
+
+Migration 034 is the latest applied definition of `cancel_request_and_compensate_atomic` and is immutable. Its cancel UPDATE filter omitted `selected_pending_payment`, so a customer-initiated cancel of a pending PPJ selection returned `request_status_changed`. Compensation safety: `v_is_late` only considers `('accepted','en_route','arrived','in_progress')`, so cancelling a pending-payment selection is NOT late and grants no provider compensation — correct, since the provider never paid the fee.
+
+### Verification (this session)
+
+- Confirmed 049 vs 034: single functional line change (`status IN` list); rest of function body identical (line-by-line comparison, comments stripped).
+- `npx tsc --noEmit`: exit 0.
+- `npm run lint`: exit 0.
+- Committed as `cabdb4f`.
+
+### Runtime verification still required (after applying migration 049 in Supabase SQL Editor)
+
+1. Apply `049_allow_cancel_selected_pending_payment.sql` manually (048 also still pending).
+2. Create a request, submit a quote, select a PPJ provider (do not pay) — request enters `selected_pending_payment`.
+3. As the customer on `/customer/request`, cancel the request — must succeed (previously returned "could not be cancelled").
+4. Immediately create a new request — must succeed after the cancel; must be blocked with 409 while the selection is still pending.
+5. Confirm the PPJ provider received no compensation for the cancel (no recovery credit granted).
+
+---
+
 ## Session: July 2, 2026 — Migration 048: provider-row FOR UPDATE correction (047 immutable)
 
 **Context:** Migration 047 was applied manually to Supabase BEFORE the provider-row `FOR UPDATE` fix was committed locally (in a prior local-only edit). Migration 047 is therefore immutable and must match the applied version exactly. The lock correction moves to a new corrective migration 048.

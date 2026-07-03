@@ -15,14 +15,14 @@ Setup and environment variable definitions belong to [SETUP.md].
 
 | Fact | Current State |
 |---|---|
-| Migration baseline | 047 applied (`047_overage_gate_v2_and_sla_reset_atomic.sql`); 048 written, NOT YET APPLIED |
-| Next migration number | 049 |
+| Migration baseline | 047 applied (`047_overage_gate_v2_and_sla_reset_atomic.sql`); 048 and 049 written, NOT YET APPLIED |
+| Next migration number | 050 |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
 | Cloud migration verification | VERIFIED — all migrations 001–045 confirmed applied (July 1, 2026); 046 not yet applied to cloud |
 | Launch readiness | NOT READY — multiple blockers active (see §6) |
-| Last documented work session | July 2, 2026 (migration 048 written: provider-row FOR UPDATE correction for select_quote_atomic) |
+| Last documented work session | July 3, 2026 (migration 049 written: allow customer cancel of `selected_pending_payment` + POST duplicate guard fix) |
 
 ---
 
@@ -84,10 +84,10 @@ Cloud Supabase project has all 45 migrations applied in order (001–045). Verif
 
 | Fact | Value |
 |---|---|
-| Total migrations | 48 (047 applied to cloud; 048 written, not yet applied) |
+| Total migrations | 49 (047 applied to cloud; 048 and 049 written, not yet applied) |
 | Latest applied (cloud) | `047_overage_gate_v2_and_sla_reset_atomic.sql` (applied manually before the provider-row lock correction) |
-| Next migration number | 049 |
-| Cloud state | VERIFIED through 045 (July 1, 2026); 046 pending; 047 applied manually; 048 (FOR UPDATE correction) NOT YET APPLIED |
+| Next migration number | 050 |
+| Cloud state | VERIFIED through 045 (July 1, 2026); 046 pending; 047 applied manually; 048 (FOR UPDATE correction) NOT YET APPLIED; 049 (cancel `selected_pending_payment`) NOT YET APPLIED |
 
 **Migrations 039–045 are the security and marketplace remediation batch.** All 45 migrations have been applied to the production Supabase project (verified July 1, 2026).
 
@@ -437,6 +437,8 @@ For PPJ design, see [ARCHITECTURE.md §6].
 | PPJ finalization | Operational — webhook calls `finalize_ppj_selection_atomic` |
 | Recovery credits | Implemented server-side — credit path in webhook and ppj-checkout route |
 | End-to-end testing | IN PROGRESS — no passing E2E verification recorded |
+| Customer cancel during payment window | CODE COMPLETE — NOT YET APPLIED — migration 049 adds `selected_pending_payment` to cancellable statuses in `cancel_request_and_compensate_atomic`; runtime verification pending after cloud application |
+| Duplicate-request guard during payment window | CODE COMPLETE — POST `/api/requests` now treats `selected_pending_payment` as active (matches GET); deployed with next Vercel build |
 
 **Open PPJ product issues (not blockers for deployment, tracked in DEFERRED_PRODUCT_BACKLOG):**
 
