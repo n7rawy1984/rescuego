@@ -272,11 +272,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only customer accounts can submit recovery requests' }, { status: 403 })
   }
 
+  // Duplicate-request guard. This list MUST stay in sync with the active-request
+  // status list in GET (above): a request the customer can still see as "active"
+  // must also block creating a second one. 'selected_pending_payment' is a PPJ
+  // request whose fee is not yet paid — it is held for the selected provider and
+  // is auto-released by the marketplace cron if unpaid, so it counts as active.
   const { data: existingActiveRequest, error: activeLookupError } = await supabase
     .from('requests')
     .select('id, status')
     .eq('customer_id', user.id)
-    .in('status', ['open', 'quoted', 'accepted', 'en_route', 'arrived', 'in_progress'])
+    .in('status', ['open', 'quoted', 'selected_pending_payment', 'accepted', 'en_route', 'arrived', 'in_progress'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
