@@ -15,14 +15,14 @@ Setup and environment variable definitions belong to [SETUP.md].
 
 | Fact | Current State |
 |---|---|
-| Migration baseline | 047 applied (`047_overage_gate_v2_and_sla_reset_atomic.sql`); 048 and 049 written, NOT YET APPLIED |
-| Next migration number | 050 |
+| Migration baseline | 047 applied (`047_overage_gate_v2_and_sla_reset_atomic.sql`); 048, 049, and 050 written, NOT YET APPLIED |
+| Next migration number | 051 (planned dispatch/visibility migrations start at 051+) |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
-| Cloud migration verification | VERIFIED — all migrations 001–045 confirmed applied (July 1, 2026); 046 not yet applied to cloud |
+| Cloud migration verification | VERIFIED — 001–045 confirmed (July 1, 2026); 046 CONFIRMED APPLIED July 5, 2026 (`pg_proc.prosrc` check) but its `update_provider_rating` rewrite is DEFECTIVE (uses non-existent `ratings.score`; real column is `stars`) — every rating insert fails with 42703 until migration 050 is applied |
 | Launch readiness | NOT READY — multiple blockers active (see §6) |
-| Last documented work session | July 3, 2026 (migration 049 written: allow customer cancel of `selected_pending_payment` + POST duplicate guard fix) |
+| Last documented work session | July 5, 2026 (migration 050 written: restore `update_provider_rating` original `stars` body — fixes 046 regression that broke all rating inserts) |
 
 ---
 
@@ -84,10 +84,10 @@ Cloud Supabase project has all 45 migrations applied in order (001–045). Verif
 
 | Fact | Value |
 |---|---|
-| Total migrations | 49 (047 applied to cloud; 048 and 049 written, not yet applied) |
+| Total migrations | 50 (047 applied to cloud; 046 applied but defective — see below; 048, 049, 050 written, not yet applied) |
 | Latest applied (cloud) | `047_overage_gate_v2_and_sla_reset_atomic.sql` (applied manually before the provider-row lock correction) |
-| Next migration number | 050 |
-| Cloud state | VERIFIED through 045 (July 1, 2026); 046 pending; 047 applied manually; 048 (FOR UPDATE correction) NOT YET APPLIED; 049 (cancel `selected_pending_payment`) NOT YET APPLIED |
+| Next migration number | 051 (planned dispatch/visibility work numbers from 051+) |
+| Cloud state | VERIFIED through 045 (July 1, 2026); 046 CONFIRMED APPLIED July 5, 2026 with defective `update_provider_rating` (production bug — ratings 500); 047 applied manually; 048 (FOR UPDATE correction) NOT YET APPLIED; 049 (cancel `selected_pending_payment`) NOT YET APPLIED; 050 (rating trigger fix, `score`→`stars`) CODE COMPLETE — NOT YET APPLIED |
 
 **Migrations 039–045 are the security and marketplace remediation batch.** All 45 migrations have been applied to the production Supabase project (verified July 1, 2026).
 
@@ -562,16 +562,28 @@ These are known architectural or scale risks that are open and have no current f
 
 ### Supabase Advisor — anon EXECUTE and function_search_path_mutable (Migration 046)
 
-**Status: CODE COMPLETE — needs runtime verification after SQL Editor apply.**
+**Status: APPLIED to cloud (confirmed July 5, 2026) — but introduced a production regression, fixed by migration 050 (NOT YET APPLIED).**
 
 Migration `046_revoke_anon_execute_and_fix_search_path.sql` addresses 44 Supabase Security Advisor warnings:
 
 - **REVOKE EXECUTE FROM anon** (Category B — 2 remaining functions not yet covered by prior migrations): `expire_stale_open_requests(TIMESTAMPTZ)` and `get_nearby_providers(DOUBLE PRECISION, DOUBLE PRECISION, INTEGER, TIMESTAMPTZ)`. All other Category B functions were already revoked in migrations 040, 041, and 045.
-- **SET search_path = public** (Category C — 4 functions): `get_nearby_providers`, `reset_monthly_job_counters`, `update_provider_rating`, `check_provider_suspension`. Functions recreated via `CREATE OR REPLACE` with exact original bodies; only `SET search_path = public` added.
+- **SET search_path = public** (Category C — 4 functions): `get_nearby_providers`, `reset_monthly_job_counters`, `update_provider_rating`, `check_provider_suspension`. Despite the migration's claim of "exact original bodies", the `update_provider_rating` rewrite was NOT identical — see regression below.
 
 False positives (not touched): `st_estimatedextent` variants, `extension_in_public`, `enforce_users_immutable_columns`, `enforce_providers_immutable_columns`, `is_admin`, `rls_policy_always_true` on `payout_log`/`stripe_events`.
 
 **Runtime verification:** After applying migration 046 in SQL Editor, rerun Supabase Security Advisor and confirm warning count drops by at least 6 (2 anon-execute + 4 search_path warnings).
+
+---
+
+### Migration 050 — Rating Trigger Regression Fix (046 `score` → `stars`)
+
+**Status: CODE COMPLETE — NOT YET APPLIED. Do not mark runtime verified until SQL Editor apply and a UI rating submission succeed.**
+
+Migration 046's rewrite of `update_provider_rating` was defective: its body reads `ratings.score`, a column that does not exist — the real column is `stars` (migration 001). PL/pgSQL does not validate column references at CREATE time, so 046 applied cleanly; the failure only surfaces at runtime. Confirmed live in production July 5, 2026: `pg_proc.prosrc` contains `score`, and every `INSERT INTO ratings` fails inside the AFTER INSERT trigger with Postgres error 42703 (`column "score" does not exist`), returned to the customer as a generic 500 from `POST /api/ratings` (log event `rating_submit_failed`).
+
+Migration `050_fix_update_provider_rating_stars_column.sql` restores the original migration 001 trigger body — `ROUND(AVG(stars)::NUMERIC, 2)` over the last 50 ratings by `created_at DESC` — keeping only the legitimate 046 addition: `SET search_path = public`. The trigger binding is untouched; no other function, table, policy, or grant is modified. Diff-verified: function body between `BEGIN` and `END;` is byte-identical to migration 001.
+
+**Runtime verification required:** apply 050 in SQL Editor → submit the pending rating in the UI → expect `rating_submitted`, `providers.rating` recomputed from `ratings.stars`, and a duplicate submission returning 409.
 
 ---
 

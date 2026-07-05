@@ -2,6 +2,56 @@
 
 ---
 
+## Session: July 5, 2026 — Production rating 500: migration 046 regression in `update_provider_rating` (migration 050)
+
+**Context:** Owner reported that customer rating submission returned 500 after the first fully completed PPJ job (quote → selection → PPJ payment → accepted → en_route → arrived → in_progress → completed). Read-only analysis identified the cause; owner confirmed it live in production (`pg_proc.prosrc` contains `score`; rating insert fails with Postgres 42703).
+
+### Root cause
+
+Migration `046_revoke_anon_execute_and_fix_search_path.sql` recreated the trigger function `public.update_provider_rating` to add `SET search_path = public` (Supabase Security Advisor Category C). Despite the migration's header claiming the bodies were "byte-for-byte identical", the rewritten body reads a non-existent column:
+
+```sql
+SELECT COALESCE(AVG(score), 0) ... ( SELECT score FROM ratings ... )
+```
+
+The `ratings` table has **`stars`** (migration 001), never `score` — a repo-wide search of all migrations confirms `score` appears only inside 046's rewritten body. PL/pgSQL does not validate column references at `CREATE FUNCTION` time, so 046 applied cleanly and the defect only surfaced at runtime.
+
+### Exact failing function and why every rating insert failed
+
+- Failing function: `public.update_provider_rating()` — fired by `trigger_update_provider_rating` (AFTER INSERT ON `ratings`, migration 001).
+- Every `INSERT INTO ratings` (from `POST /api/ratings`) aborts inside the trigger with Postgres error 42703 `column "score" does not exist`; the route returns a generic 500 and logs `rating_submit_failed`.
+- Not PPJ-specific: any completed job (subscriber or PPJ) hits the same failure. The PPJ job was simply the first rating attempted after 046 was applied.
+
+### What migration 050 changes
+
+`supabase/migrations/050_fix_update_provider_rating_stars_column.sql` — `CREATE OR REPLACE FUNCTION public.update_provider_rating()` with the ORIGINAL migration 001 body: `ROUND(AVG(stars)::NUMERIC, 2)` over the provider's last 50 ratings ordered by `created_at DESC`, updating `providers.rating`, returning `NEW`. The only addition is the legitimate 046 security option `SET search_path = public`. The trigger binding is untouched (`CREATE OR REPLACE` preserves it); no grants/revokes needed (trigger functions are not REST-callable); migration 046 was not modified (applied migrations are immutable); no other function, table, policy, or RPC touched. No application code changed.
+
+### Mandatory diff result
+
+Unified diff of the function in 050 vs the original in 001: the body between `BEGIN` and `END;` is **byte-for-byte identical** (programmatic comparison returned `BODY BYTE-IDENTICAL: True`). Only accepted differences: header schema-qualifies the name (`public.update_provider_rating`) and the options line changes from `LANGUAGE plpgsql SECURITY DEFINER;` to `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;`.
+
+### Files changed
+
+- `supabase/migrations/050_fix_update_provider_rating_stars_column.sql` (NEW — 43 lines)
+- `PROJECT_STATUS.md` (snapshot, migration baseline → next number 051, 046 advisor section corrected, new migration 050 section)
+- `SESSION_LOG.md` (this entry)
+
+### Verification done this session
+
+- `npx tsc --noEmit` → exit 0
+- `npm run lint` → exit 0
+- Programmatic body diff 001 vs 050 (see above)
+
+### Runtime verification steps still required
+
+1. Apply migration 050 in the Supabase SQL Editor.
+2. Submit the pending rating again in the customer UI (stars + comment).
+3. Confirm `rating_submitted` succeeds (200; log event `rating_submitted`, no `rating_submit_failed`).
+4. Confirm `providers.rating` updated from `ratings.stars` (`SELECT rating FROM providers WHERE id = '<provider_id>';` = rounded average of last 50 ratings).
+5. Confirm a duplicate rating for the same job returns 409.
+
+---
+
 ## Session: July 3, 2026 — Stuck PPJ selection: cancel path + duplicate-request guard (migration 049)
 
 **Context:** Owner reported that after migrations 047/048, a customer request "disappeared": only the selected PPJ provider could see it, it vanished from subscriber dashboards, and a new request the customer tried to create left no trace (newest visible request in `/customer/history` remained June 29).
