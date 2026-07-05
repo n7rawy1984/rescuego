@@ -23,6 +23,7 @@ import ProviderRealtimeRefresh from '@/components/provider/ProviderRealtimeRefre
 import JobStateAdvanceButton from '@/components/forms/JobStateAdvanceButton'
 import SlaTimer from '@/components/provider/SlaTimer'
 import PpjPaymentPrompt from '@/components/provider/PpjPaymentPrompt'
+import DismissibleNotice from '@/components/provider/DismissibleNotice'
 import { getProviderLocationDisplay } from '@/lib/location-display'
 import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
@@ -757,27 +758,32 @@ export default async function ProviderDashboardPage({
 
               {/* CUSTOMER CANCELLATION NOTICE */}
               {recentCustomerCancellation && isRecentOperationalNotice(recentCustomerCancellation.cancelled_at) && (
-                <Card className="mb-6 border-slate-200 bg-white shadow-sm">
-                  <CardBody>
-                    <div className="flex flex-col gap-1">
-                      <h2 className="font-semibold text-slate-900">{t('customerCancelledRequest')}</h2>
-                      <p className="text-sm text-slate-600">
-                        {recentCustomerCancellation.problem_type
-                          ? t('problemCancelledByCustomer', { problem: getProblemLabel(recentCustomerCancellation.problem_type) })
-                          : t('recentRequestCancelledByCustomer')}
-                        {' '}
-                        {/* accepted_at is null when the cancel happened during the PPJ
-                            payment window — nothing was paid, so avoid the misleading
-                            "payment protected" / "usage restored" copy. */}
-                        {recentCustomerCancellation.accepted_at === null
-                          ? tPpjPrompt('cancelledByCustomer')
-                          : provider.plan === 'pay_per_job'
-                            ? t('ppjPaymentProtected')
-                            : t('usageRestored')}
-                      </p>
-                    </div>
-                  </CardBody>
-                </Card>
+                <DismissibleNotice
+                  storageKey={recentCustomerCancellation.id}
+                  dismissLabel={t('dismissNotice')}
+                >
+                  <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+                    <CardBody>
+                      <div className="flex flex-col gap-1">
+                        <h2 className="font-semibold text-slate-900">{t('customerCancelledRequest')}</h2>
+                        <p className="text-sm text-slate-600">
+                          {recentCustomerCancellation.problem_type
+                            ? t('problemCancelledByCustomer', { problem: getProblemLabel(recentCustomerCancellation.problem_type) })
+                            : t('recentRequestCancelledByCustomer')}
+                          {' '}
+                          {/* accepted_at is null when the cancel happened during the PPJ
+                              payment window — nothing was paid, so avoid the misleading
+                              "payment protected" / "usage restored" copy. */}
+                          {recentCustomerCancellation.accepted_at === null
+                            ? tPpjPrompt('cancelledByCustomer')
+                            : provider.plan === 'pay_per_job'
+                              ? t('ppjPaymentProtected')
+                              : t('usageRestored')}
+                        </p>
+                      </div>
+                    </CardBody>
+                  </Card>
+                </DismissibleNotice>
               )}
 
               {/* PPJ: price accepted — pay the fee to reveal details + start the job */}

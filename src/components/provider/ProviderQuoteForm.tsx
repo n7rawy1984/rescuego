@@ -35,16 +35,21 @@ export default function ProviderQuoteForm({ requestId, disabled = false }: Props
         body: JSON.stringify({ request_id: requestId, proposed_price: numPrice }),
       })
 
-      if (res.status === 429) {
-        setError(t('tooManyAttempts'))
-        setSubmitting(false)
-        return
-      }
-
-      const result = await res.json()
+      // Parse the body BEFORE branching on status: the route returns 429 for both
+      // the rate limiter and the RPC daily quote limit — only the stable `code`
+      // field distinguishes them, so the provider gets an honest message.
+      const result: { error?: string; code?: string } | null = await res.json().catch(() => null)
 
       if (!res.ok) {
-        setError(result.error ?? t('quoteSubmitFailed'))
+        if (result?.code === 'daily_limit_reached') {
+          setError(t('dailyQuoteLimitReached'))
+        } else if (res.status === 429) {
+          setError(t('tooManyAttempts'))
+        } else if (res.status === 403) {
+          setError(t('accountNotEligible'))
+        } else {
+          setError(result?.error ?? t('quoteSubmitFailed'))
+        }
         setSubmitting(false)
         return
       }

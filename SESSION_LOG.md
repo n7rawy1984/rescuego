@@ -2,6 +2,39 @@
 
 ---
 
+## Session: July 5, 2026 (later) — Honest quote-form errors + dismissible cancellation notice
+
+**Two provider-dashboard UX fixes confirmed by this session's read-only analysis. Frontend + i18n only — no migrations, no RPCs, no rate-limit or lifecycle changes.**
+
+### Fix 1 — Quote form showed "too many attempts" for the daily quote limit
+
+**Root cause:** `ProviderQuoteForm.tsx` checked `res.status === 429` before parsing the response body, so ALL 429s rendered as `tooManyAttempts` — including the RPC's `daily_limit_reached`, which `/api/provider/jobs/quote` maps to HTTP 429. During repeated same-day testing, PPJ providers (3 quotes/day, counted from `request_quotes.sent_at::DATE = CURRENT_DATE` regardless of quote status) hit the daily quota, and the first quote of a new session showed a misleading "too many attempts" error. 403 cases (role/inactive/offline) fell through to raw English server strings.
+
+**Verified before changing:** the route already returns a stable `code` field for all RPC-mapped errors (`code: reason`, including `daily_limit_reached`) — so NO route change was needed. The limiter 429 carries no `code`; route-level 403s carry only `error` strings.
+
+**Change (`src/components/provider/ProviderQuoteForm.tsx`):** parse the body first, then branch: `code === 'daily_limit_reached'` → new `dailyQuoteLimitReached` message; other 429 → `tooManyAttempts` (true rate limit); 403 → new `accountNotEligible`; everything else unchanged (`result.error ?? quoteSubmitFailed`).
+
+### Fix 2 — Customer-cancellation notice not dismissible
+
+**Root cause:** the notice renders in the dashboard Server Component for 24 hours after `cancelled_at` (`isRecentOperationalNotice`) with no dismiss mechanism.
+
+**Change:** new client component `src/components/provider/DismissibleNotice.tsx` — wraps the server-rendered notice, adds an X button (translated `aria-label`), and hides it per request id via `sessionStorage` (`rescuego:notice-dismissed:<requestId>`). Dismissal lasts only for the browser session; the 24 h window logic is untouched; the recent-activity feed remains the permanent record. localStorage intentionally NOT used. The dashboard wraps the existing notice card in this component.
+
+### Files changed
+
+- `src/components/provider/ProviderQuoteForm.tsx` — body-first error branching
+- `src/components/provider/DismissibleNotice.tsx` — NEW client component
+- `src/app/provider/dashboard/page.tsx` — import + wrap cancellation notice
+- `messages/ar.json`, `messages/en.json` — `components.providerRequestList.dailyQuoteLimitReached` ("لقد وصلت إلى الحد اليومي لعروض الأسعار — يتجدد غدًا."), `components.providerRequestList.accountNotEligible` ("حسابك غير مؤهل لإرسال عروض الأسعار حاليًا."), `provider.dashboard.dismissNotice` ("إغلاق التنبيه")
+- `SESSION_LOG.md` (this entry)
+
+### Verification
+
+- `npx tsc --noEmit` → exit 0; `npm run lint` → exit 0; both message files parse as valid JSON.
+- Runtime steps: (1) provider at daily quota submits a quote → sees the daily-limit message, not "too many attempts"; (2) >30 rapid submits in 60 s → still sees `tooManyAttempts` (true limiter); (3) suspended/offline provider → `accountNotEligible`; (4) cancellation notice shows an X — dismissing hides it immediately and it stays hidden after `router.refresh()`/reload within the same tab session, reappears in a new session while still inside the 24 h window; (5) recent-activity feed unchanged; (6) RTL: X button sits at the logical end (start-flipped correctly), aria-label in Arabic.
+
+---
+
 ## Session: July 5, 2026 (later) — Provider PPJ payment card stale after customer cancellation (UI/realtime fix)
 
 **Bug (reproduced in production):** customer cancelled a PPJ request during the payment window (migration 049 path — backend correct: `status='cancelled'`, hold released). The provider dashboard kept showing the "pay 15 AED" card with a running countdown; clicking Pay surfaced the raw English server string "Request is not awaiting your payment, or your selection has expired." inside the Arabic UI.
