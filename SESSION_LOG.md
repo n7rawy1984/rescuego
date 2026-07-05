@@ -2,6 +2,42 @@
 
 ---
 
+## Session: July 5, 2026 (later) — Provider PPJ payment card stale after customer cancellation (UI/realtime fix)
+
+**Bug (reproduced in production):** customer cancelled a PPJ request during the payment window (migration 049 path — backend correct: `status='cancelled'`, hold released). The provider dashboard kept showing the "pay 15 AED" card with a running countdown; clicking Pay surfaced the raw English server string "Request is not awaiting your payment, or your selection has expired." inside the Arabic UI.
+
+### Root cause
+
+No signal ever reached the provider client, and the card is prop-frozen:
+
+1. `ProviderRealtimeRefresh` had three channels, none of which could deliver the cancel event: the `requests` UPDATE channel filters `status=eq.open` (filter applies to the NEW row — a cancel produces `status='cancelled'`); the `request_quotes` channel never fires because `cancel_request_and_compensate_atomic` does not touch quote rows; the per-request channel was keyed to `activeRequestId = activeRequest?.id`, which is `null` during `selected_pending_payment` (no active job yet), so the held request was subscribed to by nothing.
+2. `PpjPaymentPrompt`'s countdown is client-only, computed from the initial `paymentWindowStartedAt` prop; it only refreshes when it reaches 0.
+3. The checkout 404 error string was rendered verbatim (`setError(result?.error || ...)`) — untranslated English.
+
+Not a caching issue: the dashboard is a request-time dynamic Server Component and its `pendingPaymentRequest` query is fresh per render; a manual refresh already cleared the card.
+
+### Fix (client/UI only — no migrations, no lifecycle/RPC/payment logic changes)
+
+- `src/app/provider/dashboard/page.tsx`: pass `activeRequestId={activeRequest?.id ?? pendingPaymentRequest?.id ?? null}` to `ProviderRealtimeRefresh` — during the payment window the existing per-request channel now subscribes to the held request, so the customer's cancel UPDATE triggers `router.refresh()`, unmounting the card and stopping the countdown. Also added `accepted_at` to the customer-cancellation notice query/type and, when `accepted_at IS NULL` (cancelled before payment — nothing was paid), the notice now shows `provider.ppjPaymentPrompt.cancelledByCustomer` instead of the misleading "payment protected"/"usage restored" copy.
+- `src/components/provider/PpjPaymentPrompt.tsx`: on checkout failure with HTTP 404 or `code === 'SELECTION_NOT_PENDING'`, show translated `t('selectionNoLongerAvailable')` instead of the raw server string, and call `router.refresh()` so the stale card clears even if the realtime event was missed.
+- `src/app/api/provider/ppj-checkout/route.ts`: the existing 404 response now also carries `code: 'SELECTION_NOT_PENDING'` (additive; status code and business logic unchanged).
+- `messages/ar.json` + `messages/en.json`: added `provider.ppjPaymentPrompt.cancelledByCustomer` ("ألغى العميل الطلب قبل إتمام الدفع") and `provider.ppjPaymentPrompt.selectionNoLongerAvailable` ("هذا الطلب لم يعد بانتظار دفعتك — ربما ألغاه العميل أو انتهت مهلة الاختيار.").
+
+### Files changed
+
+- `src/app/provider/dashboard/page.tsx`
+- `src/components/provider/PpjPaymentPrompt.tsx`
+- `src/app/api/provider/ppj-checkout/route.ts`
+- `messages/ar.json`, `messages/en.json`
+- `PROJECT_STATUS.md` (also corrected stale claims: migrations 048, 049, 050 were all applied and runtime-verified in Supabase on July 5, 2026), `SESSION_LOG.md`
+
+### Verification
+
+- `npx tsc --noEmit` → exit 0; `npm run lint` → exit 0; both message files re-parsed as valid JSON.
+- Runtime steps: select PPJ quote → card shows; customer cancels during window → provider card disappears within ~5 s (realtime refresh) and the notice "ألغى العميل الطلب قبل إتمام الدفع" renders; racing the Pay button shows the translated `selectionNoLongerAvailable` message (no raw English) and clears on refresh; provider continues receiving new requests.
+
+---
+
 ## Session: July 5, 2026 — Production rating 500: migration 046 regression in `update_provider_rating` (migration 050)
 
 **Context:** Owner reported that customer rating submission returned 500 after the first fully completed PPJ job (quote → selection → PPJ payment → accepted → en_route → arrived → in_progress → completed). Read-only analysis identified the cause; owner confirmed it live in production (`pg_proc.prosrc` contains `score`; rating insert fails with Postgres 42703).

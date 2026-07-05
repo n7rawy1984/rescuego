@@ -919,7 +919,9 @@
       "processing": "Processing…",
       "timeRemaining": "Time remaining:",
       "warningSoon": "Less than 5 minutes left — complete payment before the selection is cancelled.",
-      "genericError": "Payment could not be processed. Please try again."
+      "genericError": "Payment could not be processed. Please try again.",
+      "cancelledByCustomer": "The customer cancelled the request before payment was completed",
+      "selectionNoLongerAvailable": "This request is no longer awaiting your payment — the customer may have cancelled it or the selection expired."
     },
     "pending": {
       "accountSuspended": "Account suspended",

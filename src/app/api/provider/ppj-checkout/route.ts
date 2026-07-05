@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
 
   if (!request) {
     return NextResponse.json(
-      { error: 'Request is not awaiting your payment, or your selection has expired.' },
+      // Stable code lets the client show translated copy instead of this string.
+      { error: 'Request is not awaiting your payment, or your selection has expired.', code: 'SELECTION_NOT_PENDING' },
       { status: 404 }
     )
   }

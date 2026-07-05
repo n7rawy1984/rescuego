@@ -83,6 +83,16 @@ export default function PpjPaymentPrompt({ requestId, feeAed, paymentWindowStart
       const result = await res.json()
 
       if (!res.ok) {
+        // The selection is no longer held for this provider (customer cancelled,
+        // window expired, or already finalized). Show translated copy instead of
+        // the raw server string, and refresh so the stale card clears even if
+        // the realtime event was missed.
+        if (res.status === 404 || result?.code === 'SELECTION_NOT_PENDING') {
+          setError(t('selectionNoLongerAvailable'))
+          setSubmitting(false)
+          router.refresh()
+          return
+        }
         setError(result?.error || t('genericError'))
         setSubmitting(false)
         return

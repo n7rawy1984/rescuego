@@ -142,6 +142,7 @@ type CancelledRequestNoticeRow = {
   id: string
   problem_type: ProblemType | null
   cancelled_at: string | null
+  accepted_at: string | null
 }
 
 function formatApproxDistance(meters: number | null | undefined, t: Awaited<ReturnType<typeof getTranslations>>): string {
@@ -217,6 +218,7 @@ export default async function ProviderDashboardPage({
   searchParams?: Promise<{ payment?: string; payment_intent?: string; redirect_status?: string }>
 }) {
   const t = await getTranslations('provider.dashboard')
+  const tPpjPrompt = await getTranslations('provider.ppjPaymentPrompt')
 
   const params = await searchParams
   const returnedFromPayment = params?.payment === 'processing'
@@ -341,7 +343,7 @@ export default async function ProviderDashboardPage({
     operationalReady && !activeRequest
       ? admin
         .from('requests')
-        .select('id, problem_type, cancelled_at')
+        .select('id, problem_type, cancelled_at, accepted_at')
         .eq('accepted_by', user.id)
         .eq('status', 'cancelled')
         .eq('cancellation_actor', 'customer')
@@ -574,7 +576,11 @@ export default async function ProviderDashboardPage({
           {operationalReady && (
             <ProviderRealtimeRefresh
               providerId={user.id}
-              activeRequestId={activeRequest?.id ?? null}
+              // During the PPJ payment window there is no active job yet, so the
+              // per-request channel subscribes to the held request instead — a
+              // customer cancellation then triggers a refresh that unmounts the
+              // payment card and surfaces the cancellation notice.
+              activeRequestId={activeRequest?.id ?? pendingPaymentRequest?.id ?? null}
             />
           )}
 
@@ -760,9 +766,14 @@ export default async function ProviderDashboardPage({
                           ? t('problemCancelledByCustomer', { problem: getProblemLabel(recentCustomerCancellation.problem_type) })
                           : t('recentRequestCancelledByCustomer')}
                         {' '}
-                        {provider.plan === 'pay_per_job'
-                          ? t('ppjPaymentProtected')
-                          : t('usageRestored')}
+                        {/* accepted_at is null when the cancel happened during the PPJ
+                            payment window — nothing was paid, so avoid the misleading
+                            "payment protected" / "usage restored" copy. */}
+                        {recentCustomerCancellation.accepted_at === null
+                          ? tPpjPrompt('cancelledByCustomer')
+                          : provider.plan === 'pay_per_job'
+                            ? t('ppjPaymentProtected')
+                            : t('usageRestored')}
                       </p>
                     </div>
                   </CardBody>

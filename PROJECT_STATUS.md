@@ -15,14 +15,14 @@ Setup and environment variable definitions belong to [SETUP.md].
 
 | Fact | Current State |
 |---|---|
-| Migration baseline | 047 applied (`047_overage_gate_v2_and_sla_reset_atomic.sql`); 048, 049, and 050 written, NOT YET APPLIED |
+| Migration baseline | 050 applied (`050_fix_update_provider_rating_stars_column.sql`) — 048, 049, and 050 all applied and runtime-verified in Supabase July 5, 2026 |
 | Next migration number | 051 (planned dispatch/visibility migrations start at 051+) |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
-| Cloud migration verification | VERIFIED — 001–045 confirmed (July 1, 2026); 046 CONFIRMED APPLIED July 5, 2026 (`pg_proc.prosrc` check) but its `update_provider_rating` rewrite is DEFECTIVE (uses non-existent `ratings.score`; real column is `stars`) — every rating insert fails with 42703 until migration 050 is applied |
+| Cloud migration verification | VERIFIED through 050 — 001–045 confirmed July 1, 2026; 046 applied with a defective `update_provider_rating` rewrite (`ratings.score` — real column is `stars`; broke all rating inserts with 42703); 048, 049, and 050 applied and runtime-verified July 5, 2026 (050 restores the original `stars` trigger body) |
 | Launch readiness | NOT READY — multiple blockers active (see §6) |
-| Last documented work session | July 5, 2026 (migration 050 written: restore `update_provider_rating` original `stars` body — fixes 046 regression that broke all rating inserts) |
+| Last documented work session | July 5, 2026 (PPJ payment card reactivity: realtime refresh on customer cancellation during payment window + translated checkout error; migrations 048/049/050 confirmed applied and runtime-verified) |
 
 ---
 
@@ -84,14 +84,14 @@ Cloud Supabase project has all 45 migrations applied in order (001–045). Verif
 
 | Fact | Value |
 |---|---|
-| Total migrations | 50 (047 applied to cloud; 046 applied but defective — see below; 048, 049, 050 written, not yet applied) |
-| Latest applied (cloud) | `047_overage_gate_v2_and_sla_reset_atomic.sql` (applied manually before the provider-row lock correction) |
+| Total migrations | 50 — all applied to cloud (046 was applied defective, corrected by 050; 048/049/050 applied and runtime-verified July 5, 2026) |
+| Latest applied (cloud) | `050_fix_update_provider_rating_stars_column.sql` |
 | Next migration number | 051 (planned dispatch/visibility work numbers from 051+) |
-| Cloud state | VERIFIED through 045 (July 1, 2026); 046 CONFIRMED APPLIED July 5, 2026 with defective `update_provider_rating` (production bug — ratings 500); 047 applied manually; 048 (FOR UPDATE correction) NOT YET APPLIED; 049 (cancel `selected_pending_payment`) NOT YET APPLIED; 050 (rating trigger fix, `score`→`stars`) CODE COMPLETE — NOT YET APPLIED |
+| Cloud state | VERIFIED through 050 (July 5, 2026) — 046 was applied with a defective `update_provider_rating` (ratings 500 production bug); 047 applied manually; 048 (FOR UPDATE correction), 049 (cancel `selected_pending_payment`), and 050 (rating trigger fix, `score`→`stars`) all APPLIED and runtime-verified July 5, 2026 |
 
-**Migrations 039–045 are the security and marketplace remediation batch.** All 45 migrations have been applied to the production Supabase project (verified July 1, 2026).
+**Migrations 039–045 are the security and marketplace remediation batch.** All 50 migrations have been applied to the production Supabase project (001–045 verified July 1, 2026; 046–050 verified July 5, 2026).
 
-Complete migration sequence: 001–045. For architectural meaning of each migration see [ARCHITECTURE.md §2].
+Complete migration sequence: 001–050. For architectural meaning of each migration see [ARCHITECTURE.md §2].
 
 ---
 
@@ -141,10 +141,10 @@ See §6 for detailed descriptions of each blocker.
 | LB-3 | C2/C3 runtime verification (immutable-column triggers active in cloud?) — CLOSED July 1, 2026 | Critical | §6 LB-3 |
 | LB-4 | Stripe go-live switch (currently TEST mode) | Critical | §11 |
 | LB-6 | H2 — Legacy accept route bypasses V2 marketplace for subscription providers — CODE COMPLETE July 2, 2026 | High | §7 H2 |
-| LB-7 | H3 — No overage gate in `select_quote_atomic` — CODE COMPLETE; migration 047 applied, provider-row FOR UPDATE correction in migration 048 NOT YET APPLIED July 2, 2026 | High | §7 H3 |
+| LB-7 | H3 — No overage gate in `select_quote_atomic` — CLOSED; migration 047 applied, provider-row FOR UPDATE correction in migration 048 applied and runtime-verified July 5, 2026 | High | §7 H3 |
 | LB-8 | P4-C1 — Thundering herd: provider Realtime broadcasts to all online providers | High | §13 |
 | LB-9 | OG image / logo file extension gaps | Medium | §2 Deployment |
-| LB-10 | P4-H3 — Weekly SLA reset is non-atomic — CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026 | Medium | §13 |
+| LB-10 | P4-H3 — Weekly SLA reset is non-atomic — CLOSED, migration 047 applied to cloud | Medium | §13 |
 | LB-11 | `NEXT_PUBLIC_SITE_URL` not set in Vercel (password reset emails degrade) | Medium | §11 |
 
 ### Not blockers (deferred by owner decision)
@@ -225,7 +225,7 @@ Migration `029_rpc_add_en_route_arrived_statuses.sql` line 231 contains `AND sta
 
 ### LB-7 — H3: No Overage Gate in `select_quote_atomic` (HIGH)
 
-**Status: CODE COMPLETE. Migration 047 APPLIED to cloud; provider-row FOR UPDATE correction in migration 048 NOT YET APPLIED (July 2, 2026).** Overage gate added to subscriber branch of `select_quote_atomic` in migration 047 (applied). Returns `overage_required` when the provider is at the plan limit and `overage_cleared` is false. Migration 047 was applied before the provider-row lock was added, so migration 048 recreates the function with `FOR UPDATE` on the provider row to prevent a TOCTOU race on `jobs_this_month`. LB-7 is not fully closed in cloud until migration 048 is applied.
+**Status: CLOSED. Migration 047 APPLIED to cloud; provider-row FOR UPDATE correction in migration 048 APPLIED and runtime-verified (July 5, 2026).** Overage gate added to subscriber branch of `select_quote_atomic` in migration 047 (applied). Returns `overage_required` when the provider is at the plan limit and `overage_cleared` is false. Migration 047 was applied before the provider-row lock was added, so migration 048 recreates the function with `FOR UPDATE` on the provider row to prevent a TOCTOU race on `jobs_this_month`.
 
 When a customer selects a subscription provider's quote via `select_quote_atomic`, the RPC does not check whether the provider has reached their monthly job limit. The overage guard exists in the legacy accept flow only. A customer can select a starter/pro provider who is at their limit; the request becomes `accepted` immediately and `jobs_this_month` is NOT incremented (no corresponding overage payment is collected).
 
@@ -321,7 +321,7 @@ Migration 040 removes `provider_documents` from the `select_quote_atomic` `RETUR
 
 ### H3 — V2 Overage Not Collected at Selection (OPEN LAUNCH BLOCKER)
 
-**Status: CODE COMPLETE. Migration 047 APPLIED; migration 048 (provider-row FOR UPDATE) NOT YET APPLIED July 2, 2026.** See LB-7 for full description. Overage gate added to subscriber branch of select_quote_atomic in migration 047; provider-row lock correction in migration 048.
+**Status: CLOSED. Migration 047 APPLIED; migration 048 (provider-row FOR UPDATE) APPLIED and runtime-verified July 5, 2026.** See LB-7 for full description. Overage gate added to subscriber branch of select_quote_atomic in migration 047; provider-row lock correction in migration 048.
 
 `select_quote_atomic` subscriber branch now checks jobs_this_month >= plan_limit before accepting. Returns overage_required if limit reached and overage_cleared is false. PPJ branch byte-for-byte unchanged from migration 045.
 
@@ -414,7 +414,7 @@ For marketplace design and flow, see [ARCHITECTURE.md §4].
 | Quote selection — PPJ path | Operational via migration 045 — `selected_pending_payment` flow active, under end-to-end testing |
 | Legacy accept route (`/api/provider/requests/accept`) | BLOCKED — all plans return 403 (PPJ: PPJ_PAYMENT_REQUIRED, subscribers: V2_QUOTE_REQUIRED) — LB-6 CODE COMPLETE July 2, 2026 |
 | Overage gate on legacy accept | Operational — route pre-flight + RPC atomic guard both in place |
-| Overage gate on V2 selection | CODE COMPLETE — migration 047 APPLIED; provider-row FOR UPDATE correction in migration 048 NOT YET APPLIED — LB-7 July 2, 2026 |
+| Overage gate on V2 selection | CLOSED — migration 047 APPLIED; provider-row FOR UPDATE correction in migration 048 APPLIED and runtime-verified July 5, 2026 — LB-7 |
 | Request quotes RLS | Provider UUID exposure on expired/rejected quotes — LOW-02 open |
 | Realtime quote updates | Operational — `request_quotes` in Realtime publication |
 | Anonymous provider IDs in quote list | Operational — first 4 chars of UUID uppercase |
@@ -437,7 +437,7 @@ For PPJ design, see [ARCHITECTURE.md §6].
 | PPJ finalization | Operational — webhook calls `finalize_ppj_selection_atomic` |
 | Recovery credits | Implemented server-side — credit path in webhook and ppj-checkout route |
 | End-to-end testing | IN PROGRESS — no passing E2E verification recorded |
-| Customer cancel during payment window | CODE COMPLETE — NOT YET APPLIED — migration 049 adds `selected_pending_payment` to cancellable statuses in `cancel_request_and_compensate_atomic`; runtime verification pending after cloud application |
+| Customer cancel during payment window | CLOSED — migration 049 (adds `selected_pending_payment` to cancellable statuses in `cancel_request_and_compensate_atomic`) applied and runtime-verified July 5, 2026; provider dashboard now realtime-refreshes on this cancellation and shows translated copy (SESSION_LOG July 5, 2026) |
 | Duplicate-request guard during payment window | CODE COMPLETE — POST `/api/requests` now treats `selected_pending_payment` as active (matches GET); deployed with next Vercel build |
 
 **Open PPJ product issues (not blockers for deployment, tracked in DEFERRED_PRODUCT_BACKLOG):**
@@ -562,7 +562,7 @@ These are known architectural or scale risks that are open and have no current f
 
 ### Supabase Advisor — anon EXECUTE and function_search_path_mutable (Migration 046)
 
-**Status: APPLIED to cloud (confirmed July 5, 2026) — but introduced a production regression, fixed by migration 050 (NOT YET APPLIED).**
+**Status: APPLIED to cloud (confirmed July 5, 2026) — but introduced a production regression, fixed by migration 050 (applied and runtime-verified July 5, 2026).**
 
 Migration `046_revoke_anon_execute_and_fix_search_path.sql` addresses 44 Supabase Security Advisor warnings:
 
@@ -577,19 +577,19 @@ False positives (not touched): `st_estimatedextent` variants, `extension_in_publ
 
 ### Migration 050 — Rating Trigger Regression Fix (046 `score` → `stars`)
 
-**Status: CODE COMPLETE — NOT YET APPLIED. Do not mark runtime verified until SQL Editor apply and a UI rating submission succeed.**
+**Status: CLOSED — migration 050 APPLIED and runtime-verified in Supabase July 5, 2026.**
 
 Migration 046's rewrite of `update_provider_rating` was defective: its body reads `ratings.score`, a column that does not exist — the real column is `stars` (migration 001). PL/pgSQL does not validate column references at CREATE time, so 046 applied cleanly; the failure only surfaces at runtime. Confirmed live in production July 5, 2026: `pg_proc.prosrc` contains `score`, and every `INSERT INTO ratings` fails inside the AFTER INSERT trigger with Postgres error 42703 (`column "score" does not exist`), returned to the customer as a generic 500 from `POST /api/ratings` (log event `rating_submit_failed`).
 
 Migration `050_fix_update_provider_rating_stars_column.sql` restores the original migration 001 trigger body — `ROUND(AVG(stars)::NUMERIC, 2)` over the last 50 ratings by `created_at DESC` — keeping only the legitimate 046 addition: `SET search_path = public`. The trigger binding is untouched; no other function, table, policy, or grant is modified. Diff-verified: function body between `BEGIN` and `END;` is byte-identical to migration 001.
 
-**Runtime verification required:** apply 050 in SQL Editor → submit the pending rating in the UI → expect `rating_submitted`, `providers.rating` recomputed from `ratings.stars`, and a duplicate submission returning 409.
+**Runtime verification: DONE July 5, 2026** — 050 applied in SQL Editor; UI rating submission succeeded (`rating_submitted`), `providers.rating` recomputed from `ratings.stars`.
 
 ---
 
 ### P4-H3 — Weekly SLA Reset Non-Atomic
 
-**Status: CODE COMPLETE, migration 047 NOT YET APPLIED July 2, 2026.** `weekly-sla-reset/route.ts` now calls `weekly_sla_reset_atomic()` RPC (migration 047). Both UPDATE statements execute atomically inside the RPC. LIMIT 500 prevents unbounded fetch. No direct UPDATE statements remain in the route.
+**Status: CLOSED, migration 047 applied to cloud.** `weekly-sla-reset/route.ts` now calls `weekly_sla_reset_atomic()` RPC (migration 047). Both UPDATE statements execute atomically inside the RPC. LIMIT 500 prevents unbounded fetch. No direct UPDATE statements remain in the route.
 ---
 
 ### P4-M4 — Rate Limiter Per-Instance Memory
