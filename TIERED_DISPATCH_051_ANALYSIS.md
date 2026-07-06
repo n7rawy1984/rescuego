@@ -121,6 +121,8 @@ Only `expireUnselectedRequests` (the 20-min customer-selection timeout, see Time
 
 **Pre-existing live bug (independent of 051):** `select_quote_atomic` ignores `job_credit_balance` while the dashboard promises `effectiveLimit = planLimit + credits` since migration 008; credits are granted and reset but never consumed anywhere. Q2's resolution must cover consumption semantics, both gates, and whether this ships inside 051 Phase 3 or earlier.
 
+**Q3's duplicate count is 3, not 2:** `src/app/api/requests/route.ts:157` (`quotedAge > 20 * 60 * 1000`, response-only masking of the customer's own GET) and `src/app/api/ops/marketplace-cron/route.ts:109` (`cutoffMs = 20 * 60 * 1000`, the actual `quoted → expired` DB write) both hardcode the literal independently of `src/types/index.ts:100`'s `CUSTOMER_SELECTION_TIMEOUT_MS`, which is defined but imported nowhere. Both live spots key off `quoted_at`. 051 must update the duration/reference-column in all three places together (and either wire up or delete the orphaned constant) — updating only the cron leaves the customer's own request view masking/unmasking on the old 20-min/`quoted_at` rule while the cron enforces a different one. No functional duplicate found in customer-facing UI: `CustomerQuoteList.tsx`'s `expiresIn` countdown is the separate 10-min per-quote validity timer (`quote.expires_at`), and the one place `quoted_at` reaches the client (`requests/quotes/route.ts:218`) is typed but unused (dead field).
+
 ## §5 Phased implementation plan (plan only — no SQL, no code)
 
 - **Phase 0:** resolve the 4 open questions in §4.
