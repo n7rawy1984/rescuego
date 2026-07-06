@@ -2,6 +2,28 @@
 
 ---
 
+## Session: July 6, 2026 — Read-only check: `select_quote_atomic` ignores `job_credit_balance` (pre-051 bug confirmed)
+
+**Read-only investigation only — no migrations, no code changes.** Follow-up to the migration-051+ conflict analysis (`TIERED_DISPATCH_051_ANALYSIS.md` §4 open question 2).
+
+**Question:** does the live overage gate in `select_quote_atomic` (migration 048, applied) account for `job_credit_balance`, or only the raw plan limit?
+
+**Findings (confirmed by reading migration 048's function body, `stripe/webhook/route.ts`, `provider-allowance.ts`, `monthly-allowance-reset/route.ts`, and `provider/requests/accept/route.ts`):**
+
+1. The live gate compares `jobs_this_month` against a hardcoded `v_plan_limit` (starter=15, pro=35, business unlimited) — **raw only**, no reference to `job_credit_balance` anywhere in the function.
+2. Concrete live scenario: a provider upgrades `starter → pro` mid-cycle and is granted `job_credit_balance = 15` (the "preserve upgrade fairness" bonus from migration 008). `jobs_this_month` is not reset on upgrade, so once it reaches 35 (the raw `pro` limit) the dashboard (`getProviderAllowance`) still reports 15 jobs of room (`effectiveLimit = 35 + 15`), but `select_quote_atomic` blocks the very next quote selection with `overage_required` — contradicting what the provider was just told.
+3. `job_credit_balance` is granted on upgrade and zeroed on downgrade/monthly reset (`stripe/webhook/route.ts`, `monthly-allowance-reset/route.ts`) but is **never consumed/decremented anywhere** — no RPC reads it, and the only other code path that selects it (`provider/requests/accept/route.ts`) is dead (every plan branch returns a hardcoded 403).
+4. This is **not a new 051 feature** — it's a pre-existing inconsistency between the dashboard (crediting since migration 008) and the enforcement gate (never crediting, since 031/040/047/048).
+
+**Action taken:** added a standalone note to `TIERED_DISPATCH_051_ANALYSIS.md` (§4, after the open questions) flagging this as independent of 051 and requiring Q2's resolution to cover consumption semantics for both the existing select-time gate and the new submit-time gate.
+
+### Files changed
+
+- `TIERED_DISPATCH_051_ANALYSIS.md` — added pre-existing-bug note after §4
+- `SESSION_LOG.md` (this entry)
+
+---
+
 ## Session: July 5, 2026 (later) — Honest quote-form errors + dismissible cancellation notice
 
 **Two provider-dashboard UX fixes confirmed by this session's read-only analysis. Frontend + i18n only — no migrations, no RPCs, no rate-limit or lifecycle changes.**

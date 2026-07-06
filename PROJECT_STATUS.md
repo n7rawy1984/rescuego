@@ -16,7 +16,7 @@ Setup and environment variable definitions belong to [SETUP.md].
 | Fact | Current State |
 |---|---|
 | Migration baseline | 050 applied (`050_fix_update_provider_rating_stars_column.sql`) — 048, 049, and 050 all applied and runtime-verified in Supabase July 5, 2026 |
-| Next migration number | 051 (planned dispatch/visibility migrations start at 051+) |
+| Next migration number | 051 (planned dispatch/visibility migrations start at 051+) — full pre-implementation conflict analysis (D1–D6 tiered dispatch decisions vs. current schema/RPCs/timers/UI) already done, read-only, no code changed. See `TIERED_DISPATCH_051_ANALYSIS.md`. Read that file in full before writing any 051+ migration or code. |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
