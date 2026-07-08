@@ -1983,6 +1983,34 @@ All known issues resolved. Ready for live testing.
 - `src/lib/ops-auth.ts` — `import 'server-only'`
 - `src/lib/stripe.ts` — `import 'server-only'`
 - `src/lib/rate-limit.ts` — `import 'server-only'`
+
+## Session: July 8, 2026 — Migration 053: Tiered Dispatch Phase 2 (`get_nearby_open_requests` redesign)
+
+Read-only design first, then approved with 3 resolutions, then written.
+
+### Verify-first (before writing SQL, per the 046 lesson)
+- Confirmed via a full-repo search of `supabase/migrations/*.sql` that `039_security_backstop.sql` is the only migration that has ever created or altered `get_nearby_open_requests` — migration `046` only references it in a comment confirming pre-existing compliance (no DROP/CREATE/REVOKE/GRANT for this function in `046`).
+- Verified the live signature and grants byte-exact against `039_security_backstop.sql:334-401`: `LANGUAGE sql STABLE SECURITY DEFINER`, `p_radius integer DEFAULT 5000`, and — critically — only `REVOKE ALL ... FROM PUBLIC` + `GRANT EXECUTE ... TO authenticated, service_role` (no separate `anon` revoke exists for this specific function, unlike `submit_quote_atomic`).
+- Confirmed the sole caller: `src/app/provider/dashboard/page.tsx:428-434`, which passes `p_radius`/`p_limit` explicitly (never relies on the SQL default) and casts the result to a locally-defined `NearbyOpenRequestRow` type (`page.tsx:90`) — adding a new `visible_at` return column does not affect this cast, so no caller-side TypeScript change is required for Phase 2.
+
+### What changed (design, approved with 3 resolutions)
+- **Q-A (radius expansion, R1):** when `providers_in_range_at_creation < 10`, the distance filter is dropped entirely (no cap) rather than widened to a fixed constant — visibility is this function's only responsibility, trip economics are the provider's own decision.
+- **Q-B (new column):** added `visible_at TIMESTAMPTZ` to the return signature, computed as `created_at + total_delay_minutes` (zero in both fallback modes). Binding UI constraint recorded in `TIERED_DISPATCH_051_ANALYSIS.md` §5: the frontend may only use it to schedule silent refreshes, never to render a countdown or reveal that a specific not-yet-visible request exists (would recreate the R4 side-channel).
+- **Q-C:** approved as proposed — `distance_meters` is always the real `ST_Distance` value, never zeroed/masked.
+- Because `visible_at` changes the `RETURNS TABLE` shape, `CREATE OR REPLACE` cannot be used in place — the migration explicitly `DROP FUNCTION`s the exact live argument list (`integer, integer, timestamp with time zone`) first, then creates, then re-applies the exact live grants verified above.
+- Tier-delay logic (D1/D2), elapsed-time-from-`created_at` (R3), and the `visibility_reduced` +5min penalty (Q5) are computed once in a new `visible_requests` CTE and reused for both the visibility gate and `visible_at`, avoiding duplicating the CASE expression.
+- NULL-safe by design: `providers_in_range_at_creation`/`subscribers_in_range_at_creation` are NULL for every request until the API phase populates them (not yet shipped) — NULL resolves to 0 tier-delay via `COALESCE`, so a request is never hidden or delayed longer because of missing snapshot data. Consequence recorded explicitly: tiered delays have no live effect at all until the API phase ships.
+- Radius default changed `5000` → `150000`, but the sole caller passes `p_radius` explicitly, so this has no live effect until that constant is updated in a later (Phase 6) change — flagged, not fixed here (out of Phase 2's scope).
+- Everything not required by the above (privacy masking, `status`/`accepted_by` filter, `ORDER BY`, `LIMIT`, `current_provider` CTE's join/freshness conditions) preserved byte-identical to the live `039` body.
+
+### Verification
+- `npx tsc --noEmit` — exit 0.
+- `npm run lint` — exit 0.
+
+### Files changed
+- `supabase/migrations/053_tiered_visibility_rpc.sql` — created
+- `PROJECT_STATUS.md` — migration baseline, Migration 053 row (CODE COMPLETE — NOT YET APPLIED), next migration number → 054
+- `TIERED_DISPATCH_051_ANALYSIS.md` — §5 Phase 2 marked approved & written, Q-A/Q-B/Q-C resolutions and the binding UI constraint recorded
 - `src/lib/env.ts` — NEXT_PUBLIC_SITE_URL warning + Stripe price IDs in SERVER_REQUIRED_ENVS
 - `src/app/api/stripe/webhook/route.ts` — plan reset on deletion + SUBSCRIPTION_PLANS import + monthlyJobAllowance fix
 - `src/app/api/stripe/create-checkout/route.ts` — canonical SUBSCRIPTION_PLAN_IDS
