@@ -136,6 +136,8 @@ Only `expireUnselectedRequests` (the 20-min customer-selection timeout, see Time
 - **Phase 6 (application layer, can start in parallel once RPC signatures are agreed):** remove/replace the dashboard fallback (D3, launch-blocking); update the dashboard's RPC call site; neutralize the realtime toast; add D4 pre-submit UI messaging; inspect/update `ProviderRequestList`; reconcile the 50 km proximity normalizer; delete `dispatch.ts`; resolve the 20-minute timeout per Phase 0.
 - **Explicitly deferred, out of scope for 051+:** the `acceptanceRate`/`completedJobs` scoring defect; consolidating the triple-duplicated plan-limit constants (do opportunistically when touching D4's code, not a blocker).
 
+**SNAPSHOT CONSISTENCY CONSTRAINT (binding, applies to Phase 6 / the API phase):** `providers_in_range_at_creation` and `subscribers_in_range_at_creation` MUST be computed in a single SQL statement (one query returning both counts, e.g. `COUNT(*)` + `COUNT(*) FILTER (WHERE plan != 'pay_per_job')`), never two separate `SELECT`s — eliminating the race window between the two counts. The residual gap between the count query and the request `INSERT` is accepted by design (snapshot = creation-moment approximation; the frozen philosophy tolerates millisecond drift). A dedicated `create_request_atomic` RPC was considered and deferred — rebuilding the full creation path is disproportionate; revisit only if the API phase uncovers other atomicity needs in request creation.
+
 ---
 
 *This file is a planning artifact for migration 051+. It should be read in full before any 051+ migration or code change is written. Update or delete it once 051+ ships and its findings are either resolved or superseded.*

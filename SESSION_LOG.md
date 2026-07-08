@@ -29,6 +29,31 @@
 
 ---
 
+## Session: July 8, 2026 — Correction: migrations 051 and 052 applied and runtime-verified
+
+The "NOT YET APPLIED" status recorded for both migrations above is **superseded**. Both were deployed manually via the Supabase SQL Editor and runtime-verified directly against the live database in this session.
+
+**Runtime verification — 051 (`051_dispatch_foundation_schema.sql`):**
+- `requests.providers_in_range_at_creation` exists.
+- `requests.destination_emirate` exists.
+- `request_quotes.refunded_at` exists.
+- `get_provider_limits()` exists and returns the verified live-parity values for all four plans (starter/pro/business/pay_per_job).
+- The partial index (`idx_request_quotes_provider_daily_unrefunded`) exists.
+
+**Runtime verification — 052 (`052_subscriber_count_snapshot.sql`):**
+- `requests.subscribers_in_range_at_creation` exists with type INTEGER.
+- Its `COMMENT` is present.
+- No other schema objects changed.
+
+**Docs updated:** `PROJECT_STATUS.md` (both migration rows changed from CODE COMPLETE — NOT YET APPLIED to APPLIED & RUNTIME-VERIFIED, July 8, 2026; migration baseline bumped to 052), `TIERED_DISPATCH_051_ANALYSIS.md` §5 (binding snapshot-consistency design note added for the future API phase), `SESSION_LOG.md` (this entry). No code changes in this session — documentation corrections only.
+
+### Files changed
+- `PROJECT_STATUS.md`
+- `TIERED_DISPATCH_051_ANALYSIS.md`
+- `SESSION_LOG.md` (this entry)
+
+---
+
 **Created `supabase/migrations/051_dispatch_foundation_schema.sql`:**
 - `requests.providers_in_range_at_creation` — nullable INTEGER. Raw online-provider snapshot count only (D1/R1); the tier bucket is derived from this at read time in a later phase, never stored.
 - `requests.destination_emirate` — nullable TEXT + CHECK constraint over the 7 UAE emirates (R6), spelled identically to `src/lib/geo.ts`'s `UAE_REGIONS` names.
