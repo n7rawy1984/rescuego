@@ -2,6 +2,31 @@
 
 ---
 
+## Session: July 8, 2026 — Migration 051: Tiered Dispatch Phase 1 (schema foundation)
+
+**Schema-only migration. No RPC, trigger, lifecycle, realtime, API, or pricing changes.** Implements Phase 1 of the tiered-dispatch plan approved in `TIERED_DISPATCH_051_ANALYSIS.md` (D1–D6) plus this session's binding resolutions (R1–R6).
+
+**Read-only verification performed before writing SQL:** confirmed current schema state directly from migrations 001/008/012/031/035/039/045/046/047/049 and from `src/app/api/requests/route.ts` and `src/lib/geo.ts`. Confirmed `submit_quote_atomic` (migration 039) has not been redefined by any later migration (040/044/046/047/048 touch other functions only) — so its `v_daily_limit`/`v_max_active` CASE blocks (lines 213-227) are still the live values. Confirmed `select_quote_atomic`'s `v_plan_limit` (migration 047, lines 104-108) for monthly limits. This caught a factual error in the initial plan (daily quote limit is NOT uniformly 3 across plans — only `pay_per_job`/fallback is 3; starter=5, pro=10, business=20) before it was written into the new SSOT function.
+
+**Created `supabase/migrations/051_dispatch_foundation_schema.sql`:**
+- `requests.providers_in_range_at_creation` — nullable INTEGER. Raw online-provider snapshot count only (D1/R1); the tier bucket is derived from this at read time in a later phase, never stored.
+- `requests.destination_emirate` — nullable TEXT + CHECK constraint over the 7 UAE emirates (R6), spelled identically to `src/lib/geo.ts`'s `UAE_REGIONS` names.
+- `request_quotes.refunded_at` — nullable TIMESTAMPTZ (D5), mirroring the existing idempotent-marker pattern (`ppj_payments.recovery_credit_restored_at` / `requests.cancellation_compensated_at`). Partial index `idx_request_quotes_provider_daily_unrefunded` on `(provider_id, sent_at) WHERE refunded_at IS NULL` added to support the future daily-quote-count exclusion query.
+- `get_provider_limits(p_plan TEXT)` — new SSOT function (R5) returning `(monthly_limit, daily_quote_limit, concurrent_limit)`. Values are exact live-behavior parity with migrations 039/047, verified line-by-line, not changed. `STABLE`, `SET search_path = public`, `REVOKE ALL FROM PUBLIC`/`anon`/`authenticated`, `GRANT EXECUTE TO service_role` only. No existing RPC calls it yet — adoption is Phase 3.
+- All new columns default to `NULL`; no backfill (historical snapshot/refund data cannot be reconstructed).
+
+**Verification:** `npx tsc --noEmit` exit 0. `npm run lint` exit 0. Migration is code-complete but **not yet applied to Supabase**.
+
+**Docs updated:** `PROJECT_STATUS.md` (§1 snapshot table — new Migration 051 row, next migration number bumped to 052), `DEFERRED_PRODUCT_BACKLOG.md` (new P14 — differentiated daily quote limits are already live, review deferred to Phase 3).
+
+### Files changed
+- `supabase/migrations/051_dispatch_foundation_schema.sql` (new)
+- `PROJECT_STATUS.md`
+- `DEFERRED_PRODUCT_BACKLOG.md`
+- `SESSION_LOG.md` (this entry)
+
+---
+
 ## Session: July 6, 2026 — Read-only check: `select_quote_atomic` ignores `job_credit_balance` (pre-051 bug confirmed)
 
 **Read-only investigation only — no migrations, no code changes.** Follow-up to the migration-051+ conflict analysis (`TIERED_DISPATCH_051_ANALYSIS.md` §4 open question 2).

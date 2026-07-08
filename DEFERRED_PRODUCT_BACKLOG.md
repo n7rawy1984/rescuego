@@ -328,6 +328,20 @@ These are the grouping buckets the items below map to. They run **after** the se
   2. A PPJ provider with NO credit is selected.
   - **Expected:** the normal "pay 15 AED within 10 minutes" prompt + countdown (unchanged from P7).
 
+### P14 — Subscriber daily quote limits (5/10/20/3) — review before Phase 3 wires the SSOT
+- **Type:** Pricing / Dispatch (plan limits)
+- **Priority:** Low
+- **Severity:** Commercial
+- **Effort:** XS (values-only change, once Phase 3 wires `get_provider_limits()` into the enforcement RPCs)
+- **Target batch:** Dispatch Tuning / Tiered Dispatch Phase 3 (`select_quote_atomic` + `submit_quote_atomic` rebuild)
+- **Target release:** Decide during Phase 3, or post-launch
+- **Status:** OPEN
+- **Detail:** Currently ALL plans do NOT share the same daily quote limit — this was a factual correction made during migration 051 (Tiered Dispatch Phase 1): the differentiated limits (starter 5 / pro 10 / business 20 / pay_per_job 3, enforced in `submit_quote_atomic` since migration 039) are ALREADY LIVE, not uniform. Raised during 051 Phase 1 while building the `get_provider_limits()` single-source-of-truth function: should these values be revisited (e.g. raised further for higher subscription tiers as a stronger perk, or tightened on `business` if broker/reseller abuse is observed)?
+- **Owner decision:** Deferred — this is a pricing/product decision, not a schema decision. `get_provider_limits()` was created in migration 051 as exact live-behavior parity (no values changed). Decide at Phase 3 (`select_quote_atomic`/`submit_quote_atomic` gate rebuild) or post-launch, informed by soft-launch usage data — particularly whether `business`'s daily limit of 20 is being abused by brokers/resellers submitting quotes across many requests. When decided, the ONLY change needed is the values inside `get_provider_limits()` — every consuming RPC adopts it automatically once Phase 3 wires them to call it instead of their own hardcoded CASE blocks (that is the point of the SSOT function).
+- **QA scenario:**
+  1. As each plan tier, submit quotes up to the daily limit (starter 5, pro 10, business 20, pay_per_job 3).
+  - **Expected:** the (n+1)th quote of the day is rejected `daily_limit_reached` for each plan at its respective threshold, matching `get_provider_limits()`'s current values.
+
 - **CRIT-02 (P4b) — DONE, runtime-verified on production (June 26, 2026).** The `en_route`/`arrived` SLA auto-release was tested: minute cron returned `sla_releases: 1` and the released request reset to `open` with all stale state (`accepted_by`, `selected_quote_id`, `accepted_at`) cleared per D6. Kept here as a regression check to re-run after any future change to the SLA RPCs or the marketplace-cron route. NOTE: P10 may reveal an en_route-specific stuck case — re-verify there.
 
 ---
@@ -340,3 +354,5 @@ These are the grouping buckets the items below map to. They run **after** the se
 ---
 
 *Last updated: June 28, 2026 — security Batches 1–4 deployed/verified (migrations 039–043). Added P7 (PPJ post-selection fee-gate model), P8 (tiered dispatch is dead code — wire-up decision deferred), P9 (fair-price bounds temporarily widened, LAUNCH BLOCKER — formula to be redesigned two-leg with emirate destination, NOT restored to current values). P9 enriched and marked DONE for the widen step: migration `044_temp_widen_fair_price_bounds.sql` created (min_price_per_km=0.01, max_price_per_km=10000, base_fee unchanged; RPC `submit_quote_atomic` unchanged); confirmed formula `v_min_fair = base_fee + distance_km × min_price_per_km`, `v_max_fair = base_fee + distance_km × max_price_per_km`. Added P10 (premature SLA message on en_route / customer stuck — needs diagnosis), P11 (quote-status feedback messages to provider: submitted-and-waiting, customer-rejected — teaches fair pricing, ties to P5), P12 (cancellation notice lingers on dashboard + has no request identifier), and P13 (PPJ payment prompt shows "pay 15 AED" + countdown even when the provider has a recovery credit — should offer credit-confirmation copy instead; logic already correct, UI/copy only). PPJ post-selection fee gate (migration 045) deployed and in end-to-end testing. Env-var incident resolved (Stripe + cron keys corrected to test). This is a living file; add new testing findings in the same format as they appear.*
+
+*Update July 8, 2026 — Added P14 (subscriber daily quote limits 5/10/20/3 are already live since migration 039, not uniform; reviewing/adjusting these values is deferred to Tiered Dispatch Phase 3, when the new `get_provider_limits()` SSOT function created in migration 051 is wired into the enforcement RPCs).*

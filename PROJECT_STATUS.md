@@ -16,13 +16,14 @@ Setup and environment variable definitions belong to [SETUP.md].
 | Fact | Current State |
 |---|---|
 | Migration baseline | 050 applied (`050_fix_update_provider_rating_stars_column.sql`) — 048, 049, and 050 all applied and runtime-verified in Supabase July 5, 2026 |
-| Next migration number | 051 (planned dispatch/visibility migrations start at 051+) — full pre-implementation conflict analysis (D1–D6 tiered dispatch decisions vs. current schema/RPCs/timers/UI) already done, read-only, no code changed. See `TIERED_DISPATCH_051_ANALYSIS.md`. Read that file in full before writing any 051+ migration or code. |
+| Migration 051 | **CODE COMPLETE — NOT YET APPLIED.** `051_dispatch_foundation_schema.sql` — Tiered Dispatch Phase 1 (schema foundation only, no RPC/trigger/lifecycle/realtime/API/pricing changes). Adds `requests.providers_in_range_at_creation` (raw snapshot count, D1/R1), `requests.destination_emirate` (nullable TEXT + CHECK on the 7 UAE emirates, R6), `request_quotes.refunded_at` (D5 refund marker + partial index), and the new `get_provider_limits(plan)` SSOT function (R5, live-behavior-parity values from migrations 039/047, zero callers yet). `npx tsc --noEmit` and `npm run lint` both exit 0. Not yet applied to Supabase — apply and runtime-verify before starting Phase 2/3. |
+| Next migration number | 052 (after 051 is applied and verified). Phase 2/3 of tiered dispatch (RPC rewrites consuming `get_provider_limits`, job_credit_balance consumption mechanism, selection-timeout unification) are planned next per `TIERED_DISPATCH_051_ANALYSIS.md` D1–D6 + session resolutions R1–R6. |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
 | Cloud migration verification | VERIFIED through 050 — 001–045 confirmed July 1, 2026; 046 applied with a defective `update_provider_rating` rewrite (`ratings.score` — real column is `stars`; broke all rating inserts with 42703); 048, 049, and 050 applied and runtime-verified July 5, 2026 (050 restores the original `stars` trigger body) |
 | Launch readiness | NOT READY — multiple blockers active (see §6) |
-| Last documented work session | July 5, 2026 (PPJ payment card reactivity: realtime refresh on customer cancellation during payment window + translated checkout error; migrations 048/049/050 confirmed applied and runtime-verified) |
+| Last documented work session | July 8, 2026 (Tiered Dispatch Phase 1: migration `051_dispatch_foundation_schema.sql` created — schema foundation only, code complete, not yet applied to Supabase) |
 
 ---
 
