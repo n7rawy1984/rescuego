@@ -8,6 +8,27 @@
 
 **Read-only verification performed before writing SQL:** confirmed current schema state directly from migrations 001/008/012/031/035/039/045/046/047/049 and from `src/app/api/requests/route.ts` and `src/lib/geo.ts`. Confirmed `submit_quote_atomic` (migration 039) has not been redefined by any later migration (040/044/046/047/048 touch other functions only) — so its `v_daily_limit`/`v_max_active` CASE blocks (lines 213-227) are still the live values. Confirmed `select_quote_atomic`'s `v_plan_limit` (migration 047, lines 104-108) for monthly limits. This caught a factual error in the initial plan (daily quote limit is NOT uniformly 3 across plans — only `pay_per_job`/fallback is 3; starter=5, pro=10, business=20) before it was written into the new SSOT function.
 
+## Session: July 8, 2026 — Migration 052: subscriber-count snapshot (Phase 1 gap closure)
+
+**Schema-only migration.** Closes a gap identified after 051 shipped: `providers_in_range_at_creation` alone cannot distinguish "15 providers, some subscribers" from "15 providers, all PPJ" — same count, opposite zero-subscriber-fallback dispatch behavior.
+
+**Verification performed before writing SQL:** confirmed no column named `subscribers_in_range_at_creation`/`subscriber_count`/`providers_in_range` (other than 051's own `providers_in_range_at_creation`) exists anywhere in the migration history; confirmed 051's file content directly to verify it did not already add this column; `providers_in_range_at_creation` left untouched.
+
+**Created `supabase/migrations/052_subscriber_count_snapshot.sql`:**
+- `requests.subscribers_in_range_at_creation` — nullable INTEGER, `DEFAULT NULL`. Frozen count of online subscribers (starter/pro/business, fresh GPS ≤5min) within 150km at request creation. `NULL` = pre-052 row, `0` = zero-subscriber fallback. Populated by the request-creation API in a later phase — no live code writes it yet. Stores a raw count (not a boolean) for the same reasons as 051's `providers_in_range_at_creation`: flexible read-time derivation, future policy tuning, analytics value, same storage cost.
+- No other objects. No RPC/API/lifecycle changes.
+
+**Verification:** `npx tsc --noEmit` exit 0. `npm run lint` exit 0. Migration is code-complete but **not yet applied to Supabase**.
+
+**Docs updated:** `PROJECT_STATUS.md` (new Migration 052 row, next migration number bumped to 053), `SESSION_LOG.md` (this entry).
+
+### Files changed
+- `supabase/migrations/052_subscriber_count_snapshot.sql` (new)
+- `PROJECT_STATUS.md`
+- `SESSION_LOG.md` (this entry)
+
+---
+
 **Created `supabase/migrations/051_dispatch_foundation_schema.sql`:**
 - `requests.providers_in_range_at_creation` — nullable INTEGER. Raw online-provider snapshot count only (D1/R1); the tier bucket is derived from this at read time in a later phase, never stored.
 - `requests.destination_emirate` — nullable TEXT + CHECK constraint over the 7 UAE emirates (R6), spelled identically to `src/lib/geo.ts`'s `UAE_REGIONS` names.
