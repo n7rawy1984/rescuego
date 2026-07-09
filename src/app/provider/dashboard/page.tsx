@@ -95,6 +95,9 @@ type NearbyOpenRequestRow = DashboardRequestRow & {
   uae_emirate_ar?: string | null
   uae_area?: string | null
   uae_area_ar?: string | null
+  // RPC-only field (migration 053, 17th column). Not rendered yet — reserved
+  // for the later realtime phase's silent-refresh scheduling (Q-B).
+  visible_at?: string | null
 }
 
 type RecentJobRow = {
@@ -422,7 +425,7 @@ export default async function ProviderDashboardPage({
 
   const providerLocationUpdatedAt = providerLocation?.updated_at ?? null
   const providerIsOnline = operationalReady && isTimestampWithinMinutes(providerLocationUpdatedAt, PROVIDER_STALE_MINUTES)
-  let requestFeedMode: RequestFeedMode = providerIsOnline ? 'nearby' : 'offline'
+  const requestFeedMode: RequestFeedMode = providerIsOnline ? 'nearby' : 'offline'
   let openRequests: NearbyOpenRequestRow[] | FallbackOpenRequestRow[] | null = null
 
   if (operationalReady && providerIsOnline) {
@@ -438,19 +441,17 @@ export default async function ProviderDashboardPage({
     }
   }
 
-  if (operationalReady && (!openRequests || openRequests.length === 0)) {
-    const { data: fallbackRequests } = await admin
-      .from('requests')
-      .select('id, problem_type, status, accepted_by, created_at, destination, destination_area, fuzzy_latitude, fuzzy_longitude')
-      .in('status', ['open', 'quoted'])
-      .is('accepted_by', null)
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .returns<FallbackOpenRequestRow[]>()
-
-    openRequests = Array.isArray(fallbackRequests) ? fallbackRequests : []
-    requestFeedMode = providerIsOnline ? 'fallback' : 'offline'
-  }
+  // The RPC alone is the single source of truth for what a provider sees:
+  // it already returns legacy NULL-snapshot rows (COALESCE to 0 delay),
+  // zero-subscriber-fallback rows (Q3 absolute override to 0 delay), and
+  // on-time tier-delayed rows once their visible_at has passed. There is no
+  // legitimately-visible row this RPC omits, so no direct-table fallback is
+  // needed or safe: it previously bypassed the tier-delay gate entirely
+  // (migration 053) whenever the RPC returned zero rows, which is exactly
+  // what caused a request to appear ~3.5 minutes early despite a 6-minute
+  // tier delay. A genuinely empty result (nearby-but-delayed, or provider
+  // offline) is the correct state and is rendered via requestFeedMode
+  // ('nearby' | 'offline') with its existing empty-state copy.
 
   if (openRequests && openRequests.length > 0) {
     const requestIds = openRequests.map((r) => r.id)

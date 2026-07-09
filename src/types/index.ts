@@ -63,7 +63,11 @@ export const PAY_PER_JOB_PROMO_FEE_AED = Number(process.env.NEXT_PUBLIC_PPJ_PROM
 export const OVERAGE_FEE_AED = 12
 export const PREMIUM_JOB_THRESHOLD_AED = 400
 export const REQUEST_LOCK_SECONDS = 60
-export const PROVIDER_RADIUS_METERS = 5000
+// Matches get_nearby_open_requests' own p_radius default (migration 053):
+// the RPC drops the distance filter entirely below a 10-provider count
+// (R1/Q-A), so this only bounds the >=10-provider branch. Sole caller:
+// src/app/provider/dashboard/page.tsx.
+export const PROVIDER_RADIUS_METERS = 150000
 export const PROVIDER_STALE_MINUTES = 5
 
 // Support contact — set NEXT_PUBLIC_SUPPORT_EMAIL in Vercel to override

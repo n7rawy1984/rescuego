@@ -2,6 +2,25 @@
 
 ---
 
+## Session: July 9, 2026 — Dashboard-RPC wiring: remove admin fallback, activate 150km RPC radius (tiered visibility now enforced on dashboard)
+
+**Root cause:** the provider dashboard already called `get_nearby_open_requests` (migration 053) via the correct user-context client — the earlier assumption that it bypassed the RPC entirely was corrected during read-only analysis. The actual bug was a same-file fallback: whenever the RPC returned zero rows (which happens every time a nearby request is still inside its tier-delay window, not just when genuinely none exist), `src/app/provider/dashboard/page.tsx` fell back to a raw `admin.from('requests')` query with no radius/GPS/plan/delay filter at all. This exactly reproduced the confirmed live symptom: a PPJ provider saw a request 3m22s after creation despite an active 6-minute tier delay.
+
+**Fix — wires the dashboard to rely on the RPC alone:**
+1. Deleted the admin-client fallback block in `src/app/provider/dashboard/page.tsx` (previously ~lines 441-453). `requestFeedMode` now simplifies to `'nearby' | 'offline'` only (no more `'fallback'` state); `let` changed to `const` since it's no longer reassigned (required for lint's `prefer-const`).
+2. Changed `PROVIDER_RADIUS_METERS` in `src/types/index.ts` from `5000` to `150000`, matching `get_nearby_open_requests`' own default (migration 053's design intent, already approved but deferred — "has no live effect until that constant is updated," per the migration-053 session note). Confirmed via a repo-wide search that this constant has exactly one definition and one call site (the dashboard's RPC call) — no other caller relied on the old `5000` value.
+3. Added `visible_at?: string | null` to the dashboard's local `NearbyOpenRequestRow` type, since the RPC returns 17 columns including `visible_at`. Not consumed by the UI yet — reserved for the later realtime phase (Q-B: silent-refresh scheduling only, never a countdown).
+
+**No-legitimate-purpose proof for the fallback removal:** `get_nearby_open_requests` is already a complete source of truth for every row a provider should see — legacy pre-052/053 rows with `NULL` snapshot columns resolve to 0 tier-delay via `COALESCE`, zero-subscriber-fallback rows resolve to 0 delay via Q3's absolute override, and normal rows become visible exactly when `now() - created_at >= total_delay_minutes` (i.e., once `visible_at` has passed). There is no row category the RPC omits that the fallback query was needed to supply — the fallback existed purely as a bypass of the RPC's tier-delay gate, not as a legitimate coverage gap.
+
+**Verification:** `npx tsc --noEmit` exits 0. `npm run lint` exits 0 (one `prefer-const` error surfaced immediately after the fallback deletion, since `requestFeedMode`'s only reassignment was inside the deleted block; fixed by changing `let` to `const`).
+
+### Files changed
+- `src/app/provider/dashboard/page.tsx`
+- `src/types/index.ts`
+- `TIERED_DISPATCH_051_ANALYSIS.md`
+- `PROJECT_STATUS.md`
+
 ## Session: July 8, 2026 — Migration 051: Tiered Dispatch Phase 1 (schema foundation)
 
 **Schema-only migration. No RPC, trigger, lifecycle, realtime, API, or pricing changes.** Implements Phase 1 of the tiered-dispatch plan approved in `TIERED_DISPATCH_051_ANALYSIS.md` (D1–D6) plus this session's binding resolutions (R1–R6).
