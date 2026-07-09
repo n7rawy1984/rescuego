@@ -735,6 +735,30 @@ None. `providers.status` is TEXT with a CHECK allow-list; `provider_kyc_log` col
 
 ### Verification
 - `npx tsc --noEmit` — exit 0.
+
+## Session: July 8, 2026 — API phase: mandatory GPS, snapshot population, Dubai fallback removal (tiered dispatch activation)
+
+Read-only design first (previous entry), approved with Q1/Q2 resolutions, then implemented. Code-only — no new migration.
+
+### What changed
+- **`src/app/api/requests/route.ts`:** `coords` is now a required field in the request schema (was optional/nullable); a missing/invalid-range `coords` returns `422 { error, code: 'coordinates_required' }` distinctly from other validation failures (still `400`). The fixed `POINT(55.2708 25.2048)` Dubai-center fallback and the matching `fuzzy` null-fallback are removed — both are now unconditional since coordinates are guaranteed present. `location_address` is now optional (R6: address is a descriptive note only). Added a new `accuracy` optional field, recorded in the `request_created` log event as `gps_accuracy_meters` — never used for gating (Q1).
+- **Snapshot population:** `providers_in_range_at_creation`/`subscribers_in_range_at_creation` are now populated on every insert. Implementation note: Supabase's PostgREST query builder cannot express `ST_DWithin` or `COUNT ... FILTER` directly, and no new migration/RPC was authorized this phase. The binding single-statement constraint (`TIERED_DISPATCH_051_ANALYSIS.md` §5) is satisfied with ONE `.select('lat, lng, providers!inner(plan, status)')` round-trip against `provider_locations` (using its existing generated `lat`/`lng` columns from migration 036), filtered to `providers.status = 'active'` and GPS updated within 5 minutes — the 150km radius check and both count aggregations are then computed in application code via the existing `distanceMeters()` helper from `src/lib/geo.ts`. One query, no race window between two separate `SELECT`s. Runs via the admin (service-role) client — mandatory, not the user-context client, since a customer session cannot read other providers' rows under RLS. If the query fails, both snapshot columns are left `NULL` and the failure is logged as `snapshot_count_failed` — request creation still succeeds. This NULL fallback is INTENTIONAL (falls to the pre-tiered "visible to all" legacy path via migration 053's `COALESCE`) and must never be treated as a bug to fix.
+- **`src/app/customer/request/page.tsx`:** GPS is now required to reach step 3 (the "Continue" button is disabled without `coords`, not `address`). `handleSubmit`'s validation now checks `coords` separately from `problemType`/`phone`, showing a dedicated `locationRequiredHint` message. The address field is fully decoupled from GPS: `handleAddressChange` no longer clears `coords` on edit (the superseded "manual-source bypass" — dead code removed, not reused), and a successful GPS fix no longer overwrites the address field with a placeholder string. The permission-denied handler no longer auto-focuses the address input (manual address can no longer substitute for GPS). A new `gpsAccuracy` state records `pos.coords.accuracy` (Q1: recorded, never gates). Step-3's summary falls back to a `gpsLocationConfirmed` message when the optional address note is empty.
+- **i18n (`messages/en.json` + `messages/ar.json`):** modified `addressLabel`, `addressPlaceholder`, `locationNotSupported`, `locationDenied`, `locationFailed` to reflect GPS-mandatory / address-is-optional-note copy; added new keys `locationRequiredHint`, `gpsLocationConfirmed`. `manualLocation` is left in place, unused (harmless, not deleted).
+- **Q2 (in-flight requests at deploy):** no special handling — a form opened pre-deploy and submitted post-deploy without coordinates gets the `coordinates_required` error with the existing retry path, which is the intended behavior.
+- **`destination_emirate`:** left unpopulated — out of scope; the form has no destination-coordinate capture to derive it from (separate future form-phase item).
+
+### Verification
+- `npx tsc --noEmit` — exit 0.
+- `npm run lint` — exit 0.
+
+### Files changed
+- `src/app/api/requests/route.ts`
+- `src/app/customer/request/page.tsx`
+- `messages/en.json`
+- `messages/ar.json`
+- `PROJECT_STATUS.md` — new "API phase (tiered dispatch activation)" status row, CODE COMPLETE — awaiting deploy
+- `TIERED_DISPATCH_051_ANALYSIS.md` — §5 API-phase note marked IMPLEMENTED, records Q1/Q2, the dual-count implementation approach, the intentional NULL count-failure fallback, and the manual-source-bypass supersession
 - `npm run lint` — exit 0 (removed an unused param to keep it clean).
 - `npm run build` — succeeded; full route manifest emitted (including the changed ops/admin routes).
 
@@ -2005,6 +2029,30 @@ Read-only design first, then approved with 3 resolutions, then written.
 
 ### Verification
 - `npx tsc --noEmit` — exit 0.
+
+## Session: July 8, 2026 — API phase: mandatory GPS, snapshot population, Dubai fallback removal (tiered dispatch activation)
+
+Read-only design first (previous entry), approved with Q1/Q2 resolutions, then implemented. Code-only — no new migration.
+
+### What changed
+- **`src/app/api/requests/route.ts`:** `coords` is now a required field in the request schema (was optional/nullable); a missing/invalid-range `coords` returns `422 { error, code: 'coordinates_required' }` distinctly from other validation failures (still `400`). The fixed `POINT(55.2708 25.2048)` Dubai-center fallback and the matching `fuzzy` null-fallback are removed — both are now unconditional since coordinates are guaranteed present. `location_address` is now optional (R6: address is a descriptive note only). Added a new `accuracy` optional field, recorded in the `request_created` log event as `gps_accuracy_meters` — never used for gating (Q1).
+- **Snapshot population:** `providers_in_range_at_creation`/`subscribers_in_range_at_creation` are now populated on every insert. Implementation note: Supabase's PostgREST query builder cannot express `ST_DWithin` or `COUNT ... FILTER` directly, and no new migration/RPC was authorized this phase. The binding single-statement constraint (`TIERED_DISPATCH_051_ANALYSIS.md` §5) is satisfied with ONE `.select('lat, lng, providers!inner(plan, status)')` round-trip against `provider_locations` (using its existing generated `lat`/`lng` columns from migration 036), filtered to `providers.status = 'active'` and GPS updated within 5 minutes — the 150km radius check and both count aggregations are then computed in application code via the existing `distanceMeters()` helper from `src/lib/geo.ts`. One query, no race window between two separate `SELECT`s. Runs via the admin (service-role) client — mandatory, not the user-context client, since a customer session cannot read other providers' rows under RLS. If the query fails, both snapshot columns are left `NULL` and the failure is logged as `snapshot_count_failed` — request creation still succeeds. This NULL fallback is INTENTIONAL (falls to the pre-tiered "visible to all" legacy path via migration 053's `COALESCE`) and must never be treated as a bug to fix.
+- **`src/app/customer/request/page.tsx`:** GPS is now required to reach step 3 (the "Continue" button is disabled without `coords`, not `address`). `handleSubmit`'s validation now checks `coords` separately from `problemType`/`phone`, showing a dedicated `locationRequiredHint` message. The address field is fully decoupled from GPS: `handleAddressChange` no longer clears `coords` on edit (the superseded "manual-source bypass" — dead code removed, not reused), and a successful GPS fix no longer overwrites the address field with a placeholder string. The permission-denied handler no longer auto-focuses the address input (manual address can no longer substitute for GPS). A new `gpsAccuracy` state records `pos.coords.accuracy` (Q1: recorded, never gates). Step-3's summary falls back to a `gpsLocationConfirmed` message when the optional address note is empty.
+- **i18n (`messages/en.json` + `messages/ar.json`):** modified `addressLabel`, `addressPlaceholder`, `locationNotSupported`, `locationDenied`, `locationFailed` to reflect GPS-mandatory / address-is-optional-note copy; added new keys `locationRequiredHint`, `gpsLocationConfirmed`. `manualLocation` is left in place, unused (harmless, not deleted).
+- **Q2 (in-flight requests at deploy):** no special handling — a form opened pre-deploy and submitted post-deploy without coordinates gets the `coordinates_required` error with the existing retry path, which is the intended behavior.
+- **`destination_emirate`:** left unpopulated — out of scope; the form has no destination-coordinate capture to derive it from (separate future form-phase item).
+
+### Verification
+- `npx tsc --noEmit` — exit 0.
+- `npm run lint` — exit 0.
+
+### Files changed
+- `src/app/api/requests/route.ts`
+- `src/app/customer/request/page.tsx`
+- `messages/en.json`
+- `messages/ar.json`
+- `PROJECT_STATUS.md` — new "API phase (tiered dispatch activation)" status row, CODE COMPLETE — awaiting deploy
+- `TIERED_DISPATCH_051_ANALYSIS.md` — §5 API-phase note marked IMPLEMENTED, records Q1/Q2, the dual-count implementation approach, the intentional NULL count-failure fallback, and the manual-source-bypass supersession
 - `npm run lint` — exit 0.
 
 ### Files changed

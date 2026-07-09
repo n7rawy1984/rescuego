@@ -4,23 +4,32 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimitAsync } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
-import { roundDispatchCoordinate, UAE_BOUNDS, generateFuzzyCoordinates } from '@/lib/geo'
+import { roundDispatchCoordinate, UAE_BOUNDS, generateFuzzyCoordinates, distanceMeters } from '@/lib/geo'
 
+// R6 (tiered dispatch API phase): GPS coordinates are mandatory. location_address
+// is now an optional descriptive note only — it can no longer substitute for a
+// real location fix, and the fixed Dubai-center fallback has been removed entirely.
 const requestSchema = z.object({
   problem_type: z.enum(['flat_tire', 'battery', 'tow', 'other']),
   phone: z.string().trim().min(8).max(30).regex(/^[+\d\s().-]+$/),
-  location_address: z.string().trim().min(3).max(300),
+  location_address: z.string().trim().max(300).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
-  coords: z
-    .object({
-      lng: z.number().min(UAE_BOUNDS.minLng).max(UAE_BOUNDS.maxLng),
-      lat: z.number().min(UAE_BOUNDS.minLat).max(UAE_BOUNDS.maxLat),
-    })
-    .optional()
-    .nullable(),
+  coords: z.object({
+    lng: z.number().min(UAE_BOUNDS.minLng).max(UAE_BOUNDS.maxLng),
+    lat: z.number().min(UAE_BOUNDS.minLat).max(UAE_BOUNDS.maxLat),
+  }),
+  // Recorded for analytics only — never gated on. Low-accuracy coordinates are
+  // still better than rejecting a stranded customer's request.
+  accuracy: z.number().nonnegative().optional().nullable(),
   destination: z.string().trim().max(300).optional().nullable(),
   destination_area: z.string().trim().max(150).optional().nullable(),
 })
+
+type NearbyProviderRow = {
+  lat: number | null
+  lng: number | null
+  providers: { plan: string; status: string } | { plan: string; status: string }[] | null
+}
 
 type CompletedJobRow = {
   id: string
@@ -241,6 +250,13 @@ export async function POST(req: NextRequest) {
   const parsed = requestSchema.safeParse(body)
 
   if (!parsed.success) {
+    const missingCoords = parsed.error.issues.some((issue) => issue.path[0] === 'coords')
+    if (missingCoords) {
+      return NextResponse.json(
+        { error: 'GPS location is required to submit a recovery request.', code: 'coordinates_required' },
+        { status: 422 }
+      )
+    }
     return NextResponse.json({ error: 'Invalid request details' }, { status: 400 })
   }
 
@@ -306,14 +322,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { problem_type, phone, location_address, note, coords, destination, destination_area } = parsed.data
-  const point = coords
-    ? `POINT(${roundDispatchCoordinate(coords.lng)} ${roundDispatchCoordinate(coords.lat)})`
-    : 'POINT(55.2708 25.2048)'
-
-  const fuzzy = coords
-    ? generateFuzzyCoordinates({ lat: coords.lat, lng: coords.lng })
-    : null
+  const { problem_type, phone, location_address, note, coords, destination, destination_area, accuracy } = parsed.data
+  const point = `POINT(${roundDispatchCoordinate(coords.lng)} ${roundDispatchCoordinate(coords.lat)})`
+  const fuzzy = generateFuzzyCoordinates({ lat: coords.lat, lng: coords.lng })
 
   if (profile.phone !== phone) {
     const { error: phoneError } = await supabase
@@ -331,6 +342,45 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Tiered Dispatch API phase: snapshot the current provider-visibility counts at
+  // creation time. Both counts are derived from ONE query (not two separate SELECTs)
+  // per the binding SNAPSHOT CONSISTENCY CONSTRAINT (TIERED_DISPATCH_051_ANALYSIS.md
+  // §5). Runs via the admin (service-role) client — a customer session cannot and
+  // should not read other providers' rows under RLS. If this query fails, request
+  // creation MUST NOT fail: both snapshot values fall back to NULL, which
+  // get_nearby_open_requests (migration 053) treats as the legacy "visible to all
+  // immediately" behavior. This NULL fallback is intentional, not a bug.
+  const admin = createAdminClient()
+  const gpsFreshnessThreshold = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  let providersInRangeAtCreation: number | null = null
+  let subscribersInRangeAtCreation: number | null = null
+
+  const { data: nearbyProviderRows, error: countError } = await admin
+    .from('provider_locations')
+    .select('lat, lng, providers!inner(plan, status)')
+    .eq('providers.status', 'active')
+    .gte('updated_at', gpsFreshnessThreshold)
+    .returns<NearbyProviderRow[]>()
+
+  if (countError || !nearbyProviderRows) {
+    logger.warn({
+      event: 'snapshot_count_failed',
+      customer_id: user.id,
+      error: countError?.message ?? 'No provider rows returned',
+    })
+  } else {
+    const withinRange = nearbyProviderRows.filter((row) =>
+      row.lat != null &&
+      row.lng != null &&
+      distanceMeters({ lat: coords.lat, lng: coords.lng }, { lat: row.lat, lng: row.lng }) <= 150000
+    )
+    providersInRangeAtCreation = withinRange.length
+    subscribersInRangeAtCreation = withinRange.filter((row) => {
+      const provider = Array.isArray(row.providers) ? row.providers[0] : row.providers
+      return provider?.plan !== 'pay_per_job'
+    }).length
+  }
+
   const { data, error } = await supabase
     .from('requests')
     .insert({
@@ -340,10 +390,10 @@ export async function POST(req: NextRequest) {
       problem_type,
       note: note || null,
       status: 'open',
-      ...(fuzzy && {
-        fuzzy_latitude: fuzzy.lat,
-        fuzzy_longitude: fuzzy.lng,
-      }),
+      fuzzy_latitude: fuzzy.lat,
+      fuzzy_longitude: fuzzy.lng,
+      providers_in_range_at_creation: providersInRangeAtCreation,
+      subscribers_in_range_at_creation: subscribersInRangeAtCreation,
       ...(destination && { destination }),
       ...(destination_area && { destination_area }),
     })
@@ -355,7 +405,6 @@ export async function POST(req: NextRequest) {
       event: 'request_create_failed',
       customer_id: user.id,
       problem_type,
-      has_coords: Boolean(coords),
       error: error?.message ?? 'No request data returned',
     })
     return NextResponse.json({ error: 'Failed to submit request' }, { status: 500 })
@@ -366,7 +415,8 @@ export async function POST(req: NextRequest) {
     request_id: data.id,
     customer_id: user.id,
     problem_type,
-    has_coords: Boolean(coords),
+    gps_accuracy_meters: accuracy ?? null,
+    providers_in_range_at_creation: providersInRangeAtCreation,
   })
 
   return NextResponse.json({ id: data.id })

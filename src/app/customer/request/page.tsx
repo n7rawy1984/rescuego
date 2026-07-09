@@ -78,6 +78,7 @@ export default function RequestPage() {
   const [destination, setDestination] = useState('')
   const [destinationArea, setDestinationArea] = useState('')
   const [coords, setCoords] = useState<{ lng: number; lat: number } | null>(null)
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationMessage, setLocationMessage] = useState('')
@@ -285,6 +286,7 @@ export default function RequestPage() {
     setDestination('')
     setDestinationArea('')
     setCoords(null)
+    setGpsAccuracy(null)
     setLocationMessage('')
     setError('')
     setCancelConfirmOpen(false)
@@ -317,7 +319,7 @@ export default function RequestPage() {
         const lat = roundDispatchCoordinate(pos.coords.latitude)
         const lng = roundDispatchCoordinate(pos.coords.longitude)
         setCoords({ lng, lat })
-        setAddress(`Current GPS location (${lat}, ${lng})`)
+        setGpsAccuracy(pos.coords.accuracy)
         setLocationMessage(t('locationAdded'))
         setLocationPermissionDenied(false)
         setLocationLoading(false)
@@ -330,9 +332,6 @@ export default function RequestPage() {
         setError(message)
         setLocationPermissionDenied(denied)
         setLocationLoading(false)
-        if (denied) {
-          window.setTimeout(() => addressInputRef.current?.focus(), 0)
-        }
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     )
@@ -340,16 +339,16 @@ export default function RequestPage() {
 
   function handleAddressChange(value: string) {
     setAddress(value)
-    if (coords) {
-      setCoords(null)
-      setLocationMessage(t('manualLocation'))
-    }
   }
 
   async function handleSubmit() {
     if (loading) return
-    if (!problemType || !phone.trim() || !address.trim()) {
+    if (!problemType || !phone.trim()) {
       setError(t('validationError'))
+      return
+    }
+    if (!coords) {
+      setError(t('locationRequiredHint'))
       return
     }
     if (problemType === 'tow' && !destination.trim()) {
@@ -368,9 +367,10 @@ export default function RequestPage() {
         body: JSON.stringify({
           problem_type: problemType,
           phone,
-          location_address: address,
+          location_address: address.trim() || null,
           note,
           coords,
+          accuracy: gpsAccuracy,
           destination: destination.trim() || null,
           destination_area: destinationArea.trim() || null,
         }),
@@ -966,6 +966,9 @@ export default function RequestPage() {
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   {t('locationPrivacy')}
                 </p>
+                {!coords && (
+                  <p className="mt-2 text-xs font-medium text-amber-600">{t('locationRequiredHint')}</p>
+                )}
               </div>
               <Input
                 ref={addressInputRef}
@@ -1028,7 +1031,7 @@ export default function RequestPage() {
               )}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button variant="ghost" onClick={() => setStep(1)} className="min-h-11 flex-1">{commonT('back')}</Button>
-                <Button className="min-h-11 flex-1" disabled={!phone.trim() || !address.trim() || (problemType === 'tow' && !destination.trim())} onClick={() => setStep(3)}>{t('continue')}</Button>
+                <Button className="min-h-11 flex-1" disabled={!phone.trim() || !coords || (problemType === 'tow' && !destination.trim())} onClick={() => setStep(3)}>{t('continue')}</Button>
               </div>
               </div>
             </div>
@@ -1047,7 +1050,7 @@ export default function RequestPage() {
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                   <span className="text-sm text-slate-500">{t('locationLabel')}</span>
-                  <span className="max-w-full break-words font-semibold text-slate-800 sm:max-w-[65%] sm:text-right">{address}</span>
+                  <span className="max-w-full break-words font-semibold text-slate-800 sm:max-w-[65%] sm:text-right">{address.trim() || t('gpsLocationConfirmed')}</span>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-sm text-slate-500">{t('phoneConfirmLabel')}</span>
