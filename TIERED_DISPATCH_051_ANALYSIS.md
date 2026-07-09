@@ -142,6 +142,8 @@ Only `expireUnselectedRequests` (the 20-min customer-selection timeout, see Time
 
 **BINDING UI CONSTRAINT (Q-B, applies to the later UI phase):** the frontend must use `visible_at` ONLY to schedule silent refreshes of the request feed. It must never render a countdown, timer, or any hint that a specific not-yet-visible request exists — doing so would recreate the R4 side-channel that the removed provider-notification mechanism was meant to eliminate.
 
+**API phase design — pending approval (July 8, 2026):** read-only design for mandatory-GPS request creation (R6, Dubai-fallback removal) and single-statement snapshot population in `src/app/api/requests/route.ts` + the customer request form presented for review; not yet implemented.
+
 ---
 
 *This file is a planning artifact for migration 051+. It should be read in full before any 051+ migration or code change is written. Update or delete it once 051+ ships and its findings are either resolved or superseded.*
