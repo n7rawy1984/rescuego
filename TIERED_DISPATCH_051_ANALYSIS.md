@@ -148,6 +148,8 @@ Only `expireUnselectedRequests` (the 20-min customer-selection timeout, see Time
 
 **Phase 3 detailed design — pending approval (July 11, 2026):** read-only design for `submit_quote_atomic` tier-delay enforcement (shared helper with 053), the D4 monthly-limit block, the `select_quote_atomic` job-credit-consumption fix, D5 pair-capped restoration, and D-Create/D-Cancel abuse controls, presented for item-by-item review; not yet implemented.
 
+**Phase 3 Step 1 — APPLIED & VERIFIED IN PRODUCTION (July 12, 2026):** `054_phase3_step1_ssot_and_d5_infra.sql` — the D5 pair-cap index and `get_customer_abuse_limits()` SSOT function, silent infrastructure only, per the GPT-reviewed revised sequencing (zero-live-impact first, riskiest live-function change last). **Known gap, deferred to Item E — HARD PREREQUISITE before D5 enforcement ships:** this migration does NOT implement the approved D-Restore rule's 4th-qualifying-event abuse-review persistence. The binding decision requires the 4th restoration for the same (customer, provider) pair within the rolling 24h window to be logged/flagged for review, not silently denied — no table or log write for this exists yet. D5 restoration enforcement (Item E) must not ship live until this persistence mechanism is designed, built, and wired in alongside it.
+
 ---
 
 *This file is a planning artifact for migration 051+. It should be read in full before any 051+ migration or code change is written. Update or delete it once 051+ ships and its findings are either resolved or superseded.*
