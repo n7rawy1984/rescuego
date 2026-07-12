@@ -142,6 +142,11 @@ export async function POST(req: NextRequest) {
       daily_limit_reached: { msg: 'Daily quote limit reached', status: 429 },
       price_too_low: { msg: 'Price is too low for this service', status: 422 },
       price_too_high: { msg: 'Price exceeds the acceptable range', status: 422 },
+      // Migration 055 (Phase 3 Item A): tier-delay authorization gate. Hardcoded
+      // English strings here are a known AGENTS.md i18n gap -- tracked as
+      // DEFERRED_PRODUCT_BACKLOG.md P15, ships with the next translation batch.
+      visibility_window_not_open: { msg: 'This request is not visible to your plan yet. Try again shortly.', status: 403 },
+      visibility_calc_failed: { msg: 'Unable to verify request visibility. Please try again.', status: 500 },
     }
 
     const mapped = errorMessages[reason]

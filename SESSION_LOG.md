@@ -2,6 +2,35 @@
 
 ---
 
+## Session: July 12, 2026 — Migration 055: Phase 3 Step 2, submit-time tier-delay gate (Items A+B)
+
+Read-only design first (Phase 3 Step 2), blocked pending 3 review corrections, then cleared and written after live-database verification.
+
+### Live verification performed before writing SQL (the "053 lesson", applied)
+- `pg_get_functiondef('public.submit_quote_atomic(uuid,uuid,numeric,numeric,boolean)'::regprocedure)` run against production: the live body is functionally/structurally identical to `039_security_backstop.sql:145-319` — same 11 steps, same order, same signature, `SECURITY DEFINER`, `SET search_path = public`. No migration between 040 and 054 redefines it.
+- `information_schema.routine_privileges` for `submit_quote_atomic` run against production: `service_role` EXECUTE + `postgres` (owner) EXECUTE only — no `anon`, no `authenticated`. Matches the grants this migration preserves verbatim.
+
+### Bug found and fixed (not in 053 itself — out of scope for this migration)
+- Confirmed via byte-exact re-read of `053_tiered_visibility_rpc.sql:73-114`: the zero-subscriber fallback (`subscribers_in_range_at_creation = 0`) correctly short-circuits to 0 delay with no `visibility_reduced` penalty, but the legacy-NULL fallback (`providers_in_range_at_creation IS NULL`) does not — `COALESCE(NULL, 0) = 0` but the `+5` penalty is still added outside that `COALESCE`. A legacy request with a `visibility_reduced` provider gets a live 5-minute delay it should not have, per the approved "legacy and zero-subscriber fallback = 0 delay, no penalty" rule.
+- Fix scoped to the new shared helper only: `compute_request_visibility_delay()` adds an explicit `WHEN p_providers_in_range IS NULL THEN 0` branch (mirroring the zero-subscriber branch) so the defect is not carried into the write path. `053` is intentionally left untouched — it continues to carry this bug live until Phase 3 Step 5 (053 adopts the shared helper) fixes it by construction.
+
+### What changed
+- **`supabase/migrations/055_phase3_step2_visibility_delay_gate.sql`** (new): verify-first `DO` block (columns/function existence), `compute_request_visibility_delay(p_providers_in_range, p_subscribers_in_range, p_plan, p_visibility_reduced)` (new, additive, STABLE, `service_role`-only grants, mirrors 053's delay math with the fix above), and `CREATE OR REPLACE submit_quote_atomic` with one new Step 2b (tier-delay gate) inserted between the existing Step 2 (provider lock) and Step 3 (already-quoted check) — every other step and the function's grants preserved byte-identical to the live body. Step 2b returns `visibility_window_not_open` if the elapsed time since `created_at` is still below the computed delay, or `visibility_calc_failed` if the helper call raises an exception.
+- **Scope (binding, Option A):** this migration enforces TIER-DELAY authorization only — it does not enforce GPS-freshness or radius/reachability eligibility (053/the route already handle those). After this migration, "Can Quote" matches "Can See" for tier timing only, not full eligibility parity. Recorded a named, mandatory Phase 3 follow-up in `TIERED_DISPATCH_051_ANALYSIS.md`: "Quote Reachability Parity" (reconcile the route's 15-minute GPS-staleness allowance against 053's 5-minute rule, plus write-path radius/reachability) — Phase 3 must not be marked "server-side enforcement complete" until it ships. Architectural constraint recorded: `compute_request_visibility_delay` stays delay-math only; a future `provider_can_quote_request` composes delay + active-capacity + GPS-freshness + reachability.
+- **`src/app/api/provider/jobs/quote/route.ts`:** added `visibility_window_not_open` (403) and `visibility_calc_failed` (500) to the existing `errorMessages` reason map. Left as hardcoded English (existing pattern for this route) — tracked as `DEFERRED_PRODUCT_BACKLOG.md` P15 with proposed i18n keys, ships with the next translation batch, not bundled into this schema/RPC migration.
+
+### Verification
+- `npx tsc --noEmit` — exit 0.
+- `npm run lint` — exit 0.
+- Migration is code-complete but **not yet applied to Supabase**.
+
+### Files changed
+- `supabase/migrations/055_phase3_step2_visibility_delay_gate.sql` — created
+- `src/app/api/provider/jobs/quote/route.ts` — 2 new error-reason mappings
+- `TIERED_DISPATCH_051_ANALYSIS.md` — Step 2 marked resolved/code-complete
+- `PROJECT_STATUS.md` — migration 055 row + next-migration-number bump to 056
+- `DEFERRED_PRODUCT_BACKLOG.md` — P15 (route i18n gap, prior session)
+
 ## Session: July 9, 2026 — Dashboard-RPC wiring: remove admin fallback, activate 150km RPC radius (tiered visibility now enforced on dashboard)
 
 **Root cause:** the provider dashboard already called `get_nearby_open_requests` (migration 053) via the correct user-context client — the earlier assumption that it bypassed the RPC entirely was corrected during read-only analysis. The actual bug was a same-file fallback: whenever the RPC returned zero rows (which happens every time a nearby request is still inside its tier-delay window, not just when genuinely none exist), `src/app/provider/dashboard/page.tsx` fell back to a raw `admin.from('requests')` query with no radius/GPS/plan/delay filter at all. This exactly reproduced the confirmed live symptom: a PPJ provider saw a request 3m22s after creation despite an active 6-minute tier delay.
