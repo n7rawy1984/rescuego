@@ -117,6 +117,16 @@ messages/                      → i18n JSON files (ar.json, en.json)
 - PII (phone, email, location) — log only redacted versions via `src/lib/logger.ts`.
 - CSP headers enforced in `next.config.ts` — update allowlist when adding new external services.
 
+## Function Grant Discipline (Postgres/Supabase)
+- Default privileges are FAIL-CLOSED: `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role;` is applied project-wide (migration 056). Every newly created function is born callable by its owner only.
+- Every new function AND every `DROP FUNCTION` + `CREATE` replacement MUST, in the same migration:
+  1. `REVOKE ALL ON FUNCTION public.<fn>(<args>) FROM PUBLIC, anon, authenticated, service_role;`
+  2. `GRANT EXECUTE ON FUNCTION public.<fn>(<args>) TO <only the roles proven necessary by a verified caller>;`
+  3. Record the intended callable role(s) and the proof (file:line of the caller, or the RLS policy/trigger that depends on it) in a migration comment.
+- Revoking `anon`/`authenticated` individually is never a substitute for revoking `PUBLIC` — `PUBLIC` membership is implicit for every role and silently reinstates access after a `DROP FUNCTION`.
+- `CREATE OR REPLACE FUNCTION` (no preceding `DROP`) preserves the existing ACL — but must still be verified against the live grant, never assumed.
+- Never grant `anon` unless a current, legitimate unauthenticated caller and a safe exposed return shape are proven — RLS-policy and trigger-body callers count as callers, not just application `.rpc()` call sites.
+
 ## Secrets Checklist (every PR)
 - [ ] No API keys, tokens, or passwords in source code
 - [ ] No secrets logged (even in error handlers)

@@ -2,6 +2,40 @@
 
 ---
 
+## Session: July 13, 2026 — SECURITY INCIDENT: Migration 056, emergency grants hotfix (public-schema PUBLIC-EXECUTE exposure)
+
+**Incident class:** Excess-privilege exposure — 15 confirmed live findings (`select_quote_atomic`, `get_nearby_providers`) plus 13 at-risk-by-pattern functions across all 30 project-owned `public`-schema functions, closed via a single fail-closed, fully transactional migration. No exploitation evidence found; discovered proactively during a function-grant audit, not via an external report.
+
+### Root cause — three mechanisms, all three had to be closed together
+1. **Explicit default grants in `pg_default_acl`.** `ALTER DEFAULT PRIVILEGES` for role `postgres` in schema `public` explicitly granted EXECUTE to `anon` and `authenticated` by default (`defaclacl = {postgres=X, anon=X, authenticated=X, service_role=X}` for `defaclobjtype='f'`) — every new postgres-created function was born pre-exposed.
+2. **Postgres's built-in PUBLIC-EXECUTE default for functions**, which is separate from and not visible in `pg_default_acl` at all. Proven live via an in-transaction probe: a function created with no customization at all had `proacl = NULL` yet `anon`/`authenticated`/`service_role`/PUBLIC all showed `EXECUTE = true` through implicit PUBLIC membership. A per-schema `REVOKE ... FROM PUBLIC` does **not** suppress this — schema-specific and global default privileges are additive, not overriding (per Postgres docs); only a GLOBAL, no-`IN SCHEMA`, `ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` closes this hole, for every schema that role creates functions in.
+3. **DROP FUNCTION + CREATE OR REPLACE cycles** (`select_quote_atomic` rebuilt this way 4 times — migrations 040, 045, 047, 048) reset each function's own ACL to schema defaults on every rebuild; none of those four re-issued `REVOKE ALL FROM PUBLIC`.
+
+### Fix
+- `supabase/migrations/056_grants_hotfix.sql`: grants-only (no function body/signature/owner/search_path changed). Normalizes grants across all 30 project-owned `public`-schema functions via live-OID-by-name resolution. Adds fail-closed default privileges: a schema-scoped `ALTER DEFAULT PRIVILEGES ... IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role` (closes mechanism 1) **and** a global `ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` (closes mechanism 2) — both required, for different reasons. Fully transactional: pre-existence/owner/`SECURITY DEFINER` guards, a fail-closed `__acl_probe_056` proof (creates and drops a throwaway function, aborts if any non-owner role can execute it), postcondition asserts via `aclexplode` that the global and schema default-ACL rows exist and carry no disallowed EXECUTE grant (absence of the row is itself a failure, not a pass), and a byte-for-byte before/after comparison proving the `storage` schema's default ACL is untouched (out of scope, confirmed no migration creates functions there). `is_admin()` intentionally keeps `anon` EXECUTE — live proof: `price_estimates` carries an admin RLS policy with `roles={public}`, which Postgres evaluates for anonymous readers too, so revoking `anon` would break the public `price_estimates` read; tracked as a named follow-up (restrict that RLS policy to `authenticated`, then revoke `anon` from `is_admin()`). `is_service_role()` locked to owner-only (its only 2 call sites, `039_security_backstop.sql:52,85`, run inside `SECURITY DEFINER` triggers executing as owner).
+- `AGENTS.md`: added a standing "Function Grant Discipline" rule requiring every new/replaced function to explicitly `REVOKE ALL FROM PUBLIC, anon, authenticated, service_role` then `GRANT` only to proven-necessary roles, in the same migration.
+- **Schema drift discovered during this audit (not part of 056's fix, tracked separately):** `expire_stale_open_requests` exists live but has no `CREATE FUNCTION` anywhere in `supabase/migrations/` — see `DEFERRED_PRODUCT_BACKLOG.md` P16.
+
+### Production verification (July 13, 2026)
+- Migration applied to production.
+- Fail-closed probe passed — new functions are now born owner-only.
+- All postconditions passed (global + schema default-ACL rows confirmed via `aclexplode`; storage-schema default ACL confirmed byte-for-byte unchanged before/after).
+- `anon` EXECUTE confirmed `false` on all 30 targets except `is_admin` (intentional, protects the PUBLIC-scoped RLS policy on `price_estimates`).
+- Anonymous `price_estimates` page confirmed still loading correctly post-apply (regression check for the `is_admin`/RLS interaction above).
+
+### Regression prevention
+- The `AGENTS.md` "Function Grant Discipline" rule (added this session) requires every future `CREATE FUNCTION`/`DROP FUNCTION` + `CREATE` replacement to restate explicit grants in the same migration, closing mechanism 3 going forward.
+- Follow-up not yet scheduled: restrict admin RLS policies from `TO PUBLIC` to `TO authenticated` where safe, then revoke `anon` EXECUTE from `is_admin()`.
+
+### Files changed
+- `supabase/migrations/056_grants_hotfix.sql` (new)
+- `AGENTS.md` — Function Grant Discipline rule
+- `PROJECT_STATUS.md` — Migration 056 row updated to APPLIED & RUNTIME-VERIFIED
+- `DEFERRED_PRODUCT_BACKLOG.md` — P16 (`expire_stale_open_requests` schema drift)
+- `SESSION_LOG.md` (this entry)
+
+---
+
 ## Session: July 12, 2026 — Migration 055: Phase 3 Step 2, submit-time tier-delay gate (Items A+B)
 
 Read-only design first (Phase 3 Step 2), blocked pending 3 review corrections, then cleared and written after live-database verification.

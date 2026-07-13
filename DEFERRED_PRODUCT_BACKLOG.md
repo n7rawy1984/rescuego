@@ -374,6 +374,20 @@ These are the grouping buckets the items below map to. They run **after** the se
 
 - **CRIT-02 (P4b) — DONE, runtime-verified on production (June 26, 2026).** The `en_route`/`arrived` SLA auto-release was tested: minute cron returned `sla_releases: 1` and the released request reset to `open` with all stale state (`accepted_by`, `selected_quote_id`, `accepted_at`) cleared per D6. Kept here as a regression check to re-run after any future change to the SLA RPCs or the marketplace-cron route. NOTE: P10 may reveal an en_route-specific stuck case — re-verify there.
 
+### P16 — `expire_stale_open_requests` exists live but has no `CREATE FUNCTION` in migration history (schema drift)
+- **Type:** Schema
+- **Priority:** Medium
+- **Severity:** Operational (migration history is not the source of truth for this function — cannot be reproduced from `supabase/migrations/` alone)
+- **Effort:** S (capture live definition into a new reconciliation migration, body unchanged)
+- **Target batch:** Follow-up to migration 056 (grants hotfix)
+- **Target release:** Soft Launch
+- **Status:** OPEN
+- **Detail:** Found while auditing all `public`-schema function grants for migration 056. `expire_stale_open_requests` is called from `src/app/api/ops/expire-requests/route.ts:27` (admin client, cron route) and exists live in the database, but no `CREATE FUNCTION public.expire_stale_open_requests` statement exists anywhere in `supabase/migrations/*.sql` — it was created directly against the live database (SQL editor or ad hoc), bypassing migration history entirely. Migration 056 hardens its grants safely via live-OID lookup (name-based, not signature-hardcoded), so it is not a blocker for 056. But the function's definition is currently unreproducible from version control.
+- **Owner decision:** Deferred — capture via `SELECT pg_get_functiondef('public.expire_stale_open_requests(timestamptz)'::regprocedure);` run against production, then commit its exact live body into a new reconciliation migration (body unchanged, grants already normalized by 056). Not bundled into 056 itself (grants-only scope).
+- **QA scenario:**
+  1. Run the `pg_get_functiondef` query above against production and diff its output against the reconciliation migration once written.
+  - **Expected:** byte-identical body; the reconciliation migration is a no-op against the live function, purely a version-control capture.
+
 ---
 
 ## Open questions for the owner (resolve before the Pricing & Destination batch)
@@ -386,5 +400,7 @@ These are the grouping buckets the items below map to. They run **after** the se
 *Last updated: June 28, 2026 — security Batches 1–4 deployed/verified (migrations 039–043). Added P7 (PPJ post-selection fee-gate model), P8 (tiered dispatch is dead code — wire-up decision deferred), P9 (fair-price bounds temporarily widened, LAUNCH BLOCKER — formula to be redesigned two-leg with emirate destination, NOT restored to current values). P9 enriched and marked DONE for the widen step: migration `044_temp_widen_fair_price_bounds.sql` created (min_price_per_km=0.01, max_price_per_km=10000, base_fee unchanged; RPC `submit_quote_atomic` unchanged); confirmed formula `v_min_fair = base_fee + distance_km × min_price_per_km`, `v_max_fair = base_fee + distance_km × max_price_per_km`. Added P10 (premature SLA message on en_route / customer stuck — needs diagnosis), P11 (quote-status feedback messages to provider: submitted-and-waiting, customer-rejected — teaches fair pricing, ties to P5), P12 (cancellation notice lingers on dashboard + has no request identifier), and P13 (PPJ payment prompt shows "pay 15 AED" + countdown even when the provider has a recovery credit — should offer credit-confirmation copy instead; logic already correct, UI/copy only). PPJ post-selection fee gate (migration 045) deployed and in end-to-end testing. Env-var incident resolved (Stripe + cron keys corrected to test). This is a living file; add new testing findings in the same format as they appear.*
 
 *Update July 8, 2026 — Added P14 (subscriber daily quote limits 5/10/20/3 are already live since migration 039, not uniform; reviewing/adjusting these values is deferred to Tiered Dispatch Phase 3, when the new `get_provider_limits()` SSOT function created in migration 051 is wired into the enforcement RPCs).*
+
+*Update July 13, 2026 — Added P16 (`expire_stale_open_requests` has no `CREATE FUNCTION` anywhere in `supabase/migrations/` — live schema drift discovered during the migration 056 grants-hotfix audit; migration 056 hardens its grants safely via live-OID lookup regardless, but its definition still needs a reconciliation migration).*
 
 *Update July 12, 2026 — Added P15 (quote-submission route's `errorMessages` table is hardcoded English, no `getTranslations()`, found during Tiered Dispatch Phase 3 Step 2 design; deferred to the next i18n/translation pass, proposed keys recorded).*
