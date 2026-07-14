@@ -51,28 +51,12 @@ export function authorizeOpsRequest(req: NextRequest): NextResponse | null {
   const isOpsSecret = secretsMatch(bearerToken, expectedSecret) || secretsMatch(headerToken, expectedSecret)
 
   if (!isVercelCron && !isOpsSecret) {
-    // TEMP-DIAGNOSTIC (2026-07-14 cron-auth incident) — additive log fields only, no
-    // behavior change, no secret values. Remove this block (down to the closing `})`
-    // marker below) once the cron-auth root cause is confirmed from these logs.
-    const vercelCronFailureReason = rawVercelCronSecret === null
-      ? 'cron_secret_env_missing'
-      : vercelCronSecret === null
-        ? 'cron_secret_too_short'
-        : bearerToken === null
-          ? 'no_bearer_token_extracted'
-          : 'bearer_token_present_value_mismatch'
-
     logger.warn({
       event: 'ops_route_unauthorized',
       path: req.nextUrl.pathname,
       has_bearer: Boolean(bearerToken),
       has_ops_header: Boolean(headerToken),
-      has_auth_header: authHeader !== null,
-      auth_header_starts_with_bearer: authHeader?.startsWith('Bearer ') ?? false,
-      cron_secret_env_present: rawVercelCronSecret !== null,
-      cron_secret_env_length: rawVercelCronSecret?.length ?? 0,
-      vercel_cron_failure_reason: vercelCronFailureReason,
-    }) // END TEMP-DIAGNOSTIC
+    })
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
