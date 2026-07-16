@@ -388,6 +388,68 @@ These are the grouping buckets the items below map to. They run **after** the se
   1. Run the `pg_get_functiondef` query above against production and diff its output against the reconciliation migration once written.
   - **Expected:** byte-identical body; the reconciliation migration is a no-op against the live function, purely a version-control capture.
 
+### P17 — Bounded sliding selection window (DEFERRED post-launch alternative to `quoted_at`+20min)
+- **Type:** State machine / Lifecycle
+- **Priority:** Low (post-launch only)
+- **Severity:** UX (only if real usage shows a problem)
+- **Effort:** M (touches `submit_quote_atomic`, `requests/route.ts` GET masking, `marketplace-cron` expiry)
+- **Target batch:** Post-launch, only if triggered by real usage data
+- **Target release:** After Launch
+- **Status:** DEFERRED (not rejected)
+- **Detail:** During the LB-13 investigation, a redesign was proposed as an alternative to the current `quoted_at` + 20-minute expiry rule (which is set once by the first quote and never refreshed by later quotes). The current rule was formally APPROVED for launch (Medo, July 15, 2026 — see `PROJECT_STATUS.md` §6 LB-13, §15), confirmed by a live production test on request `b61b8e4f-a8ac-409a-bac3-28f9d085a56c`. This item preserves the alternative design so it is not lost, for evaluation only if real usage data later shows a problem.
+- **Conceptual rule (preserved for future evaluation):**
+  ```
+  selection_expiry = MIN(latest_valid_quote_time + selection_window, created_at + max_request_lifetime)
+  ```
+  i.e., the customer's selection window would slide forward with each new valid quote (bounded by an overall maximum request lifetime from `created_at`), instead of being fixed relative to the first quote only.
+- **Owner decision:** Deferred, not rejected. Evaluate ONLY if real usage data shows customers losing valid quotes to expiry, or a high re-request rate after expiry, post-launch.
+- **QA scenario (for future evaluation, not now):**
+  1. Track, post-launch, how often a `quoted` request expires while it still has valid/unexpired quotes attached.
+  2. Track how often a customer re-creates a request shortly after one expires.
+  - **Expected trigger for revisiting this item:** either rate is meaningfully high in real usage.
+
+### P18 — "Location not recorded" copy shown despite coordinates existing
+- **Type:** UX/Copy
+- **Priority:** Low
+- **Severity:** UX (misleading copy, not data loss)
+- **Effort:** XS
+- **Target batch:** UX & State Machine (copy)
+- **Target release:** After Launch
+- **Status:** OPEN
+- **Detail:** Found during the July 15, 2026 PPJ quote-display live production test. The customer-facing page shows "location not recorded" even though the request has exact and fuzzy coordinates recorded — the copy is keyed off `location_address` being NULL, not off whether coordinates exist. This is misleading copy (implies no location data was captured at all), not an actual data-loss bug.
+- **Owner decision:** Low-priority — fix the copy to check coordinate presence (or fall back to a neutral "no address label provided" wording) instead of implying location data is missing.
+- **QA scenario:**
+  1. Create a request with GPS coordinates but no free-text address.
+  - **Expected (after fix):** the customer page does not claim location was "not recorded"; it reflects that coordinates exist even without a text address.
+
+### P19 — Overage-payment economics redesign + re-evaluate submission-time blocking
+- **Type:** Product / Payments
+- **Priority:** Medium
+- **Severity:** Fairness/UX (no financial loss today — the path is unreachable)
+- **Effort:** L (Stripe flow redesign + new UI entry point + RPC changes)
+- **Target batch:** Post-launch (or before Phase 3 Steps 4–5 if prioritized earlier)
+- **Target release:** After Launch
+- **Status:** OPEN
+- **Detail:** Found during the migration 057 (Phase 3 Step 3) design review. Hard-blocking quote submission for a provider who has exhausted their monthly allowance (base + credits) was considered and explicitly NOT implemented, because the current pre-submission/pre-quote overage-payment path is unreachable in the live V2 marketplace UI: its only trigger, the legacy `/api/provider/requests/accept` 402 branch (`ProviderRequestList.tsx`'s `handleAccept()`), is dead code — `src/app/api/provider/requests/accept/route.ts` now unconditionally returns `403 V2_QUOTE_REQUIRED` for all subscription plans (LB-6), before any overage check runs. `requests.overage_cleared` therefore has no live pre-quote writer today. In addition, the current request-bound overage-payment model has no refund/reuse mechanism if a provider pays and is never selected for that request (`overage_payments` money is request-specific and non-transferable). Blocking submission today would be a dead end for an exhausted provider with no way to unblock themselves.
+- **Owner decision:** Deferred. Migration 057 ships an informational, non-blocking exhaustion warning instead (`warning_code: 'monthly_allowance_exhausted'` on successful quote submission).
+- **QA scenario (for future evaluation, not now):**
+  1. Redesign the overage-payment flow to be reachable pre-submission and either request-agnostic (reusable credit) or refundable if never selected.
+  2. Only then re-evaluate whether submission-time blocking for exhausted providers is fair and worth implementing.
+
+### P20 — Legacy overage-payment UI audit/retirement (orphaned dead code)
+- **Type:** Tech debt / Cleanup
+- **Priority:** Low
+- **Severity:** None (dead code, no live impact)
+- **Effort:** S
+- **Target batch:** Cleanup pass
+- **Target release:** After Launch
+- **Status:** OPEN
+- **Detail:** Found during the migration 057 design review (same investigation as P19). `ProviderRequestList.tsx`'s legacy `handleAccept()` 402 branch, its `showOverageModal` state/modal, `handleOverageConfirm()`, and the entire `/provider/overage-pay` checkout page are now unreachable in production: the only route that could return the `402 OVERAGE_REQUIRED` status these depend on (`/api/provider/requests/accept`) unconditionally returns `403 V2_QUOTE_REQUIRED` before reaching that code path (LB-6). This dead UI was intentionally NOT removed as part of migration 057 (out of scope, no functional risk from leaving it) but should be audited and retired in a dedicated cleanup pass to avoid confusing future maintainers.
+- **Owner decision:** Deferred to a cleanup pass. Do not remove opportunistically alongside unrelated feature work.
+- **QA scenario:**
+  1. Confirm no live code path can return `402 OVERAGE_REQUIRED` from `/api/provider/requests/accept` (already true per LB-6).
+  2. Remove `showOverageModal`, `handleOverageConfirm()`, the 402 branch in `handleAccept()`, and `/provider/overage-pay` (or repurpose it if P19's redesign reintroduces a reachable overage flow).
+
 ---
 
 ## Open questions for the owner (resolve before the Pricing & Destination batch)
@@ -404,3 +466,7 @@ These are the grouping buckets the items below map to. They run **after** the se
 *Update July 13, 2026 — Added P16 (`expire_stale_open_requests` has no `CREATE FUNCTION` anywhere in `supabase/migrations/` — live schema drift discovered during the migration 056 grants-hotfix audit; migration 056 hardens its grants safely via live-OID lookup regardless, but its definition still needs a reconciliation migration).*
 
 *Update July 12, 2026 — Added P15 (quote-submission route's `errorMessages` table is hardcoded English, no `getTranslations()`, found during Tiered Dispatch Phase 3 Step 2 design; deferred to the next i18n/translation pass, proposed keys recorded).*
+
+*Update July 15, 2026 — Added P17 (bounded sliding selection window — deferred alternative to the newly approved `quoted_at`+20min binding decision, conceptual formula preserved) and P18 ("location not recorded" misleading copy shown despite coordinates existing, found during the PPJ quote-display live production test).*
+
+*Update July 16, 2026 — Added P19 (overage-payment economics redesign + re-evaluate submission-time blocking, deferred during the migration 057 / Phase 3 Step 3 design review — the current pre-submission overage path is unreachable dead code per LB-6, and the request-bound overage model has no refund/reuse if a provider pays and is never selected) and P20 (legacy overage-payment UI audit/retirement — `ProviderRequestList.tsx`'s orphaned 402 branch, `showOverageModal`, and `/provider/overage-pay` are dead code today; flagged for a dedicated cleanup pass, not removed as part of 057).*

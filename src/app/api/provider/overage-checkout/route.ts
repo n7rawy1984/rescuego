@@ -95,11 +95,15 @@ export async function POST(req: NextRequest) {
     jobCreditBalance: provider.job_credit_balance,
   })
 
-  if (!allowance.hasMonthlyAllowance || allowance.effectiveLimit === null) {
+  // Migration 057: corrected gate -- effectiveLimit was dropped from
+  // getProviderAllowance() (double-counted consumed credits). "Still has
+  // included jobs" now means remaining > 0 under the corrected semantic
+  // (base allowance capped at planLimit + separate credit bucket).
+  if (!allowance.hasMonthlyAllowance) {
     return NextResponse.json({ error: 'This plan does not require overage payments' }, { status: 403 })
   }
 
-  if (provider.jobs_this_month < allowance.effectiveLimit) {
+  if ((allowance.remaining ?? 0) > 0) {
     return NextResponse.json({ error: 'You still have included jobs available for this billing period' }, { status: 409 })
   }
 

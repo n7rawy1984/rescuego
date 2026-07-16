@@ -15,23 +15,26 @@ Setup and environment variable definitions belong to [SETUP.md].
 
 | Fact | Current State |
 |---|---|
-| Migration baseline | 050 applied (`050_fix_update_provider_rating_stars_column.sql`) — 048, 049, and 050 all applied and runtime-verified in Supabase July 5, 2026 |
-| Migration baseline | 052 applied, 053 code complete — 048 through 052 all applied and runtime-verified in Supabase (048–050: July 5–6, 2026; 051–052: July 8, 2026); 053 written and locally verified (tsc + lint) but not yet applied |
+| Migration baseline | **VERIFIED — 054 confirmed APPLIED in production (July 12, 2026). Migration 056 confirmed APPLIED & RUNTIME-VERIFIED in production (July 13, 2026, grants-only, independent in scope of 054/055).** Migration 055's cloud-application status is **UNVERIFIED this session** — last recorded status (July 12, 2026) was CODE COMPLETE / NOT YET APPLIED, and no subsequent session recorded runtime verification of 055. Because 056 is grants-only and independent of 055's `submit_quote_atomic` body change, 056 being applied does NOT confirm 055 was applied. **Action required: confirm live via `pg_get_functiondef('public.submit_quote_atomic(...)'::regprocedure)` whether the tier-delay gate (Step 2b) is present in the live function body before treating 055 as applied.** |
+| Latest deployed commit | `1556059` ("chore: remove temporary cron auth diagnostics"), pushed to `origin/main` and confirmed via `git push` output July 15, 2026. Preceded by `af23f35` (temporary diagnostics added) and `facc407` (migration 056 hotfix). Vercel auto-deploys from `main`; this session had no Vercel API/dashboard access to confirm the Production deployment picked up `1556059` — confirm in the Vercel dashboard. |
 | Migration 051 | **APPLIED & RUNTIME-VERIFIED (July 8, 2026).** `051_dispatch_foundation_schema.sql` — Tiered Dispatch Phase 1 (schema foundation only, no RPC/trigger/lifecycle/realtime/API/pricing changes). Adds `requests.providers_in_range_at_creation` (raw snapshot count, D1/R1), `requests.destination_emirate` (nullable TEXT + CHECK on the 7 UAE emirates, R6), `request_quotes.refunded_at` (D5 refund marker + partial index), and the new `get_provider_limits(plan)` SSOT function (R5, live-behavior-parity values from migrations 039/047, zero callers yet). `npx tsc --noEmit` and `npm run lint` both exit 0. Verified directly in the Supabase SQL Editor: both new `requests` columns exist, `request_quotes.refunded_at` and its partial index exist, `get_provider_limits()` exists and returns the verified live-parity values for all four plans. |
 | Migration 052 | **APPLIED & RUNTIME-VERIFIED (July 8, 2026).** `052_subscriber_count_snapshot.sql` — closes a Phase 1 gap left by 051: adds `requests.subscribers_in_range_at_creation` (raw count of online subscribers within 150km at creation; NULL = pre-052 row, 0 = zero-subscriber fallback). Distinguishes "N providers, some subscribers" from "N providers, all PPJ" — same `providers_in_range_at_creation` count, opposite dispatch behavior. Schema only, no other objects touched. `npx tsc --noEmit` and `npm run lint` both exit 0. Verified directly in the Supabase SQL Editor: column exists with type INTEGER, its `COMMENT` is present, no other schema objects changed. |
 | Migration 053 | **CODE COMPLETE — NOT YET APPLIED.** `053_tiered_visibility_rpc.sql` — Tiered Dispatch Phase 2: redesigns `get_nearby_open_requests` (D1/D2 tier-delay visibility, R1 frozen `<10`-provider uncapped-radius expansion, R3 elapsed-time-from-`created_at`, Q5 `visibility_reduced` +5min, new `visible_at` return column). Drops and recreates the function (return-type change) with the exact live grants (`REVOKE ALL FROM PUBLIC` + `GRANT EXECUTE TO authenticated, service_role`, verified against 039 before writing — no separate `anon` revoke exists for this function). Radius default changed 5000→150000; the sole caller (`src/app/provider/dashboard/page.tsx:430`) passes `p_radius` explicitly, so this has no live effect until that constant is updated in a later (Phase 6) change. `npx tsc --noEmit` and `npm run lint` both exit 0. |
 | Migration 054 | **APPLIED & RUNTIME-VERIFIED IN PRODUCTION (July 12, 2026).** `054_phase3_step1_ssot_and_d5_infra.sql` — Phase 3 Step 1 (silent infrastructure only, per the GPT-reviewed revised sequencing: zero-live-impact first). Adds `idx_request_quotes_provider_refunded_at` (D5 pair-cap query index — opposite predicate of 051's daily-unrefunded index) and `get_customer_abuse_limits()` (new D-SSOT for D-Create/D-Cancel/D-Restore thresholds, mirrors `get_provider_limits`' shape/grants, zero callers yet). No schema change to `request_quotes.selected_at` — verified it already exists since migration 031 and is reused as-is. Verified live: `get_customer_abuse_limits()` returns `5\|15\|5\|15\|2\|5\|15\|3`, the pair-cap index exists with the correct `WHERE refunded_at IS NOT NULL` predicate, grants are `service_role`-only (plus the expected `postgres` owner role). Not called by any existing RPC or route. **Known gap, NOT implemented by this migration:** the approved D-Restore rule's 4th-qualifying-event abuse-review persistence (the 4th restoration for the same (customer, provider) pair within 24h must be logged/flagged for review, not silently denied) has no tracking mechanism yet — no table, no log write. Intentionally deferred to Item E and is a **HARD PREREQUISITE**: D5 restoration enforcement must not go live until this review-flagging mechanism exists and is wired in alongside it. |
 | Migration 055 | **CODE COMPLETE — NOT YET APPLIED (July 12, 2026).** `055_phase3_step2_visibility_delay_gate.sql` — Phase 3 Step 2 (Items A+B): live-verified against production (`pg_get_functiondef`/`information_schema.routine_privileges` confirmed the live `submit_quote_atomic` body is identical to migration 039's, grants are `service_role` + owner-only). Adds `compute_request_visibility_delay()` — a shared, additive STABLE helper extracting 053's tier-delay math (D1/D2/Q5), with a corrected legacy short-circuit (`providers_in_range_at_creation IS NULL THEN 0`) that fixes a confirmed live defect in 053 (legacy rows with `visibility_reduced=true` incorrectly got a 5-minute penalty; the helper does not carry this bug into the write path). `submit_quote_atomic` gets one new Step 2b (tier-delay gate, returns `visibility_window_not_open` before the window opens or `visibility_calc_failed` on computation error) inserted between the existing Step 2 and Step 3 — every other step preserved byte-identical to the live body. Grants preserved exactly (`REVOKE ALL FROM PUBLIC/anon/authenticated`, `GRANT EXECUTE TO service_role`). Scope (binding, Option A): tier-delay authorization only — does NOT enforce GPS-freshness or radius/reachability; "Can Quote" matches "Can See" for tier timing only, not full eligibility parity. `053` is intentionally untouched — its legacy-penalty bug stays flagged for Step 5 (053 helper adoption). Route (`src/app/api/provider/jobs/quote/route.ts`) maps the two new reasons to `403`/`500`. `npx tsc --noEmit` and `npm run lint` both exit 0. **Not yet applied to Supabase — awaiting deploy.** |
+| Migration 057 | **CODE COMPLETE — NOT YET APPLIED (July 16, 2026).** `057_phase3_step3_credit_consumption_ssot.sql` — Phase 3 Step 3 (Items C+D). Live-verified first: `select_quote_atomic`'s live body was diffed in full against migration 048 (no drift found) before writing this file; `submit_quote_atomic`'s live body was confirmed (prior session) to match migration 055. `select_quote_atomic` gets `get_provider_limits()` SSOT wiring (replacing the hardcoded 15/35/unlimited CASE) plus the approved 4-case credit-consumption gate: under limit → allow, no credit consumed; at/over limit + `overage_cleared=FALSE` + credit available → consume exactly one credit (column-relative `UPDATE`, under the existing provider-row `FOR UPDATE` lock) then proceed; at/over limit + `overage_cleared=TRUE` → allow, no credit consumed; at/over limit + no credit → unchanged `overage_required` result. `jobs_this_month` increments unconditionally on every successful subscriber selection (unchanged). `submit_quote_atomic` gets SSOT wiring ONLY (Step 4's two hardcoded CASE blocks replaced by one `get_provider_limits()` call) — no new steps, no exhaustion logic, contract fully unchanged. The exhaustion warning is implemented entirely in the application layer (`src/app/api/provider/jobs/quote/route.ts`, additive best-effort `warning_code: 'monthly_allowance_exhausted'`, never turns a successful quote into an error) — submission blocking was explicitly NOT implemented (see `DEFERRED_PRODUCT_BACKLOG.md` P19: the pre-submission overage-payment path is dead code in the live V2 UI, see LB-6). Also fixes `src/lib/provider-allowance.ts`'s `effectiveLimit` double-counting bug (dropped; `remaining = max(0, planLimit - jobsThisMonth) + creditBalance`) and its 3 consumers (`plan/page.tsx`, `overage-checkout/route.ts`; dashboard page needed no change), adds the missing `overage_required` → 409 mapping in `src/app/api/customer/quote/select/route.ts` (previously fell through to a generic 500), and adds client-side `unavailableQuoteIds` filtering in `CustomerQuoteList.tsx` (Option A: pending quote rows are left in the DB, so the quotes API keeps returning them — hidden client-side for the mounted view's lifetime). Grants restated exactly (`REVOKE ALL FROM PUBLIC/anon/authenticated`, `GRANT EXECUTE TO service_role`) via `CREATE OR REPLACE` (signatures unchanged, no DROP). New i18n keys added to both `messages/ar.json` and `messages/en.json` (`providerRequestList.monthlyAllowanceExhausted`, `customerQuoteList.providerNoLongerAvailable`). **Not yet applied to Supabase — awaiting deploy and Medo's production verification (function-body diff + grants query + behavioral scenarios).** |
 | Migration 056 | **APPLIED & RUNTIME-VERIFIED IN PRODUCTION (July 13, 2026).** `056_grants_hotfix.sql` — EMERGENCY grants-only hotfix, unrelated to Phase 3 (Phase 3 Steps 3–5 renumbered to 057+, see next row). Confirmed two live gaps: `select_quote_atomic` (4× DROP+CREATE across migrations 040/045/047/048, none re-issued `REVOKE ALL FROM PUBLIC`) and `get_nearby_providers` (zero grant statements in its entire history). Normalizes grants across all 30 project-owned public-schema functions using live-OID-by-name resolution (no hardcoded argument types). Fail-closed default privileges close THREE combined mechanisms: (i) Postgres's built-in PUBLIC-execute default for functions (proven live via an in-transaction probe — closed by a GLOBAL, no-`IN SCHEMA`, `ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`, since schema-specific and global defaults are additive, not overriding, so only the global statement suppresses the built-in default); (ii) explicit default grants to `anon`/`authenticated` recorded in `pg_default_acl` for schema `public` (closed by the schema-scoped statement, kept alongside the global one for a different, additive reason); (iii) DROP+CREATE migrations resetting each function's own ACL to schema defaults on every rebuild (`select_quote_atomic` x4). Fully transactional (pre/postcondition guards + a `__acl_probe_056` fail-closed proof + global/schema default-ACL postcondition asserts via `aclexplode` + a byte-for-byte before/after storage-schema preservation check, abort-and-rollback on any mismatch). `is_admin()` keeps `anon` (live proof: `price_estimates` has an admin RLS policy with `roles={public}`, which Postgres evaluates for anonymous readers too — revoking `anon` would break the public `price_estimates` read). `is_service_role()` locked to owner-only (its only 2 call sites, `039_security_backstop.sql:52,85`, are inside `SECURITY DEFINER` triggers that execute as owner). **Schema drift discovered during this audit:** `expire_stale_open_requests` has no `CREATE FUNCTION` anywhere in `supabase/migrations/` (see `DEFERRED_PRODUCT_BACKLOG.md` P16). Grants-only: no function body/signature/owner/search_path changed. AGENTS.md updated with a standing "Function Grant Discipline" rule. **Production verification (July 13, 2026):** fail-closed probe passed (new functions born owner-only), all postconditions passed (global + schema default-ACL rows confirmed via `aclexplode`, storage-schema default ACL confirmed byte-for-byte unchanged), `anon` EXECUTE confirmed `false` on all 30 targets except `is_admin` (intentional), anonymous `price_estimates` page confirmed still loading correctly post-apply. Committed. |
-| Next migration number | 057. Migration 056 is an emergency grants-only hotfix (row above), not part of Phase 3. Phase 3 Steps 3–5 (Items C–F: D4 monthly-limit + credit-consumption fix, D5 restoration + abuse controls, 053 helper adoption) are renumbered to 057+ per `TIERED_DISPATCH_051_ANALYSIS.md` and the approved Phase 3 detailed design. Named, mandatory follow-up: "Quote Reachability Parity" (GPS-staleness + radius/reachability parity between quote route and dashboard/053) — not yet scheduled to a migration number, must ship before Phase 3 is marked "server-side enforcement complete". A separate reconciliation migration is also needed to capture `expire_stale_open_requests`'s live definition into version control. |
+| Next migration number | 058. Migration 057 (row above) is CODE COMPLETE — NOT YET APPLIED and covers Phase 3 Step 3 (Items C+D: D4 monthly-limit + credit-consumption fix) only. Migration 056 was an emergency grants-only hotfix, not part of Phase 3. Phase 3 Steps 4–5 (Item D5 restoration + abuse controls, 053 helper adoption) remain not yet written and are renumbered to 058+ per `TIERED_DISPATCH_051_ANALYSIS.md`. Named, mandatory follow-up: "Quote Reachability Parity" (GPS-staleness + radius/reachability parity between quote route and dashboard/053) — not yet scheduled to a migration number, must ship before Phase 3 is marked "server-side enforcement complete". A separate reconciliation migration is also needed to capture `expire_stale_open_requests`'s live definition into version control. |
 | API phase (tiered dispatch activation) | **CODE COMPLETE — AWAITING DEPLOY (July 8, 2026).** Code-only, no new migration. `src/app/api/requests/route.ts`: GPS coordinates are now mandatory (422 `coordinates_required` on missing/invalid coords), the fixed Dubai-center fallback is removed, and `providers_in_range_at_creation`/`subscribers_in_range_at_creation` are now populated on every request via a single admin-client query against `provider_locations` + in-app distance filtering (falls back to `NULL` on query failure, by design). `src/app/customer/request/page.tsx`: GPS is required to continue, the address field is now an optional note decoupled from GPS, the manual-address-clears-coords behavior is removed. `messages/en.json` and `messages/ar.json` updated. `npx tsc --noEmit` and `npm run lint` both exit 0. |
 | Dashboard wiring (tiered visibility enforcement) | **CODE COMPLETE — AWAITING DEPLOY (July 9, 2026).** Code-only, no new migration. Removed the admin-client fallback query in `src/app/provider/dashboard/page.tsx` that bypassed migration 053's tier-delay gate whenever `get_nearby_open_requests` returned zero rows — root cause of a confirmed live bug (a PPJ provider saw a request 3m22s after creation despite a 6-minute tier delay). The RPC is now the dashboard's sole data source. `PROVIDER_RADIUS_METERS` (`src/types/index.ts`) changed from `5000` to `150000` to match the RPC's own default (migration 053's already-approved intent, previously deferred — confirmed as the RPC call's only caller). Added `visible_at` to the dashboard's local `NearbyOpenRequestRow` type (not yet consumed by UI). `npx tsc --noEmit` and `npm run lint` both exit 0. |
 | Stripe mode | TEST — live charges are not processed |
 | PPJ status | Re-enabled via migration 045; in end-to-end testing |
 | Fair price status | Validation active but bounds intentionally widened (migration 044 — LAUNCH BLOCKER) |
 | Cloud migration verification | VERIFIED through 050 — 001–045 confirmed July 1, 2026; 046 applied with a defective `update_provider_rating` rewrite (`ratings.score` — real column is `stars`; broke all rating inserts with 42703); 048, 049, and 050 applied and runtime-verified July 5, 2026 (050 restores the original `stars` trigger body) |
-| Launch readiness | NOT READY — multiple blockers active (see §6) |
-| Last documented work session | July 13, 2026 (Migration 056 grants hotfix: APPLIED & runtime-verified in production — see Migration 056 row above) |
+| Launch readiness | NOT READY — see §6 for remaining active blockers. The previously open disappearing-quoted-request bug (LB-13) is now CLOSED per a new binding decision — see below and §15. |
+| Cron auth incident (401s, missing Vercel `CRON_SECRET`) | **CLOSED July 15, 2026.** See §12 for full symptom/root-cause/fix/verification record. |
+| Disappearing quoted-request bug | **CLOSED July 15, 2026 — works as designed, per newly approved binding decision.** The `quoted_at` + 20-minute expiry rule (set once by the first quote, never refreshed by later quotes) is now the official APPROVED launch rule (Medo, July 15, 2026), confirmed by a live production test (request `b61b8e4f-a8ac-409a-bac3-28f9d085a56c`). The previously observed indefinite trapped/zombie symptom was already eliminated by the marketplace-cron auth fix (§12) — the request now reliably transitions to `expired` instead of staying stuck. See LB-13 (§6) and §14/§15. |
+| Last documented work session | July 15, 2026 (binding expiry-rule decision recorded; PPJ quote-display investigation closed per live production test; read-only Phase 3 readiness audit performed — see §6 and pending Medo's review) |
 
 ---
 
@@ -93,14 +96,17 @@ Cloud Supabase project has all 45 migrations applied in order (001–045). Verif
 
 | Fact | Value |
 |---|---|
-| Total migrations | 50 — all applied to cloud (046 was applied defective, corrected by 050; 048/049/050 applied and runtime-verified July 5, 2026) |
-| Latest applied (cloud) | `050_fix_update_provider_rating_stars_column.sql` |
-| Next migration number | 051 (planned dispatch/visibility work numbers from 051+) |
-| Cloud state | VERIFIED through 050 (July 5, 2026) — 046 was applied with a defective `update_provider_rating` (ratings 500 production bug); 047 applied manually; 048 (FOR UPDATE correction), 049 (cancel `selected_pending_payment`), and 050 (rating trigger fix, `score`→`stars`) all APPLIED and runtime-verified July 5, 2026 |
+| Total migrations | 56 files exist in `supabase/migrations/` (001–056). No 057+ files exist yet — Phase 3 Steps 3–5 (credit logic) will start at 057. |
+| Latest applied (cloud) | **VERIFIED: 054** (`054_phase3_step1_ssot_and_d5_infra.sql`, applied & runtime-verified July 12, 2026) and **VERIFIED: 056** (`056_grants_hotfix.sql`, applied & runtime-verified July 13, 2026, grants-only, independent of 055). **UNVERIFIED: 053 and 055** — both are documented elsewhere as "code complete, not yet applied," but later session narratives (July 9 dashboard-wiring work assuming `get_nearby_open_requests` — migration 053 — was already callable in production) are inconsistent with "not applied." This inconsistency was NOT resolved this session (no direct Supabase access was used) and must be checked live before either is treated as applied or unapplied. |
+| Next migration number | **057** (Phase 3 Steps 3–5 credit logic, per `TIERED_DISPATCH_051_ANALYSIS.md`) |
+| Cloud state | Confirmed via explicit session verification: 001–050 (July 1 / July 5, 2026), 051–052 (July 8, 2026, corrected same day), 054 (July 12, 2026), 056 (July 13, 2026). **NOT independently reverified this session: 053, 055** — recommended check before next session relies on either: run `pg_get_functiondef('public.get_nearby_open_requests(...)'::regprocedure)` (053) and `pg_get_functiondef('public.submit_quote_atomic(...)'::regprocedure)` (055, look for the Step 2b tier-delay gate) directly against production. |
 
-**Migrations 039–045 are the security and marketplace remediation batch.** All 50 migrations have been applied to the production Supabase project (001–045 verified July 1, 2026; 046–050 verified July 5, 2026).
+**Correction note (July 15, 2026):** Prior versions of this document stated migrations 053/055 were "not yet applied." This session did not gain new evidence either confirming or refuting that — it is carried forward as UNVERIFIED, not as a fact, per the verify-first rule. Do not assume either status without a live check.
 
-Complete migration sequence: 001–050. For architectural meaning of each migration see [ARCHITECTURE.md §2].
+
+**Migrations 039–045 are the security and marketplace remediation batch. Migrations 051–056 are the Tiered Dispatch batch** (051 dispatch-foundation schema, 052 subscriber-count snapshot, 053 tiered visibility RPC, 054 Phase 3 Step 1 SSOT + D5 infra, 055 Phase 3 Step 2 visibility-delay gate in `submit_quote_atomic`, 056 grants hotfix). 001–045 verified July 1, 2026; 046–050 verified July 5, 2026; 051–052 verified July 8, 2026; 054 verified July 12, 2026; 056 verified July 13, 2026. **053 and 055 have no independent post-write verification recorded — see correction note above.**
+
+Complete migration sequence: 001–056. For architectural meaning of each migration see [ARCHITECTURE.md §2] (§2 table currently lists 001–056 — updated July 15, 2026, see that file for the 046–056 additions).
 
 ---
 
@@ -143,6 +149,14 @@ The following table records the verification state of every significant implemen
 
 See §6 for detailed descriptions of each blocker.
 
+**Priority order (set July 15, 2026, per current session):**
+1. **LB-12 — Phase 3 credit logic** (Steps 3–5, migrations 057+, per `TIERED_DISPATCH_051_ANALYSIS.md`) — blocks subscriber quote-limit/credit correctness at launch scale.
+2. **LB-1 — Fair price formula redesign** (two-leg distance + emirate destination) — fair-price enforcement is currently defeated by migration 044's widened bounds.
+3. **LB-4 — Stripe live keys + env vars** — no real payments can be collected until swapped.
+4. All remaining open items below (LB-8, LB-9, LB-11), in table order.
+
+**LB-13 is CLOSED** (July 15, 2026, works as designed per the newly approved binding decision — see §6 LB-13 and §15) — removed from the active priority list.
+
 | # | Blocker | Severity | Owner reference |
 |---|---|---|---|
 | LB-1 | Fair price formula redesign (two-leg distance + emirate destination) | Critical | DEFERRED_PRODUCT_BACKLOG P9, P1, P2 |
@@ -155,6 +169,9 @@ See §6 for detailed descriptions of each blocker.
 | LB-9 | OG image / logo file extension gaps | Medium | §2 Deployment |
 | LB-10 | P4-H3 — Weekly SLA reset is non-atomic — CLOSED, migration 047 applied to cloud | Medium | §13 |
 | LB-11 | `NEXT_PUBLIC_SITE_URL` not set in Vercel (password reset emails degrade) | Medium | §11 |
+| LB-12 | **NEW** — Phase 3 credit logic (Steps 3–5: D4 monthly-limit/credit-consumption fix, D5 restoration + abuse controls, 053-helper adoption), migrations 057+ not yet written | Critical | `TIERED_DISPATCH_051_ANALYSIS.md`, §6 LB-12 |
+| LB-13 | Disappearing quoted-request bug — **CLOSED July 15, 2026**, works as designed per the approved `quoted_at` + 20-minute expiry rule (binding decision, §15) | Closed | §6 LB-13 |
+| LB-14 | **NEW** — Mandatory-rating lock vs. new-request visibility: code confirms a new active request can be created (POST has no unrated-job check) and, once created, is unconditionally masked by GET while any unrated completed job exists for that customer. Not reachable via the intended single-page UI flow; reachable via a direct API call to `POST /api/requests`. Classification pending Medo. | Pending classification | §6 LB-14 |
 
 ### Not blockers (deferred by owner decision)
 
@@ -241,6 +258,89 @@ When a customer selects a subscription provider's quote via `select_quote_atomic
 **Impact:** Subscription providers at their monthly limit can receive jobs without paying the overage fee. This is a revenue leak and a fairness issue.
 
 **Required:** Add overage check inside `select_quote_atomic` for the subscriber path, or redirect to overage payment before finalization.
+
+---
+
+### LB-12 — Phase 3 Credit Logic (Steps 3–5) — PARTIALLY DONE (Step 3 code complete, July 16, 2026)
+
+**Status:** PARTIALLY DONE. Step 3 (Items C+D) is CODE COMPLETE — NOT YET APPLIED (migration 057, see §1). Steps 4–5 not yet started. Launch blocker until applied and production-verified.
+
+Per `TIERED_DISPATCH_051_ANALYSIS.md`, Tiered Dispatch Phase 3 has three steps done or code-complete (Step 1 = SSOT functions, migration 054, applied July 12, 2026; Step 2 = visibility-delay gate in `submit_quote_atomic`, migration 055, code complete but cloud-application status UNVERIFIED — see §1; Step 3 = credit-consumption fix in `select_quote_atomic` + SSOT wiring in `submit_quote_atomic`, migration 057, code complete, NOT YET APPLIED — see §1). Steps 4–5 (Items D5/F in the analysis doc) remain **not yet written**:
+- D4 — monthly-limit / credit-consumption enforcement fix. **DONE (code complete, migration 057):** `select_quote_atomic` now sources `monthly_limit` from `get_provider_limits()` and consumes exactly one `job_credit_balance` credit at selection time, only after the base monthly limit is reached and only when the request's `overage_cleared` is not TRUE.
+- D5 — subscriber-limit restoration + abuse controls. Still OUT OF SCOPE — blocked on Item E's abuse-review persistence mechanism (see migration 054's header).
+- Adoption of the migration-053 visibility helper across remaining call sites. Not started.
+- The pre-existing bug noted in `TIERED_DISPATCH_051_ANALYSIS.md` (`select_quote_atomic` ignores `job_credit_balance`) is now FIXED by migration 057 (pending apply). The mirrored application-layer double-counting bug in `src/lib/provider-allowance.ts` (`effectiveLimit = planLimit + creditBalance`) is also fixed in the same change (see §1, Migration 057 row).
+- Submission-time blocking on exhaustion was investigated and explicitly NOT implemented — the pre-submission overage-payment path is dead code in the live V2 marketplace UI (LB-6 removed the only trigger). See `DEFERRED_PRODUCT_BACKLOG.md` P19.
+
+These remaining items (D5, 053 helper adoption) will be written as migrations 058+. No code exists for them yet.
+
+**Impact if launched as-is (before 057 is applied):** Subscriber daily quote limits (5/10/20/3, live since migration 039) are not uniformly enforced against the new SSOT, and job-credit consumption/restoration logic tied to tiered dispatch is incomplete. Once 057 is applied, the credit-consumption gap closes; D5 restoration and abuse controls remain deferred by design (out of scope, per binding decision).
+
+**Required:** Apply migration 057 and complete the production verification checklist in the accompanying implementation notes (function-body diff, grants query, behavioral scenarios) before treating Step 3 as done. Design and implement migrations 058+ for Steps 4–5 per the approved plan in `TIERED_DISPATCH_051_ANALYSIS.md`, following the same verify-first-against-production discipline used for 051–057.
+
+---
+
+### LB-13 — Disappearing Quoted-Request Bug — CLOSED, works as designed (July 15, 2026)
+
+**Status: CLOSED.** The root cause diagnosed across multiple prior read-only sessions is unchanged in the code, but the underlying `quoted_at` + 20-minute expiry rule it depends on is now a formally APPROVED binding decision for launch (Medo, July 15, 2026) — see §15. This is not a code fix; it is a product decision that the previously observed symptom is acceptable/expected behavior once cron execution is healthy.
+
+**Symptom (as originally observed):** A customer's active `quoted` request appeared to disappear from their dashboard after a provider submitted a second/later quote on it.
+
+**Root cause (confirmed in code, unchanged):**
+1. `src/app/api/requests/route.ts` (GET handler, ~lines 161–169): masks `activeRequest` from the response when `status === 'quoted'` and `quoted_at` is more than 20 minutes old (or null).
+2. `submit_quote_atomic` (migration 039/055): `quoted_at = now()` is written only on the very first quote (`v_is_first_quote`); it is never refreshed by subsequent quotes on the same request.
+3. `src/app/api/ops/marketplace-cron/route.ts` `expireUnselectedRequests`: expires `quoted` requests using the same `quoted_at` + 20-minute cutoff, consistent with (1).
+
+**BINDING DECISION (Medo, July 15, 2026):** The current production behavior — `quoted_at` + 20 minutes, set once, never refreshed — is APPROVED for launch. Confirmed by a live production test on request `b61b8e4f-a8ac-409a-bac3-28f9d085a56c`. The previously observed *indefinite trapped/zombie* symptom (request never expiring, staying stuck masked forever) has been eliminated as a side effect of the cron-auth incident closure (§12) — the marketplace-cron `expireUnselectedRequests` job now runs reliably every minute in production, so a masked request reliably transitions to `expired` within the 20-minute window instead of remaining stuck indefinitely. With cron execution healthy, the remaining behavior (a quoted request becomes unavailable/expired 20 minutes after the *first* quote, even if later quotes arrive) is accepted as the launch rule, not treated as a bug.
+
+**Superseded proposal:** The previously discussed "bounded sliding selection window" redesign (`selection_expiry = MIN(latest_valid_quote_time + selection_window, created_at + max_request_lifetime)`) is DEFERRED, not rejected — see `DEFERRED_PRODUCT_BACKLOG.md` and §14. It will only be evaluated post-launch if real usage data shows customers losing valid quotes to expiry or a high re-request rate after expiry.
+
+**Not re-verified this session:** No new code change was made to `requests/route.ts`, `submit_quote_atomic`, or `marketplace-cron/route.ts` — the closure is a product-decision closure, not a code-verification closure. If the underlying code changes in a future session, this closure must be re-evaluated against the new code.
+
+---
+
+### Closed Investigation — PPJ Quote Display (July 15, 2026)
+
+**Status: CLOSED.** Per Medo's live production test: the database contained both submitted quotes, `GET /api/requests/quotes` returned both, and the customer page displayed both. No independent quote-display defect exists. This closes the "PPJ quote missing from customer page" investigation opened in a prior session (previously recorded as UNVERIFIED, pending a runtime test).
+
+**Confirmed expected behavior (not a bug):** The PPJ provider's immediate visibility of the request in that same test is the approved zero-subscriber fallback (`providers_in_range_at_creation = 0`, `subscribers_in_range_at_creation = 0` at request creation) — per the Tiered Dispatch design (`TIERED_DISPATCH_051_ANALYSIS.md`), a zero-subscriber request bypasses tier-delay entirely so a PPJ provider can quote immediately. This is intentional, documented behavior, not a defect.
+
+**Open low-priority UX item (not a launch blocker):** the customer page shows "location not recorded" copy even though exact + fuzzy coordinates exist on the request, because `location_address` is NULL. This is misleading copy, not data loss — tracked as a new item in `DEFERRED_PRODUCT_BACKLOG.md`.
+
+---
+
+### LB-14 — Mandatory-rating lock vs. new-request visibility (read-only, classification pending Medo, July 15, 2026)
+
+**Status: OPEN, classification pending.** Read-only, evidence-based trace. No fix implemented.
+
+**Only one request-creation path exists.** Confirmed via a repo-wide search for `.from('requests')...insert(...)` with a `customer_id` field: exactly one call site, `src/app/api/requests/route.ts` (POST handler). No RPC-based creation function (e.g. `create_request_atomic`) exists in any migration. This is the sole technical surface for this trace.
+
+**POST guard (`src/app/api/requests/route.ts:291-323`) — exact conditions:**
+```ts
+.from('requests').select('id, status').eq('customer_id', user.id)
+.in('status', ['open','quoted','selected_pending_payment','accepted','en_route','arrived','in_progress'])
+```
+If a row matches, POST returns 409. **This guard has zero reference to `jobs.completed_at`, `ratings`, or any unrated-job condition.** It is identical in scope to the GET handler's active-request status list (by design, per its own comment) — but the rating lock itself is enforced only in GET (`route.ts:185-206`), never in POST.
+
+**GET handler (`route.ts:185-206`) — the lock:** if the customer has any completed job without a matching row in `ratings`, GET returns `completed_unrated_request: {...}, active_request: null` unconditionally — even if a genuinely separate, active request also exists for that customer at that moment.
+
+**Trace result, by path:**
+| Path | While an unrated completed job exists |
+|---|---|
+| `POST /api/requests` (the only creation path) | **Allowed**, unconditionally, as long as no OTHER request is currently in the 7-status active list. The unrated job itself never blocks creation. |
+| Any other creation path | **None exists** — no other path to check. |
+
+**Can a request created before completion coexist with a later rating lock?** Traced precisely: **no legitimate ordering exists for this through the intended UI**, because (1) the duplicate-guard's active-status list means a customer can only ever have one request in an active status at a time, and (2) the moment that request transitions to `completed`, the resulting job is *immediately* unrated (there is no grace period) — so by the time a customer could create a second request (i.e., once the first leaves the active-status list), the rating lock has already engaged. The `/customer/request` page (`src/app/customer/request/page.tsx:530`) is the sole UI surface for request creation, and its render logic makes the create-request form (steps 1–3) mutually exclusive with the rating-lock screen — the form is never rendered while `completed_unrated_request` is set, so the customer cannot submit a new request through this page while locked. A live realtime subscription (`page.tsx:207-230`) also proactively refreshes state the instant the tracked request completes, closing this window quickly for an open, connected tab.
+
+**However, coexistence IS reachable via a direct API call**, because the POST guard has no rating-check at all: a raw `POST /api/requests` call (curl/Postman/devtools/any alternate client) issued after the prior request completes — bypassing the page's rating-lock render entirely — succeeds unconditionally. Once that second request exists, every subsequent `GET /api/requests` call (from any tab/session) will mask it: `active_request: null`, `completed_unrated_request: {...}` — the new, genuinely active (and potentially paid/assigned) request becomes invisible on the customer's only dashboard view until the old job is rated, with no time limit and no cron/reminder path.
+
+**Separation of reachability:**
+- **Technical reachability:** YES — confirmed by code; the write path (POST) enforces no rating-related check at all.
+- **Intended-UI reachability:** NO — the single-page, single-flow, realtime-connected UI cannot produce the coexistence; the create-form and the lock screen are mutually exclusive renders, and the lock engages at the same instant the prior request's active-status window closes.
+- **Direct-API reachability:** YES — confirmed; nothing prevents a non-UI client from creating the second request while the lock would otherwise apply on the UI.
+- **Business severity:** the gap is real but not exploitable through the official web UI alone under normal single-session use; it is a genuine defense-in-depth gap (the business rule "no new request while a rating is owed" is enforced only in the read/display layer, not the write/creation layer), so any future client, retry, admin action, or bug elsewhere touching this flow could reproduce it and silently strand an active request from its owner indefinitely.
+
+**Which position the code supports:** neither position alone is complete. Position A is correct about intended-UI-flow reachability (blocked). Position B is correct that the guard is architecturally incomplete and reachable via direct API — this is a real, code-confirmed gap, not merely theoretical, even though the standard UI path is closed. Classification (watch item vs. pre-launch requirement to add a matching check in POST) is Medo's decision — no fix implemented.
 
 ---
 
@@ -539,15 +639,34 @@ The original migration 031 seed values are NOT the restore target — they are s
 
 | Variable | Status |
 |---|---|
-| `OPS_CRON_SECRET` | Required in production — `env.ts` throws at startup if missing or < 32 chars in `production` NODE_ENV. INSUFFICIENT EVIDENCE of actual Vercel configuration. |
+| `OPS_CRON_SECRET` | Required in production — `env.ts` throws at startup if missing or < 32 chars in `production` NODE_ENV. **VERIFIED July 15, 2026 — confirmed present and working** (see §12 cron incident closure). |
+| `CRON_SECRET` (Vercel-managed) | **VERIFIED July 15, 2026 — added to Vercel env by owner and confirmed working in production** (`/api/ops/marketplace-cron` returns 200, `event=marketplace_cron_complete`, `critical_failure=false`). Code has honored this variable (subject to a ≥32-char minimum) since commit `0d97b15` (2026-06-05); it was not present as a Vercel env value in production until July 14–15, 2026 — see §12. |
 
 ---
 
-## §12 Operations — Currently No Open Findings
+## §12 Operations
 
 All operational findings from Phase 2 Security Audit 4 (P4-H4, P4-M1, P4-M2, P4-L4) are resolved in the current codebase.
 
-No cron/SLA runtime incidents are currently recorded.
+### Cron Auth Incident (401s, missing Vercel `CRON_SECRET`) — CLOSED July 15, 2026
+
+**Symptoms:** `/api/ops/marketplace-cron` (and other `/api/ops/*` routes) returned 401 Unauthorized. Logs showed `has_bearer=false` and `has_ops_header=false` on the automated Vercel-scheduled invocations, despite `OPS_CRON_SECRET` having been configured in Vercel for months.
+
+**Root cause (confirmed via `git log --follow` / `git show` on `src/lib/ops-auth.ts`):**
+- `src/lib/ops-auth.ts` was created 2026-05-25 (`15a9aa0`) supporting **only** `OPS_CRON_SECRET` (via `Authorization: Bearer` or `x-ops-secret` header) — no Vercel-native awareness.
+- Support for Vercel's own `process.env.CRON_SECRET` was added 11 days later, 2026-06-05 (`0d97b15`), as an OR'd `isVercelCron` branch.
+- `marketplace-cron`'s route and its `vercel.json` schedule were created later still, 2026-06-09 (`22b6bc5`) — after `isVercelCron` support already existed in code.
+- `SETUP.md` §9/§11 (lines ~360–453) documents `OPS_CRON_SECRET` as the **manual/dev `curl`-testing credential**, with Vercel's own `CRON_SECRET` as the intended automated-production path — and states (line 379) that Vercel auto-provisions `CRON_SECRET` on Pro/Enterprise plans. That auto-provisioning assumption was never independently verified against this project's actual plan/deployment.
+- The owner confirmed `CRON_SECRET` was only added to the Vercel project's environment on 2026-07-14 — meaning `process.env.CRON_SECRET` was very likely `undefined` in production for the ~5-week window between `marketplace-cron`'s creation and that date, so every automated Vercel-scheduled invocation in that window received a 401 (`isVercelCron` always false). No evidence of any external scheduler (cron-job.org, EasyCron, GitHub Actions) sending `OPS_CRON_SECRET`/`x-ops-secret` was found anywhere in git history or docs (repo-wide search returned zero matches beyond `SETUP.md`'s own manual-testing examples).
+- Conclusion: the automated cron most likely never authenticated successfully until `CRON_SECRET` was added on 2026-07-14 — there is no evidence of a previously-working external caller that later disappeared.
+
+**Fix:** Owner added `CRON_SECRET` to the Vercel project environment (2026-07-14, outside this repo). To help confirm the fix in production without risking a permanent change, a clearly labeled `TEMP-DIAGNOSTIC` block (additive fields on the existing `logger.warn` unauthorized-request log — no change to the `isVercelCron`/`isOpsSecret` authorization conditions or the 401 response) was added to `src/lib/ops-auth.ts` in commit `af23f35` (2026-07-14/15), verified with `tsc --noEmit` and `eslint` (both exit 0), and pushed to `main`.
+
+**Production verification (owner-confirmed, 2026-07-15):** `/api/ops/marketplace-cron` returns HTTP 200; log event `marketplace_cron_complete`; `critical_failure=false`; `errors=[]`. Authentication confirmed healthy.
+
+**Diagnostics removed:** The `TEMP-DIAGNOSTIC` block was removed in commit `1556059` (2026-07-15). Verified by diffing the resulting file against the last known-good pre-diagnostic commit `facc407` — the diff was empty (byte-identical restoration). `tsc --noEmit` and `eslint` both exit 0 after removal. Pushed to `main` (`af23f35..1556059`).
+
+**Status: CLOSED.** No further action required on this incident. A residual, separate open item: whether this Vercel project actually auto-provisions `CRON_SECRET` per plan tier (the `SETUP.md` line-379 assumption) was never independently confirmed — moot now that it has been added manually and verified working, but the documentation claim itself remains unverified against the Vercel dashboard/plan settings.
 
 **This section is reserved as the designated location for future cron/SLA runtime incidents.** If a cron job fails, returns unexpected results, causes data integrity issues, or an SLA enforcement gap is discovered at runtime, record it here. Do not require a structural change to this document to add such a finding — append to this section directly.
 
@@ -617,11 +736,9 @@ Each provider's `ProviderRealtimeRefresh` creates three Supabase Realtime channe
 
 ---
 
-### P4-M6 — `OPS_CRON_SECRET` Vercel Configuration
+### P4-M6 — `OPS_CRON_SECRET` Vercel Configuration — CLOSED July 15, 2026
 
-**Status: INSUFFICIENT EVIDENCE.**
-
-`env.ts` throws at startup in production if `OPS_CRON_SECRET` is missing or < 32 chars. Whether the secret is correctly configured in the Vercel project environment variables cannot be confirmed from source alone. Verify in Vercel dashboard.
+**Status: RESOLVED.** See §12 "Cron Auth Incident — CLOSED July 15, 2026" for the full symptom/root-cause/fix/verification record. Both `OPS_CRON_SECRET` and Vercel's `CRON_SECRET` are now confirmed present and working in production (`/api/ops/marketplace-cron` returns 200, `marketplace_cron_complete`, `critical_failure=false`).
 
 ---
 
@@ -630,3 +747,29 @@ Each provider's `ProviderRealtimeRefresh` creates three Supabase Realtime channe
 **Status: OPEN.**
 
 There is no external uptime monitoring or alerting configured. `src/lib/logger.ts` logs to stdout. Sentry captures errors. No external health-check endpoint at `/api/health`. No alerting configured for 5xx spikes, response time > 2 s, or DB connection failures. Per AGENTS.md B1, these must be implemented before launch.
+
+---
+
+## §14 Superseded Decisions
+
+- **"`OPS_CRON_SECRET` alone authenticates Vercel cron" (original 2026-05-25 design, `15a9aa0`)** — superseded 2026-06-05 (`0d97b15`) by adding native Vercel `CRON_SECRET` support as an OR'd authorization path. `OPS_CRON_SECRET` remains the manual/dev `curl`-testing credential (per `SETUP.md` §11); it was never the mechanism Vercel's own scheduler used.
+- **Migration 040/045/047/048's informal, ad-hoc grant statements** — superseded by migration 056's project-wide fail-closed default (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated, service_role`) plus explicit per-function re-grants. Migration 056 is now the canonical grants baseline; any future `DROP FUNCTION`/`CREATE OR REPLACE` must follow the AGENTS.md A2 "Function Grant Discipline" checklist, not the older ad-hoc pattern.
+- **Prior assumption "created_at + 30 min consumed identically in all 3 places" for the disappearing-request masking/expiry logic** — this was not confirmed by code inspection. The current, verified mechanism in all three consumers (`requests/route.ts` GET, `marketplace-cron/route.ts`, `submit_quote_atomic`) is `quoted_at` + 20 min, consistently. See LB-13 (§6).
+- **Binding decision "fixed selection deadline = created_at + 30 minutes, consumed in 3 places"** — SUPERSEDED July 15, 2026. Replaced by the newly approved binding decision: `quoted_at` + 20 minutes (set once by the first quote, never refreshed), confirmed via live production test on request `b61b8e4f-a8ac-409a-bac3-28f9d085a56c`. See §15 for the current binding rule and LB-13 (§6) for closure detail.
+
+## §15 Binding Decisions Still In Force
+
+These remain authoritative and were not revisited or altered this session. Full text lives in `TIERED_DISPATCH_051_ANALYSIS.md`; only pointers are given here to avoid drift between documents.
+
+- **R1–R6** (Phase 1 resolutions, Tiered Dispatch design) — binding, unchanged.
+- **Q-A / Q-B / Q-C** (Phase 2 resolutions, Tiered Dispatch design) — binding, unchanged.
+- **Snapshot Consistency Constraint** — dual snapshot counts (`providersInRangeAtCreation`, `subscribersInRangeAtCreation`) must be computed from a single query. Confirmed still implemented as a single query in `src/app/api/requests/route.ts` this session.
+- **Option A scope statement** — migration 055's visibility-delay gate covers tier-delay authorization only, not full eligibility parity. The "Quote Reachability Parity" follow-up (GPS-staleness + radius/reachability parity between the quote route and migration-053 dashboard visibility) is still unscheduled and remains a prerequisite before Phase 3 can be marked "server-side enforcement complete."
+- **AGENTS.md A2 Function Grant Discipline** (added with migration 056) — every new function and every `DROP FUNCTION` + `CREATE` replacement must revoke `PUBLIC`/`anon`/`authenticated`/`service_role` and re-grant only proven-necessary roles, with the caller/proof recorded in a migration comment. Binding for all future migrations, including 057+.
+- **Selection-expiry rule: `quoted_at` + 20 minutes (Medo, July 15, 2026) — NEW BINDING DECISION.** The current production behavior — a request's selection window expires 20 minutes after its `quoted_at` timestamp, which is set once by the first quote and never refreshed by later quotes — is APPROVED for launch. Confirmed by live production test on request `b61b8e4f-a8ac-409a-bac3-28f9d085a56c`: DB contained both quotes, `GET /api/requests/quotes` returned both, customer page displayed both. This supersedes the earlier "created_at + 30 minutes" assumption (§14) and closes LB-13 (§6) as "works as designed." The "bounded sliding selection window" alternative (`selection_expiry = MIN(latest_valid_quote_time + selection_window, created_at + max_request_lifetime)`) is DEFERRED, not rejected — see `DEFERRED_PRODUCT_BACKLOG.md`, to be evaluated only if post-launch usage data shows customers losing valid quotes or high re-request rates.
+
+## §16 Lessons Learned (added July 15, 2026)
+
+- **A root-cause diagnosis is not an implemented fix.** The disappearing-request bug was fully root-caused in prior sessions but no code change was ever made. This session assumed (per the incoming request) that it had been fixed and closed — direct code inspection (not memory) disproved that. Always re-verify the current code state before marking any finding CLOSED, even when a prior session's diagnosis was thorough and confident.
+- **Documentation claims about third-party platform behavior (e.g. "Vercel auto-provisions `CRON_SECRET` on Pro/Enterprise plans," `SETUP.md` line 379) are assumptions until checked against the actual deployment/plan.** They should be labeled as such rather than stated as fact in project docs.
+- **Temporary diagnostic instrumentation should be added and removed as a verifiable unit**, not just "some extra logging." This session's workflow — label the block clearly (`TEMP-DIAGNOSTIC` comment), keep it additive only (no change to authorization conditions or return values), and verify removal by diffing the file against the exact last-known-good commit (empty diff = exact restoration) plus a type-check/lint pass both before and after — produced a clean, provable before/after state and should be the standard pattern for any future temporary production diagnostics.

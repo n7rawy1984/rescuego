@@ -38,6 +38,12 @@ export default function CustomerQuoteList({ requestId }: Props) {
   const [selecting, setSelecting] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [nowMs, setNowMs] = useState(() => Date.now())
+  // Migration 057: quotes that failed selection with `overage_required`.
+  // Option A (approved design) leaves the quote row pending in the DB --
+  // select_quote_atomic remains the sole enforcement backstop -- so the
+  // quotes API keeps returning it on refetch. Hidden client-side for the
+  // lifetime of this mounted view.
+  const [unavailableQuoteIds, setUnavailableQuoteIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const tick = setInterval(() => setNowMs(Date.now()), 30000)
@@ -125,6 +131,13 @@ export default function CustomerQuoteList({ requestId }: Props) {
       const result = await res.json()
 
       if (!res.ok) {
+        if (result.code === 'overage_required') {
+          setUnavailableQuoteIds((prev) => new Set(prev).add(quoteId))
+          setError(t('providerNoLongerAvailable'))
+          setSelecting(null)
+          void fetchQuotes()
+          return
+        }
         setError(result.error ?? t('selectFailed'))
         setSelecting(null)
         return
@@ -136,6 +149,8 @@ export default function CustomerQuoteList({ requestId }: Props) {
       setSelecting(null)
     }
   }
+
+  const visibleQuotes = quotes.filter((q) => !unavailableQuoteIds.has(q.id))
 
   if (loading) {
     return (
@@ -150,7 +165,7 @@ export default function CustomerQuoteList({ requestId }: Props) {
     )
   }
 
-  if (quotes.length === 0) {
+  if (visibleQuotes.length === 0) {
     return (
       <div className="rounded-xl border border-slate-100 bg-slate-50 p-6 text-center">
         <Clock className="mx-auto h-8 w-8 text-slate-300" aria-hidden="true" />
@@ -163,7 +178,7 @@ export default function CustomerQuoteList({ requestId }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700">{t('availableQuotes', { count: quotes.length })}</h3>
+        <h3 className="text-sm font-semibold text-slate-700">{t('availableQuotes', { count: visibleQuotes.length })}</h3>
         {priceRange && (
           <span className="text-xs text-slate-400">
             {t('fairRange', { min: priceRange.min.toFixed(0), max: priceRange.max.toFixed(0) })}
@@ -171,7 +186,7 @@ export default function CustomerQuoteList({ requestId }: Props) {
         )}
       </div>
 
-      {quotes.map((quote) => {
+      {visibleQuotes.map((quote) => {
         const expiresMs = new Date(quote.expires_at).getTime() - nowMs
         const expiresMins = Math.max(0, Math.ceil(expiresMs / 60000))
 

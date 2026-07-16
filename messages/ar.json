@@ -373,6 +373,7 @@
       "enterValidPrice": "أدخل سعراً صالحاً",
       "pricePlaceholder": "السعر",
       "quoteSent": "تم إرسال عرض السعر",
+      "monthlyAllowanceExhausted": "تم إرسال عرض السعر، لكنك بلغت الحد الشهري المسموح به (مع الرصيد). قد يتطلب اختيار هذا العرض تجديد الحد الشهري أو رصيداً إضافياً.",
       "quoteSubmitFailed": "فشل إرسال عرض السعر",
       "tooManyAttempts": "محاولات كثيرة. يرجى الانتظار قليلاً.",
       "dailyQuoteLimitReached": "لقد وصلت إلى الحد اليومي لعروض الأسعار — يتجدد غدًا.",
@@ -411,7 +412,8 @@
       "expiresIn": "ينتهي خلال {minutes} د",
       "verified": "موثق",
       "selectFailed": "فشل اختيار العرض",
-      "networkError": "خطأ في الاتصال"
+      "networkError": "خطأ في الاتصال",
+      "providerNoLongerAvailable": "لم يعد مزود الخدمة هذا متاحاً. يرجى اختيار عرض آخر."
     },
     "priceChangeNotification": {
       "title": "طلب تعديل السعر",

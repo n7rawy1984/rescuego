@@ -53,9 +53,12 @@ export default async function ProviderPlanPage() {
   const isPayPerJob = provider.plan === 'pay_per_job'
   const hasStripeSubscription = Boolean(provider.stripe_subscription_id)
 
+  // Migration 057: usagePct is based on planLimit alone (fixed, never
+  // shrinks as credits are consumed) rather than a credit-inclusive limit --
+  // avoids double-counting each credit-funded job (see provider-allowance.ts).
   const usagePct =
-    allowance.effectiveLimit && allowance.effectiveLimit > 0
-      ? Math.min(100, Math.round(((allowance.effectiveLimit - (allowance.remaining ?? 0)) / allowance.effectiveLimit) * 100))
+    allowance.planLimit && allowance.planLimit > 0
+      ? Math.min(100, Math.round((provider.jobs_this_month / allowance.planLimit) * 100))
       : null
 
   return (
@@ -140,7 +143,7 @@ export default async function ProviderPlanPage() {
                   <p className="text-2xl font-bold text-slate-900">{provider.jobs_this_month}</p>
                   <p className="mt-0.5 text-sm text-slate-500">
                     {t('jobsUsedLabel')}
-                    {allowance.effectiveLimit !== null ? t('ofLimit', { limit: allowance.effectiveLimit }) : ''}
+                    {allowance.planLimit !== null ? t('ofLimit', { limit: allowance.planLimit }) : ''}
                     {allowance.creditBalance > 0 ? t('includesCredits', { count: allowance.creditBalance, credits: allowance.creditBalance !== 1 ? t('creditPlural') : t('creditSingular') }) : ''}
                   </p>
                 </div>

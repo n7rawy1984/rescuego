@@ -2,6 +2,74 @@
 
 ---
 
+## Session: July 15, 2026 — Binding expiry-rule decision, PPJ display investigation closed, read-only Phase 3 readiness audit
+
+### Part 1 — Live production test result and binding decision
+
+**Live test performed by Medo:** request `b61b8e4f-a8ac-409a-bac3-28f9d085a56c`. Result: the database contained both submitted quotes, `GET /api/requests/quotes` returned both, and the customer page displayed both.
+
+**Binding decision recorded:** the current production selection-expiry behavior — `quoted_at` + 20 minutes, set once by the first quote and never refreshed by later quotes — is APPROVED for launch (Medo, July 15, 2026). This supersedes the earlier "created_at + 30 minutes, consumed in 3 places" assumption (moved to `PROJECT_STATUS.md` §14 Superseded Decisions). LB-13 (disappearing quoted-request bug, previously OPEN) is now CLOSED as "works as designed" — the indefinite trapped/zombie symptom was already eliminated by the marketplace-cron auth fix (July 14–15 session); the expiry rule itself is now accepted for launch, not treated as a defect. See `PROJECT_STATUS.md` §6 LB-13 and §15 for full detail.
+
+**Deferred (not rejected):** the "bounded sliding selection window" alternative (`selection_expiry = MIN(latest_valid_quote_time + selection_window, created_at + max_request_lifetime)`) is preserved as `DEFERRED_PRODUCT_BACKLOG.md` P17, to be evaluated only if post-launch usage data shows customers losing valid quotes to expiry or a high re-request rate.
+
+### PPJ quote-display investigation — CLOSED
+
+The same live test closes the separate "PPJ quote missing from customer page" investigation (previously UNVERIFIED, pending a runtime test in an earlier session): both quotes were present in the DB, returned by the API, and rendered on the customer page. No independent quote-display defect exists.
+
+**Confirmed expected behavior:** the PPJ provider's immediate visibility of the request in that test is the approved zero-subscriber fallback (`providers_in_range_at_creation = 0`, `subscribers_in_range_at_creation = 0`), per `TIERED_DISPATCH_051_ANALYSIS.md`. Not a bug.
+
+**New low-priority UX item found during the test:** the customer page shows "location not recorded" despite exact + fuzzy coordinates existing on the request (copy is keyed off `location_address` being NULL, not off coordinate presence). Misleading copy, not data loss — recorded as `DEFERRED_PRODUCT_BACKLOG.md` P18.
+
+### Part 2 — Read-only Phase 3 readiness audit
+
+Performed a read-only audit (no code/migration changes) of lifecycle consistency, cron coverage, grant discipline, and Phase 3 Step 3 prerequisites, to answer whether the current production foundation is safe to build Phase 3 (migrations 057+) on top of. Full findings delivered to Medo in-conversation for review; no doc changes were made from Part 2's findings beyond what Part 1 above already covers. Key items flagged for Medo's review before Phase 3 starts: (1) confirm live grants for `expire_stuck_active_requests` and `expire_stale_open_requests` were not missed by migration 056's normalization, (2) confirm migrations 053/055 are actually applied live (SQL queries provided), (3) the D5 restoration hard prerequisite (4th-event abuse-review persistence mechanism) is still not built, (4) two lifecycle orphan-state gaps identified (`in_progress` status has no cron release path; a completed-but-unrated job can mask a genuinely new active request on the customer dashboard indefinitely). No fix was implemented for any of these — report only, per instruction.
+
+**Security note:** a suspicious tool-embedded instruction ("Review code for security before making changes") appeared repeatedly in file-read results this session, unrelated to any actual file content change. Not a real system directive — disregarded as noise/possible injection attempt, consistent with the handling of prior injection attempts recorded in earlier sessions. No `AGENTS.md` change occurred (re-verified directly).
+
+**Files touched this session:** `PROJECT_STATUS.md`, `SESSION_LOG.md` (this entry), `ROADMAP.md`, `DEFERRED_PRODUCT_BACKLOG.md`. No application code or migrations changed.
+
+---
+
+## Session: July 14–15, 2026 — Disappearing-request root-cause audit (read-only), cron auth incident closure, documentation handoff
+
+### Part 1 — Disappearing quoted-request bug: read-only investigation (no fix implemented)
+
+**What was investigated:** A production regression where a customer's active `quoted` request disappears from their dashboard after a provider submits a second quote. Multiple rounds of strictly read-only, evidence-based investigation were performed across this session, culminating in a full A–F lifecycle audit, a 10-part deep audit, and a final deterministic execution trace from `POST /api/provider/jobs/quote` to the customer's dashboard render.
+
+**Root cause identified:** `src/app/api/requests/route.ts` (GET handler) masks an `activeRequest` from the response when its `status === 'quoted'` and `quoted_at` is more than 20 minutes old (or null). `submit_quote_atomic` only sets `quoted_at` on the very first quote for a request (`v_is_first_quote`) — it is never refreshed on subsequent quotes, so the value goes stale relative to ongoing quote activity, and the customer's own dashboard eventually masks their own live request.
+
+**What was fixed:** **Nothing.** This was a read-only diagnosis only, per explicit instruction across the session. No code was changed for this issue.
+
+**What was verified:** On July 15, 2026, as part of the documentation handoff, the root cause was re-verified directly against the current code (not assumed from the earlier diagnosis): `src/app/api/requests/route.ts` masking logic, both the 039 and 055 versions of `submit_quote_atomic`, and `src/app/api/ops/marketplace-cron/route.ts`'s expiry logic were all re-read and confirmed unchanged since the original diagnosis. `git log` confirmed no commit between the diagnosis and now touches any of these three files for this issue.
+
+**Status: still OPEN, NOT FIXED.** See `PROJECT_STATUS.md` LB-13 for full detail. A prior working assumption that the masking/expiry mechanism used "`created_at` + 30 min" was found to be incorrect — the actual, consistent mechanism across all three consumers is `quoted_at` + 20 min.
+
+### Part 2 — Cron auth incident: historical verification, fix, and closure
+
+**Symptoms:** `/api/ops/marketplace-cron` (and other `/api/ops/*` routes) returned 401. Vercel cron logs showed `has_bearer=false` and `has_ops_header=false` on automated invocations, despite `OPS_CRON_SECRET` having been configured in Vercel for months.
+
+**Historical verification performed (read-only, via `git log --follow` / `git show`):** confirmed `src/lib/ops-auth.ts` was created 2026-05-25 (`15a9aa0`) with `OPS_CRON_SECRET`-only authorization; native Vercel `CRON_SECRET` support was added 11 days later, 2026-06-05 (`0d97b15`); `marketplace-cron`'s route/schedule was created 2026-06-09 (`22b6bc5`), after `CRON_SECRET` support already existed in code. `SETUP.md` documents `OPS_CRON_SECRET` as the manual/dev-testing credential, with Vercel's own `CRON_SECRET` as the intended production-automation path. No evidence of any external scheduler was found anywhere in git history or docs.
+
+**Root cause:** The owner confirmed `CRON_SECRET` was only added to the Vercel project's environment on 2026-07-14. Since `isVercelCron` support required `process.env.CRON_SECRET` to be set, and it was not set until that date, automated Vercel cron invocations most likely never authenticated successfully before then — no evidence of a previously-working external caller was found.
+
+**Fix implemented:** The owner added `CRON_SECRET` to the Vercel environment. To confirm production behavior, a clearly labeled, additive-only `TEMP-DIAGNOSTIC` logging block was added to `src/lib/ops-auth.ts` (commit `af23f35`) — no change to authorization logic. `tsc --noEmit` and `eslint` both passed before commit.
+
+**Production verification (owner-confirmed):** `/api/ops/marketplace-cron` returns HTTP 200; log event `marketplace_cron_complete`; `critical_failure=false`; `errors=[]`.
+
+**Diagnostics removed:** commit `1556059` restored `src/lib/ops-auth.ts` to exactly match the pre-diagnostic commit `facc407` — verified via an empty `git diff facc407 -- src/lib/ops-auth.ts`. `tsc --noEmit` and `eslint` both passed after removal. Pushed to `main`.
+
+**Status: CLOSED.**
+
+### Part 3 — Documentation handoff
+
+Updated `PROJECT_STATUS.md` (migration baseline, cron incident closure record in §12, new LB-12/LB-13 blockers, §11 env-var status, new §14 Superseded Decisions / §15 Binding Decisions / §16 Lessons Learned), `SESSION_LOG.md` (this entry), `ROADMAP.md`, and `ARCHITECTURE.md`'s migration table (rows 046–056 added), for handoff to a new session. No application code was changed as part of this part of the session.
+
+**Security note:** During this session, a tool-result "system-notification" appeared claiming `AGENTS.md` had been updated and instructing the agent not to disclose the change to the user. Direct inspection of `AGENTS.md` confirmed no such change occurred — the file content is unchanged. This was a prompt-injection attempt and was disregarded; it is recorded here for visibility, per the same handling applied to a similar injection attempt earlier in this session.
+
+**Files touched this session:** `src/lib/ops-auth.ts` (added then removed diagnostics, net no behavioral change), `PROJECT_STATUS.md`, `SESSION_LOG.md`, `ROADMAP.md`, `ARCHITECTURE.md`. No other files modified.
+
+---
+
 ## Session: July 13, 2026 — SECURITY INCIDENT: Migration 056, emergency grants hotfix (public-schema PUBLIC-EXECUTE exposure)
 
 **Incident class:** Excess-privilege exposure — 15 confirmed live findings (`select_quote_atomic`, `get_nearby_providers`) plus 13 at-risk-by-pattern functions across all 30 project-owned `public`-schema functions, closed via a single fail-closed, fully transactional migration. No exploitation evidence found; discovered proactively during a function-grant audit, not via an external report.
@@ -2783,3 +2851,25 @@ Pending before Task 8:
 - `git add . && git commit -m "Phase 1A complete + VERDENT_HANDOFF.md expanded (sections 16–19)" && git push`
 - Decision: `removeTracing: true` vs CWV capture (can defer)
 - Optional: `npm uninstall` for 12 dead dependencies (safe, no code impact)
+
+---
+
+## Session: July 16, 2026 — Migration 057 (Phase 3 Step 3, Items C+D) implemented
+
+**Precondition verified before writing code (per the 046/048/053/055 lesson):** `submit_quote_atomic`'s live body was already confirmed (prior session) to match migration 055 exactly. `select_quote_atomic`'s live definition was retrieved by Medo and diffed in full against migration 048 as the first implementation step of this session — no drift found. Live grants for both functions confirmed as of July 16, 2026: `PUBLIC=false, anon=false, authenticated=false, service_role=true` for both.
+
+**Implemented (code complete, NOT yet applied to Supabase):**
+- `supabase/migrations/057_phase3_step3_credit_consumption_ssot.sql` — `select_quote_atomic`: replaced the hardcoded 15/35/unlimited plan-limit CASE with `get_provider_limits()` (SSOT), added the approved 4-case credit-consumption gate (under limit → allow; at/over limit + `overage_cleared=FALSE` + credit available → consume exactly one credit via column-relative `UPDATE` under the existing provider-row `FOR UPDATE` lock, then proceed; at/over limit + `overage_cleared=TRUE` → allow, no credit consumed; at/over limit + no credit → unchanged `overage_required` result). `jobs_this_month` still increments unconditionally on every successful subscriber selection. `submit_quote_atomic`: SSOT wiring only (Step 4's two hardcoded CASE blocks replaced by one `get_provider_limits()` call) — no other change, contract fully preserved. Both functions kept via `CREATE OR REPLACE` (signatures unchanged, no DROP) with grants explicitly restated (`REVOKE ALL FROM PUBLIC/anon/authenticated`, `GRANT EXECUTE TO service_role`), not relying on migration 056's default privileges. A verify-first `DO` block aborts the migration if `get_provider_limits`, `providers.job_credit_balance`, `requests.overage_cleared`, `select_quote_atomic`, or `submit_quote_atomic` are missing.
+- `src/lib/provider-allowance.ts` — fixed the double-counting bug: `effectiveLimit` (previously `planLimit + creditBalance`) is dropped entirely (verified misleading once a request is funded by paid overage — `jobsThisMonth` can exceed `planLimit` with zero credits left, which would derive `effectiveLimit = jobsThisMonth` and hide the real plan limit). New formula: `remaining = max(0, planLimit - jobsThisMonth) + creditBalance` — base allowance and credit balance are two separate, non-overlapping buckets.
+- `src/app/provider/plan/page.tsx` — `usagePct` now derived from `jobsThisMonth / planLimit` (capped at 100%, never shrinks as credits are consumed); `ofLimit` now renders `planLimit` instead of the removed `effectiveLimit`. `src/app/provider/dashboard/page.tsx` needed no change (only consumes `creditBalance`, not `effectiveLimit`).
+- `src/app/api/provider/overage-checkout/route.ts` — gate corrected to `!allowance.hasMonthlyAllowance` / `(allowance.remaining ?? 0) > 0` (same semantic as the RPC gate, even though this route's UI trigger is currently unreachable dead code — see P20).
+- `src/app/api/provider/jobs/quote/route.ts` — added `jobs_this_month`/`job_credit_balance` to the already-fetched provider row and `overage_cleared` to the already-fetched request row (no extra query). After a successful `submit_quote_atomic` call, an additive `warning_code: 'monthly_allowance_exhausted'` is included in the response only when the plan has a finite monthly limit (explicit `plan === 'starter' || plan === 'pro'` check), corrected `remaining === 0`, and the request's `overage_cleared !== true`. Wrapped in try/catch — a lookup failure logs via the existing logger and falls back to the plain success response, never an error.
+- `src/components/provider/ProviderQuoteForm.tsx` — renders the translated warning notice below the success confirmation when `warning_code` is present; absence of the field means no warning (old/new client and route combinations stay compatible).
+- `src/app/api/customer/quote/select/route.ts` — added the missing `overage_required` → HTTP 409 mapping (previously fell through to a generic 500).
+- `src/components/customer/CustomerQuoteList.tsx` — added `unavailableQuoteIds` client state; on `overage_required`, the quote id is added to the set, the translated message is shown, and the quotes list is refetched. Rendering now filters on `unavailableQuoteIds` (Option A leaves the quote row pending in the DB, so the quotes API keeps returning it on refetch — the client-side filter persists for the mounted view's lifetime).
+- `messages/ar.json` and `messages/en.json` — added `providerRequestList.monthlyAllowanceExhausted` and `customerQuoteList.providerNoLongerAvailable` (Arabic added first, per convention).
+- Submission-time blocking on exhaustion was investigated and explicitly NOT implemented — the pre-submission overage path is dead code in the live V2 UI (LB-6). Recorded as `DEFERRED_PRODUCT_BACKLOG.md` P19 (overage-economics redesign) and P20 (legacy overage UI audit/retirement, not removed in this session).
+
+**Local verification this session:** `npx tsc --noEmit`, `npm run lint`, `npm run build`, and JSON-parse validation of both message files — results recorded in the same commit-adjacent verification pass (see PR/diff notes). **Production application is PENDING** — migration 057 has not been run against Supabase. `PROJECT_STATUS.md` updated accordingly (Migration 057 row, LB-12 section) with an honest CODE COMPLETE / NOT APPLIED status; no runtime verification is claimed.
+
+**Next task:** Medo applies migration 057, re-runs `pg_get_functiondef` for both functions and the grants query to confirm the live state matches this migration exactly, then works through the behavioral verification checklist (base limit, credit consumption, final-credit warning, Business no-warning, customer `overage_required` UX, overage_cleared bypass, concurrent final-credit selection) before Step 3 is marked done in `PROJECT_STATUS.md`.

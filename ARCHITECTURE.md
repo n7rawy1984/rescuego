@@ -122,6 +122,17 @@ Key migration design history:
 | `043` | Added partial index `idx_jobs_en_route_at WHERE completed_at IS NULL`. |
 | `044` | Temporarily widened fair-price bounds for testing. |
 | `045` | Added PPJ post-selection fee gate: `selected_pending_payment`, `payment_window_started_at`, payment expiry/finalization RPCs. |
+| `046` | `046_revoke_anon_execute_and_fix_search_path.sql` — revoked stray `anon` EXECUTE grants; fixed function `search_path` hardening. |
+| `047` | `047_overage_gate_v2_and_sla_reset_atomic.sql` — added overage gate to the subscriber branch of `select_quote_atomic`; made weekly SLA reset atomic. |
+| `048` | `048_fix_provider_lock_select_quote_atomic.sql` — added `FOR UPDATE` provider-row lock in `select_quote_atomic` to close a TOCTOU race on `jobs_this_month` introduced by migration 047. |
+| `049` | `049_allow_cancel_selected_pending_payment.sql` — allowed cancellation of requests in `selected_pending_payment` status. |
+| `050` | `050_fix_update_provider_rating_stars_column.sql` — fixed `update_provider_rating` trigger referencing the wrong ratings column (`stars`). |
+| `051` | `051_dispatch_foundation_schema.sql` — Tiered Dispatch foundation: schema/columns groundwork for subscriber-tier visibility and limits. |
+| `052` | `052_subscriber_count_snapshot.sql` — added subscriber-count snapshot support used by tiered visibility. |
+| `053` | `053_tiered_visibility_rpc.sql` — added the tiered visibility RPC/helper consumed by the provider dashboard. Cloud-application status UNVERIFIED as of July 15, 2026 — see PROJECT_STATUS.md §3. |
+| `054` | `054_phase3_step1_ssot_and_d5_infra.sql` — Phase 3 Step 1: single-source-of-truth limit functions (`get_provider_limits`, `get_customer_abuse_limits`) plus D5 infrastructure. APPLIED & runtime-verified July 12, 2026. |
+| `055` | `055_phase3_step2_visibility_delay_gate.sql` — Phase 3 Step 2: added a tier-based visibility-delay authorization gate to `submit_quote_atomic` (Option A scope: tier-delay only, not full eligibility parity). Code complete; cloud-application status UNVERIFIED as of July 15, 2026 — see PROJECT_STATUS.md §3. |
+| `056` | `056_grants_hotfix.sql` — emergency security hotfix: project-wide fail-closed default privileges (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated, service_role`) plus explicit re-grants across 30 `public`-schema functions. APPLIED & runtime-verified July 13, 2026. |
 
 Location and geo design:
 

@@ -16,6 +16,7 @@ export default function ProviderQuoteForm({ requestId, disabled = false }: Props
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [warning, setWarning] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -38,7 +39,11 @@ export default function ProviderQuoteForm({ requestId, disabled = false }: Props
       // Parse the body BEFORE branching on status: the route returns 429 for both
       // the rate limiter and the RPC daily quote limit — only the stable `code`
       // field distinguishes them, so the provider gets an honest message.
-      const result: { error?: string; code?: string } | null = await res.json().catch(() => null)
+      // Migration 057: the route returns an additive `warning_code` field
+      // only when the quote succeeded but the provider's monthly allowance
+      // (base + credits) is exhausted. Absence of the field = no warning;
+      // old client + new route and new client + old route are both safe.
+      const result: { error?: string; code?: string; warning_code?: string } | null = await res.json().catch(() => null)
 
       if (!res.ok) {
         if (result?.code === 'daily_limit_reached') {
@@ -54,6 +59,10 @@ export default function ProviderQuoteForm({ requestId, disabled = false }: Props
         return
       }
 
+      if (result?.warning_code === 'monthly_allowance_exhausted') {
+        setWarning(t('monthlyAllowanceExhausted'))
+      }
+
       setSuccess(true)
       setSubmitting(false)
       router.refresh()
@@ -65,11 +74,16 @@ export default function ProviderQuoteForm({ requestId, disabled = false }: Props
 
   if (success) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-[#E1F5EE] px-3 py-2 text-sm font-medium text-[#0F6E56]">
-        <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-        <span>{t('quoteSent')}</span>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2 rounded-lg bg-[#E1F5EE] px-3 py-2 text-sm font-medium text-[#0F6E56]">
+          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{t('quoteSent')}</span>
+        </div>
+        {warning && (
+          <p className="text-xs text-amber-700">{warning}</p>
+        )}
       </div>
     )
   }

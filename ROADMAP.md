@@ -95,9 +95,10 @@ All four cron routes are configured and deployed in `vercel.json`.
 | `/api/ops/marketplace-cron` | Every minute | Expire stale quotes; expire unselected requests; SLA enforcement (LIMIT 50, `created_at ASC`); expire PPJ payment windows |
 | `/api/ops/weekly-sla-reset` | Sunday midnight | Apply `visibility_reduced` for 3+ SLA failures; reset `sla_failure_count` |
 
-- Ops auth: `authorizeOpsRequest` using `OPS_CRON_SECRET` (≥32 chars, constant-time comparison)
+- Ops auth: `authorizeOpsRequest` using `OPS_CRON_SECRET` (≥32 chars, constant-time comparison) OR Vercel-managed `CRON_SECRET` (≥32 chars) — dual path since 2026-06-05
 - `env.ts` hard-fails at startup in production if `OPS_CRON_SECRET` is missing or < 32 chars
 
+> Resolved July 15, 2026: cron auth incident (401s; Vercel `CRON_SECRET` was not present in the Vercel project environment until 2026-07-14) is CLOSED and verified in production. See [PROJECT_STATUS.md §12].
 > Open item: weekly SLA reset is non-atomic (two UPDATE statements). See [PROJECT_STATUS.md §13].
 
 ---
@@ -167,6 +168,23 @@ All fixes are code-complete. Runtime verification of cloud migration state is pe
 
 ---
 
+### Tiered Dispatch (migrations 051–056) — IN PROGRESS
+
+| Migration | Status |
+|---|---|
+| 051 — dispatch foundation schema | APPLIED & verified July 8, 2026 |
+| 052 — subscriber count snapshot | APPLIED & verified July 8, 2026 |
+| 053 — tiered visibility RPC | Code complete; cloud-application status UNVERIFIED this session — see [PROJECT_STATUS.md §3] |
+| 054 — Phase 3 Step 1 SSOT + D5 infra | APPLIED & verified July 12, 2026 |
+| 055 — Phase 3 Step 2 visibility-delay gate (`submit_quote_atomic`) | Code complete; cloud-application status UNVERIFIED this session — see [PROJECT_STATUS.md §3] |
+| 056 — grants hotfix | APPLIED & verified July 13, 2026 |
+
+Phase 3 Steps 3–5 (credit logic: monthly-limit/credit-consumption fix, subscriber-limit restoration + abuse controls) are **not yet written** — next work is migrations 057+. See [TIERED_DISPATCH_051_ANALYSIS.md] and [PROJECT_STATUS.md §6 LB-12].
+
+**Related known issue — CLOSED July 15, 2026:** the disappearing quoted-request bug (customer's active request masked from the dashboard once `quoted_at` is stale) had a confirmed root cause but no code fix. It is now CLOSED as "works as designed" per a binding decision approving the current `quoted_at` + 20-minute expiry rule for launch, confirmed by a live production test. See [PROJECT_STATUS.md §6 LB-13, §15].
+
+---
+
 ## Before Launch — Required
 
 The following must be resolved before production traffic and real payments. See [PROJECT_STATUS.md §5–§6] for the detailed current status of each.
@@ -184,6 +202,8 @@ The following must be resolved before production traffic and real payments. See 
 | LB-9 OG image / logo file extension gaps | [PROJECT_STATUS.md §2] |
 | LB-10 P4-H3 — weekly SLA reset non-atomic | [PROJECT_STATUS.md §13] |
 | LB-11 `NEXT_PUBLIC_SITE_URL` not set in Vercel | [PROJECT_STATUS.md §11] |
+| LB-12 Phase 3 credit logic (Steps 3–5, migrations 057+) — NOT YET WRITTEN | [TIERED_DISPATCH_051_ANALYSIS.md], [PROJECT_STATUS.md §6 LB-12] |
+| LB-13 Disappearing quoted-request bug — **CLOSED**, works as designed per approved expiry rule | [PROJECT_STATUS.md §6 LB-13] |
 
 ---
 

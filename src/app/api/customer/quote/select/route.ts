@@ -75,6 +75,12 @@ export async function POST(req: NextRequest) {
       quote_not_found: { msg: 'Quote not found', status: 404 },
       quote_not_pending: { msg: 'Quote is no longer available', status: 409 },
       quote_expired: { msg: 'This quote has expired', status: 410 },
+      // Migration 057: previously fell through to the generic 500 below.
+      // The provider hit their monthly limit with no credits/overage
+      // clearance between quoting and this selection attempt -- not the
+      // customer's fault and not a server error. Stable `code` lets the
+      // client show a translated, actionable message and hide this quote.
+      overage_required: { msg: 'This provider is no longer available for this request', status: 409 },
     }
 
     const mapped = errorMessages[reason]

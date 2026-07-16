@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger'
 import { distanceKm, type Coordinates } from '@/lib/geo'
 import { SOFT_LAUNCH_MODE } from '@/types'
 import type { ProviderPlan, ProviderStatus } from '@/types'
+import { getProviderAllowance } from '@/lib/provider-allowance'
 
 const QUOTE_STALE_MINUTES = 15
 
@@ -19,6 +20,8 @@ type ProviderRow = {
   id: string
   status: ProviderStatus
   plan: ProviderPlan
+  jobs_this_month: number | null
+  job_credit_balance: number | null
 }
 
 type RequestRow = {
@@ -28,6 +31,7 @@ type RequestRow = {
   location: { type: string; coordinates: [number, number] }
   destination_latitude: number | null
   destination_longitude: number | null
+  overage_cleared: boolean | null
 }
 
 type SubmitQuoteResult = {
@@ -70,9 +74,9 @@ export async function POST(req: NextRequest) {
     { data: request },
   ] = await Promise.all([
     supabase.from('users').select('role').eq('id', user.id).single(),
-    admin.from('providers').select('id, status, plan').eq('id', user.id).single<ProviderRow>(),
+    admin.from('providers').select('id, status, plan, jobs_this_month, job_credit_balance').eq('id', user.id).single<ProviderRow>(),
     admin.from('provider_locations').select('provider_id, location').eq('provider_id', user.id).gte('updated_at', onlineSince).maybeSingle<{ provider_id: string; location: { type: string; coordinates: [number, number] } }>(),
-    admin.from('requests').select('id, status, problem_type, location, destination_latitude, destination_longitude').eq('id', parsed.data.request_id).single<RequestRow>(),
+    admin.from('requests').select('id, status, problem_type, location, destination_latitude, destination_longitude, overage_cleared').eq('id', parsed.data.request_id).single<RequestRow>(),
   ])
 
   if (profile?.role !== 'provider') {
@@ -166,8 +170,43 @@ export async function POST(req: NextRequest) {
     distance_km: computedDistanceKm,
   })
 
+  // Migration 057 (Phase 3 Step 3): informational, non-blocking exhaustion
+  // warning. Lives here, not in submit_quote_atomic -- the RPC's contract is
+  // unchanged by design (see 057's migration header). Data was already
+  // fetched pre-RPC (provider/request Promise.all above) and is unaffected
+  // by submit_quote_atomic (it never touches jobs_this_month/
+  // job_credit_balance/overage_cleared), so no extra query is needed.
+  // Best-effort by design: a failure here must never turn an already-created
+  // quote into an error response -- the quote exists; retrying would just
+  // hit already_quoted.
+  let warningCode: string | undefined
+  try {
+    // Explicit plan check, not an assumption about the helper's null
+    // representation (finite monthly allowance = Starter/Pro only, never
+    // Business/PPJ).
+    const hasFiniteMonthlyLimit = provider.plan === 'starter' || provider.plan === 'pro'
+    if (hasFiniteMonthlyLimit) {
+      const allowance = getProviderAllowance({
+        plan: provider.plan,
+        jobsThisMonth: provider.jobs_this_month,
+        jobCreditBalance: provider.job_credit_balance,
+      })
+      if ((allowance.remaining ?? 0) === 0 && request.overage_cleared !== true) {
+        warningCode = 'monthly_allowance_exhausted'
+      }
+    }
+  } catch (warningError) {
+    logger.warn({
+      event: 'submit_quote_warning_lookup_failed',
+      provider_id: user.id,
+      request_id: parsed.data.request_id,
+      error: warningError instanceof Error ? warningError.message : 'unknown',
+    })
+  }
+
   return NextResponse.json({
     success: true,
     quote_id: result.quote_id,
+    ...(warningCode ? { warning_code: warningCode } : {}),
   })
 }

@@ -373,6 +373,7 @@
       "enterValidPrice": "Enter a valid price",
       "pricePlaceholder": "Price",
       "quoteSent": "Quote sent successfully",
+      "monthlyAllowanceExhausted": "Quote submitted, but you've reached your monthly allowance (including credits). Selection may require renewed monthly allowance or additional credits.",
       "quoteSubmitFailed": "Failed to submit quote",
       "tooManyAttempts": "Too many attempts. Please wait a moment.",
       "dailyQuoteLimitReached": "You've reached your daily quote limit — it resets tomorrow.",
@@ -411,7 +412,8 @@
       "expiresIn": "Expires in {minutes} min",
       "verified": "Verified",
       "selectFailed": "Failed to select quote",
-      "networkError": "Connection error"
+      "networkError": "Connection error",
+      "providerNoLongerAvailable": "This provider is no longer available. Please choose another quote."
     },
     "priceChangeNotification": {
       "title": "Price Change Request",
