@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { authorizeOpsRequest } from '@/lib/ops-auth'
 import { logger } from '@/lib/logger'
+import { notificationEvents } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -102,6 +103,7 @@ async function handleMonthlyAllowanceReset(req: NextRequest) {
   let resetCount = 0
   let skippedCount = 0
   let failedCount = 0
+  let anomalousNullPeriod = 0
   let loadFailed = false
   let offset = 0
 
@@ -125,6 +127,27 @@ async function handleMonthlyAllowanceReset(req: NextRequest) {
     if (!page || page.length === 0) break
 
     checked += page.length
+
+    // Phase 2: every row in `page` is already filtered to
+    // stripe_subscription_id IS NOT NULL (a real subscriber), so a NULL
+    // stripe_current_period_start here is a genuine data anomaly (the
+    // provider was never correctly initialized), not a normal exclusion.
+    // shouldResetProvider() already skips these from `due`; surface them via
+    // the existing alerting channel (logger + notificationEvents) instead of
+    // letting them disappear silently.
+    const nullPeriodAnomalies = page.filter((provider) => !provider.stripe_current_period_start)
+    if (nullPeriodAnomalies.length > 0) {
+      anomalousNullPeriod += nullPeriodAnomalies.length
+      for (const anomaly of nullPeriodAnomalies) {
+        logger.error({
+          event: notificationEvents.billingPeriodAnomaly,
+          provider_id: anomaly.id,
+          plan: anomaly.plan,
+          reason: 'subscribed_provider_missing_stripe_current_period_start',
+        })
+      }
+    }
+
     const duePage = page.filter(shouldResetProvider)
     due += duePage.length
 
@@ -147,6 +170,7 @@ async function handleMonthlyAllowanceReset(req: NextRequest) {
     providers_reset: resetCount,
     providers_skipped: skippedCount,
     providers_failed: failedCount,
+    providers_anomalous_null_period: anomalousNullPeriod,
     load_failed: loadFailed,
   })
 
@@ -162,6 +186,7 @@ async function handleMonthlyAllowanceReset(req: NextRequest) {
         providers_reset: resetCount,
         providers_skipped: skippedCount,
         providers_failed: failedCount,
+        providers_anomalous_null_period: anomalousNullPeriod,
       },
       { status: 500 }
     )
@@ -174,6 +199,7 @@ async function handleMonthlyAllowanceReset(req: NextRequest) {
     providers_reset: resetCount,
     providers_skipped: skippedCount,
     providers_failed: failedCount,
+    providers_anomalous_null_period: anomalousNullPeriod,
   })
 }
 

@@ -4,6 +4,7 @@ export const notificationEvents = {
   webhookFailed: 'stripe_webhook_failed',
   providerNeedsApproval: 'provider_needs_approval',
   subscriptionRequiresAttention: 'subscription_requires_attention',
+  billingPeriodAnomaly: 'billing_period_anomaly',
 } as const
 
 export type NotificationEvent = (typeof notificationEvents)[keyof typeof notificationEvents]

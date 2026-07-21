@@ -294,6 +294,45 @@ function resolveSubscriptionPlan(subscription: Stripe.Subscription): {
   return { plan: null, source: 'unresolved', priceIds }
 }
 
+// Phase 2 billing-period fix (root cause): Stripe's SDK/API (v22 / 2025+)
+// moved current_period_start/current_period_end off the top-level
+// Subscription object onto each subscription item (verified against
+// node_modules/stripe's type definitions -- Stripe.Subscription no longer
+// declares these fields; Stripe.SubscriptionItem does). Reading them off
+// `subscription` therefore always resolved to undefined, so
+// stripe_current_period_start/end were silently written NULL on every
+// activation and renewal. This resolver reads the period off the single
+// subscription item whose price matches PLAN_BY_PRICE_ID -- the same
+// authoritative price-ID source already used for plan resolution above.
+// Zero or multiple matches is an anomaly: callers must not silently write a
+// billing date in that case.
+function resolveSubscriptionPeriod(subscription: Stripe.Subscription): {
+  periodStart: string | null
+  periodEnd: string | null
+  matchedItemCount: number
+} {
+  const items = subscription.items?.data ?? []
+  const matched = items.filter((item) => {
+    const price = item.price
+    const priceId = typeof price === 'string' ? price : price?.id
+    return Boolean(priceId && PLAN_BY_PRICE_ID.has(priceId))
+  })
+
+  if (matched.length !== 1) {
+    return { periodStart: null, periodEnd: null, matchedItemCount: matched.length }
+  }
+
+  const item = matched[0] as Stripe.SubscriptionItem & {
+    current_period_start: number
+    current_period_end: number
+  }
+  return {
+    periodStart: stripeUnixToIso(item.current_period_start),
+    periodEnd: stripeUnixToIso(item.current_period_end),
+    matchedItemCount: 1,
+  }
+}
+
 function handledStripeEventType(type: string): boolean {
   return [
     'customer.subscription.created',
@@ -619,12 +658,29 @@ async function processStripeEvent(
       return 'pending'
     }
     const resolvedPlan = resolveSubscriptionPlan(sub)
-    const subscriptionWithPeriod = sub as Stripe.Subscription & {
-      current_period_start?: number
-      current_period_end?: number
+    const resolvedPeriod = resolveSubscriptionPeriod(sub)
+
+    if (resolvedPeriod.matchedItemCount !== 1) {
+      // Phase 2: zero or multiple matched items means the price-ID mapping
+      // (PLAN_BY_PRICE_ID) cannot deterministically identify this
+      // subscription's billing period. No silent billing-date write -- fail
+      // loudly so the event is recorded as failed (Stripe retries) and an
+      // admin can fix the price-ID env vars.
+      logger.error({
+        event: 'stripe_subscription_period_unresolved',
+        stripe_subscription_id: sub.id,
+        stripe_customer_id: stripeCustomerId,
+        matched_item_count: resolvedPeriod.matchedItemCount,
+        price_ids: resolvedPlan.priceIds,
+      })
+      throw new Error(
+        `Unable to resolve billing period for subscription ${sub.id} ` +
+          `(matched ${resolvedPeriod.matchedItemCount} item(s) against configured price IDs, expected exactly 1).`
+      )
     }
-    const currentPeriodStart = stripeUnixToIso(subscriptionWithPeriod.current_period_start)
-    const currentPeriodEnd = stripeUnixToIso(subscriptionWithPeriod.current_period_end)
+
+    const currentPeriodStart = resolvedPeriod.periodStart
+    const currentPeriodEnd = resolvedPeriod.periodEnd
     const updatePayload: {
       status: string
       stripe_subscription_id: string
@@ -686,7 +742,11 @@ async function processStripeEvent(
       const oldPlan = existingProvider.plan
       const newPlan = resolvedPlan.plan
       const isUpgrade = planTier(newPlan) > planTier(oldPlan)
-      const bonusKey = `${sub.id}:${currentPeriodStart ?? 'no-period'}:${oldPlan}->${newPlan}`
+      // Phase 2: currentPeriodStart is guaranteed non-null here -- the function
+      // already throws above when the billing period cannot be resolved. The
+      // previous 'no-period' fallback produced a degraded key that could never
+      // distinguish two different real periods.
+      const bonusKey = `${sub.id}:${currentPeriodStart}:${oldPlan}->${newPlan}`
       const bonusAlreadyApplied = existingProvider.last_upgrade_bonus_key === bonusKey
       const oldAllowance = monthlyJobAllowance(oldPlan)
 
@@ -726,6 +786,46 @@ async function processStripeEvent(
       price_ids: resolvedPlan.priceIds,
       subscription_status: sub.status,
     })
+
+    // Phase 2 (Q3): first-subscription initialization. This is the ONLY place
+    // that ever zeroes jobs_this_month / sets jobs_reset_at for a brand-new
+    // subscriber -- it runs once per provider, ever. The RPC re-validates
+    // status = 'active' (the app's one authoritative activated status) and
+    // first_activation_at IS NULL against the just-committed row, so a
+    // duplicate/retried webhook delivery for the same event is a safe no-op.
+    // CRITICAL: the ordinary renewal path above (an already-initialized
+    // provider) never reaches this branch a second time with effect --
+    // job_credit_balance is never touched here, and jobs_reset_at is never
+    // advanced by this webhook for a renewal (only by this one-time RPC or
+    // by the monthly reset cron), so a renewal can never make the cron think
+    // the new period was already reset.
+    if (updatePayload.status === 'active' && existingProvider) {
+      const { data: initRows, error: initError } = await supabase.rpc(
+        'initialize_first_subscription_atomic',
+        {
+          p_provider_id: existingProvider.id,
+          p_period_start: currentPeriodStart,
+          p_period_end: currentPeriodEnd,
+        }
+      )
+
+      if (initError) {
+        throw new Error(`Failed to run first-subscription initialization: ${initError.message}`)
+      }
+
+      const initResult =
+        (initRows as { success: boolean; initialized: boolean; reason: string }[] | null)?.[0] ?? null
+
+      if (initResult?.initialized) {
+        logger.info({
+          event: 'subscription_first_activation_initialized',
+          provider_id: existingProvider.id,
+          stripe_subscription_id: sub.id,
+          period_start: currentPeriodStart,
+          period_end: currentPeriodEnd,
+        })
+      }
+    }
 
     if (updatePayload.status === 'suspended') {
       logger.warn({
