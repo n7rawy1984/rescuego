@@ -452,6 +452,37 @@ These are the grouping buckets the items below map to. They run **after** the se
 
 ---
 
+### P21 — Deeper cancellation-attribution branching defect (independent of Phase 2 billing-period work)
+- **Type:** State machine / Schema
+- **Priority:** Medium
+- **Severity:** Operational (affects which counter/attribution a cancellation is recorded against, not billing correctness itself)
+- **Effort:** Unknown — needs a dedicated read-only investigation before sizing
+- **Target batch:** Not yet assigned
+- **Target release:** TBD
+- **Status:** OPEN — flagged during the July 22, 2026 Phase 2 billing-period integrity work, NOT investigated in technical depth as part of that work or this documentation update.
+- **Detail:** During the Phase 2 billing-period integrity session (migrations 058/059), a separate, independent defect in how job cancellations are attributed was noted — distinct from the billing-period/first-activation issue that session actually fixed. `providers.provider_side_cancellation_count` and `providers.unable_to_complete_count` (both protected by the migration-039/058 immutable-column trigger) are the two relevant counters; the exact branching logic that decides which counter increments for a given cancellation path has not yet been traced end-to-end in this documentation pass — a repo search this session found these two columns referenced only inside migration SQL (009, 020, 028, 039, 040, 042, 058) and `src/types/database.ts`, with no application-layer call site found by that search. **This entry is a placeholder to not lose the finding, not a confirmed root-cause writeup.**
+- **Owner decision:** Deferred — out of scope for the Phase 2 billing-period batch (058/059), which was scoped strictly to activation/renewal period-date integrity and first-activation initialization.
+- **Required before this can be sized:** a dedicated read-only trace of every write site for `provider_side_cancellation_count` and `unable_to_complete_count` across all cancellation/release paths (customer cancel, provider release, SLA auto-release, stuck-job auto-release), confirming whether the correct counter is attributed to the correct actor/path in every branch.
+- **QA scenario (for the future investigation, not now):**
+  1. Trigger each distinct cancellation/release path (customer-initiated cancel, provider-initiated release, SLA timeout auto-release, stuck-job auto-release) against a test provider.
+  - **Expected (once investigated):** each path increments the counter that correctly attributes responsibility for that specific cancellation; misattribution in any branch is the defect to confirm or rule out.
+
+### P22 — Billing-period renewal path: runtime verification pending (real or Stripe Test-Clock renewal cycle)
+- **Type:** Payments / State machine
+- **Priority:** High
+- **Severity:** Operational (the fix is code-complete and applied; only the proof is missing)
+- **Effort:** S (requires either waiting for a real Stripe renewal or driving a Stripe Test Clock)
+- **Target batch:** Follow-up to Phase 2 Billing-Period Integrity (migrations 058/059)
+- **Target release:** Before this fix can be considered fully proven
+- **Status:** OPEN — pending task, not a known defect
+- **Detail:** The July 22, 2026 production runtime test for the Phase 2 billing-period fix (`resolveSubscriptionPeriod()`, `initialize_first_subscription_atomic`) only exercised the **activation/upgrade** branch (a new provider completing a job then upgrading to Starter via checkout). The **renewal** branch — an already-`first_activation_at`-initialized provider's subscription renewing on its normal cycle — has not been exercised since the fix shipped. Code inspection (`src/app/api/stripe/webhook/route.ts:684-697`) confirms the renewal `updatePayload` object writes only `status`, `stripe_subscription_id`, `stripe_current_period_start`, `stripe_current_period_end` (plus `plan`/`job_credit_balance`/`last_upgrade_bonus_key` only inside the upgrade branch) and never `jobs_this_month`/`jobs_reset_at`/`first_activation_at` — but this is a code-level guarantee, not a runtime-confirmed one.
+- **Owner decision:** Pending — see `PROJECT_STATUS.md` §6 "Billing-Period Integrity (Phase 2)" for full detail. Do not mark the renewal path as runtime-verified until this test is run.
+- **QA scenario:**
+  1. Drive a real elapsed billing period, or a Stripe Test Clock, to fire a `customer.subscription.updated` renewal event for an already-initialized provider.
+  - **Expected:** fresh `stripe_current_period_start/end` are written; `jobs_this_month`, `jobs_reset_at`, and `first_activation_at` are all left untouched by this event (they only change via the monthly-reset cron or a future first-activation, which cannot re-fire for this provider).
+
+---
+
 ## Open questions for the owner (resolve before the Pricing & Destination batch)
 
 1. **Pricing model (now clearer):** The new model must measure TWO distance legs — provider→breakdown location AND breakdown→destination — not the single leg the current formula uses. Final formula after consulting real recovery operators — distance-based (two-leg), flat per emirate pair, or hybrid? (Affects P1 + P2 + the P9 restore/redesign together.)
@@ -470,3 +501,5 @@ These are the grouping buckets the items below map to. They run **after** the se
 *Update July 15, 2026 — Added P17 (bounded sliding selection window — deferred alternative to the newly approved `quoted_at`+20min binding decision, conceptual formula preserved) and P18 ("location not recorded" misleading copy shown despite coordinates existing, found during the PPJ quote-display live production test).*
 
 *Update July 16, 2026 — Added P19 (overage-payment economics redesign + re-evaluate submission-time blocking, deferred during the migration 057 / Phase 3 Step 3 design review — the current pre-submission overage path is unreachable dead code per LB-6, and the request-bound overage model has no refund/reuse if a provider pays and is never selected) and P20 (legacy overage-payment UI audit/retirement — `ProviderRequestList.tsx`'s orphaned 402 branch, `showOverageModal`, and `/provider/overage-pay` are dead code today; flagged for a dedicated cleanup pass, not removed as part of 057).*
+
+*Update July 22, 2026 — Added P21 (a separate, independent cancellation-attribution branching defect flagged during the Phase 2 billing-period integrity work — `provider_side_cancellation_count`/`unable_to_complete_count` write-site attribution not yet traced end-to-end; placeholder only, not a confirmed root-cause writeup) and P22 (Phase 2 billing-period fix's renewal path — code-complete, applied to production July 22, 2026 — is still pending a real or Stripe Test-Clock renewal-cycle runtime test; only the activation/upgrade branch has been runtime-verified so far). See `PROJECT_STATUS.md` §6 "Billing-Period Integrity (Phase 2)" and `SESSION_LOG.md`'s July 22, 2026 entry for full detail.*

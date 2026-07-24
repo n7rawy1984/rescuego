@@ -2,6 +2,56 @@
 
 ---
 
+## Session: July 22, 2026 — Phase 2 Billing-Period Integrity: root-cause fix, migrations 058/059, production apply + runtime verification
+
+### Root cause
+
+`src/app/api/stripe/webhook/route.ts` read `current_period_start`/`current_period_end` off the top-level Stripe `Subscription` object. Stripe's SDK/API (npm `stripe` v22 / API 2025+) moved these two fields off that object and onto each subscription item — the old read always resolved `undefined`, so `stripe_current_period_start`/`stripe_current_period_end` were silently written NULL on every activation and every renewal. Unfixed, this would have permanently broken the monthly `jobs_this_month` reset once real billing periods rolled over.
+
+**Phase 1 (prior to this session, ad hoc):** the 5 already-subscribed providers affected by the NULL-write bug were corrected directly via an ad hoc SQL fix against production, before any durable code or migration fix existed.
+
+### Phase 2 — what was built and applied this session
+
+1. **`resolveSubscriptionPeriod()`** (new function, `route.ts:309-334`) — reads the billing period off the single subscription item whose price matches `PLAN_BY_PRICE_ID`, the same authoritative price-ID source already used for plan resolution. Zero or multiple matched items throws (`route.ts:663-680`) instead of silently writing a NULL billing date — the event fails and Stripe retries, giving an admin a signal to fix the price-ID mapping.
+2. **`providers.first_activation_at`** marker column + mandatory backfill + immutable-column protection — **migration `058_phase2_billing_period_first_activation.sql`**. Backfill predicate: `plan IN ('starter','pro','business') AND stripe_subscription_id IS NOT NULL AND first_activation_at IS NULL`; matched and updated exactly 5 rows (the same 5 corrected in Phase 1). Statement order in the migration is ADD COLUMN → backfill UPDATE → `CREATE OR REPLACE` of migration 039's `enforce_providers_immutable_columns` (extended to also protect `first_activation_at`) — the backfill runs while the column is not yet protected by the trigger. Any matching row with a NULL `stripe_current_period_start` would abort the migration rather than invent a timestamp (none existed).
+3. **`initialize_first_subscription_atomic`** RPC (migration 058) — Option B: a single atomic conditional `UPDATE ... WHERE first_activation_at IS NULL AND status = 'active'` that runs exactly once per provider, ever. Zeroes `jobs_this_month` and sets `jobs_reset_at`/`stripe_current_period_start`/`stripe_current_period_end` to the real Stripe period, giving the provider a full monthly allowance from a clean baseline. Never touches `job_credit_balance`. `service_role`-only grant; called exclusively from the webhook (`route.ts:790-828`), immediately after the ordinary subscription-sync update commits, gated on `updatePayload.status === 'active' && existingProvider`.
+4. **`GREATEST(0, job_credit_balance - 1)`** floor guard — **migration `059_negative_credit_balance_guard.sql`**, `CREATE OR REPLACE` of `select_quote_atomic`'s single credit-decrement site. Defense-in-depth: the existing `job_credit_balance > 0` guard under the provider-row `FOR UPDATE` lock already made a negative value unreachable in practice. Grants restored exactly to the pre-059 baseline.
+5. **Upgrade-bonus key fix** (`route.ts:749`) — `` `${sub.id}:${currentPeriodStart}:${oldPlan}->${newPlan}` `` now uses the guaranteed-non-null real period start (the function throws earlier if the period cannot be resolved); previously `${currentPeriodStart ?? 'no-period'}`, which degraded the key's ability to distinguish two different real billing periods.
+
+### Verification before apply
+
+`npx tsc --noEmit` and `npm run lint` both exit 0 for the webhook change and both migrations, run prior to production apply.
+
+### Production apply and runtime test (July 22, 2026)
+
+Both migrations applied to production. Runtime test: a new PPJ provider (`f1d8fc11`) completed one job (`jobs_this_month=1`), then upgraded to Starter via a real Stripe checkout. Confirmed directly in the database:
+- `jobs_this_month = 0` (Option B counter zeroing fired)
+- `first_activation_at = 2026-07-22 05:17:04` (written by the RPC, once)
+- `stripe_current_period_start/end` and `jobs_reset_at` all written correctly (`05:16:58` / `2026-08-22` / `05:16:58`)
+- `job_credit_balance` untouched by the initialization RPC
+- Provider's dashboard showed the full 15 remaining (not 14)
+
+This proves, at runtime, for the **activation** path only: the webhook root-cause fix (real, non-null period dates written), the Option B first-subscription initialization (counter zeroed → full allowance), and the marker write.
+
+**Known, expected transitional artifact — not a bug:** one legacy provider who upgraded before this fix shipped still shows 14 remaining. It was already marked initialized by the Phase 1 manual backfill, so `initialize_first_subscription_atomic` correctly does not re-fire for it (by design). It will self-correct at its own next Stripe renewal.
+
+**What is NOT yet runtime-verified:** the renewal path (an already-initialized provider's subscription renewing — real elapsed period or a Stripe Test Clock) has not been exercised since this fix shipped; only the activation/upgrade branch was tested. Migration 059's `GREATEST(0, ...)` floor guard is applied but has not itself been exercised by any at-limit/credit-consumption scenario since it was applied — it remains an unproven defense-in-depth guard.
+
+### Out of scope, tracked separately
+
+A deeper, independent cancellation-attribution branching defect was noted during this work and is recorded in `DEFERRED_PRODUCT_BACKLOG.md` as its own item, not fixed as part of this batch. Renewal-path runtime verification is also recorded there as a pending task.
+
+### Files changed
+
+- `src/app/api/stripe/webhook/route.ts` — `resolveSubscriptionPeriod()`, period-read hard-fail, upgrade-bonus key fix, `initialize_first_subscription_atomic` RPC invocation
+- `supabase/migrations/058_phase2_billing_period_first_activation.sql` (new)
+- `supabase/migrations/059_negative_credit_balance_guard.sql` (new)
+- `PROJECT_STATUS.md` — §1, §3, new §6 "Billing-Period Integrity (Phase 2)" entry
+- `SESSION_LOG.md` (this entry)
+- `DEFERRED_PRODUCT_BACKLOG.md` — new items for the cancellation-attribution defect and renewal-path runtime verification
+
+---
+
 ## Session: July 15, 2026 — Binding expiry-rule decision, PPJ display investigation closed, read-only Phase 3 readiness audit
 
 ### Part 1 — Live production test result and binding decision
